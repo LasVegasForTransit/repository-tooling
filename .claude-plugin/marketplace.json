@@ -1,0 +1,14 @@
+{
+  "name": "lvbt",
+  "owner": {
+    "name": "Las Vegans for Better Transit"
+  },
+  "plugins": [
+    {
+      "name": "lvbt-contributions",
+      "description": "Create readable LVBT GitHub issues and pull requests.",
+      "version": "1.0.0",
+      "source": "./plugins/lvbt-contributions"
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "name": "lvbt-repository-tooling",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "check": "node --test"
+  }
+}
