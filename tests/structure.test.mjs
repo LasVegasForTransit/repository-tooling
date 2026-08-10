@@ -40,6 +40,7 @@ test('the issue forms require actionable information through native fields', asy
   assert.match(bug, /labels:\n  - bug/);
   assert.match(feature, /labels:\n  - enhancement/);
   assert.match(config, /blank_issues_enabled: false/);
+  assert.doesNotMatch(`${bug}\n${feature}`, /^title:\s*["']{2}\s*$/m);
   assert.doesNotMatch(`${bug}\n${feature}`, /transitmapper:|<!--/);
 });
 

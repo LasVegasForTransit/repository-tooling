@@ -1,6 +1,5 @@
 name: Bug report
 description: Report behavior that did not work as expected.
-title: ""
 labels:
   - bug
 body:

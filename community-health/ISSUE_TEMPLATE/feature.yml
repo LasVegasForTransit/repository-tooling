@@ -1,6 +1,5 @@
 name: Feature request
 description: Suggest an improvement or new capability.
-title: ""
 labels:
   - enhancement
 body:
