@@ -37,6 +37,10 @@ function choices(values) {
 }
 
 export function commitSubjectError(subject) {
+  if (subject.length > 72) {
+    return `Subject is ${subject.length} characters; the limit is 72 characters.`;
+  }
+
   const match = subjectPattern.exec(subject);
   if (!match?.groups) {
     return 'Use a conventional title: type(optional-scope): description.';

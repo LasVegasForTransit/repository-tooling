@@ -114,8 +114,8 @@ if (options.kind === 'issue') {
   } else fail('--type must be bug or feature.', 2);
 } else {
   const subjectError = commitSubjectError(options.title);
-  if (options.title.length > 72 || subjectError) {
-    fail(subjectError ?? 'Pull request titles must be at most 72 characters.');
+  if (subjectError) {
+    fail(subjectError);
   }
   validateSections(body, ['TL;DR', 'Overview of Changes'], ['Follow-ups']);
   if (!headings(body).some(({ title }) => title === 'Follow-ups')) {

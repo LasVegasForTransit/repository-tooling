@@ -123,6 +123,15 @@ test('the shared validator rejects an invented scope', () => {
   assert.match(result.stderr, /scope.*contributing.*allowed/i);
 });
 
+test('the shared validator rejects a subject longer than 72 characters', () => {
+  const subject = `chore(repo): ${'a'.repeat(61)}`;
+  const result = validateSubject(subject);
+
+  assert.equal(subject.length, 74);
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /72 characters/i);
+});
+
 test('the source repository commit hook rejects an invented scope', async () => {
   const hook = path.join(repositoryRoot, '.githooks/commit-msg');
   const message = await commitMessageFile(
