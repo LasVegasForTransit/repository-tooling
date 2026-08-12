@@ -20,7 +20,10 @@ unfinished product or reliability objectives rather than repository chores.
 Conventional `feat` titles are reserved for capabilities people can use or
 observe; internal groundwork uses a more precise type.
 
-Commit scopes are optional. The complete organization list is `web`, `worker`, `core`, `pwa`, `tooling`, `ci`, `deps`, and `repo`. Each names a durable repository boundary. A cross-boundary change omits its scope; a feature name, file name, task name, or contributor role is never a scope.
+Commit scopes are optional. The complete organization list is `web`, `worker`,
+`core`, `pwa`, `dx`, `tooling`, and `ci`. Each names a durable repository
+boundary. A cross-boundary change omits its scope; a feature name, file name,
+task name, or contributor role is never a scope.
 
 Run the complete local check with:
 

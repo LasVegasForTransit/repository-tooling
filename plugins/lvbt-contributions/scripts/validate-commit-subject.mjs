@@ -10,10 +10,9 @@ export const commitScopes = Object.freeze([
   'worker',
   'core',
   'pwa',
+  'dx',
   'tooling',
   'ci',
-  'deps',
-  'repo',
 ]);
 
 export const commitTypes = Object.freeze([
