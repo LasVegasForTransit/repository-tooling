@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { access, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import test from 'node:test';
 
@@ -14,13 +14,7 @@ test('the pull request template stays human-readable and exact', async () => {
 
 # Overview of Changes
 
-## [subheading if needed]
-
-## [more subheadings if needed]
-
 # Follow-ups
-
-- [ ] Future issue title if needed
 `,
   );
   assert.doesNotMatch(template, /<!--/);
@@ -65,6 +59,54 @@ test('both harness manifests publish one plugin version', async () => {
   assert.equal(codex.name, 'lvbt-contributions');
   assert.equal(claude.name, codex.name);
   assert.equal(claude.version, codex.version);
+});
+
+test('the source repository uses the TransitMapper package-manager contract', async () => {
+  const packageJson = JSON.parse(await read('package.json'));
+  const readme = await read('README.md');
+  const agents = await read('AGENTS.md');
+
+  assert.equal(packageJson.packageManager, 'pnpm@11.15.1');
+  assert.equal(packageJson.scripts.prepare, 'git config --local core.hooksPath .githooks');
+  await access(path.join(root, 'pnpm-lock.yaml'));
+  assert.match(readme, /pnpm check/);
+  assert.doesNotMatch(readme, /npm run check/);
+  assert.match(agents, /pnpm check/);
+  assert.doesNotMatch(agents, /npm run check/);
+});
+
+test('continuous integration uses the same pnpm setup contract', async () => {
+  const workflow = await read('.github/workflows/ci.yml');
+  const setup = await read('.github/actions/setup-node-pnpm/action.yml');
+
+  assert.match(workflow, /uses: \.\/\.github\/actions\/setup-node-pnpm/);
+  assert.match(workflow, /run: pnpm check/);
+  assert.doesNotMatch(workflow, /npm run check/);
+  assert.match(setup, /pnpm\/action-setup@/);
+  assert.match(setup, /cache: pnpm/);
+  assert.match(setup, /pnpm install --frozen-lockfile/);
+});
+
+test('the source repository installs the shared commit-subject validator', async () => {
+  const hook = await read('.githooks/commit-msg');
+  const prePush = await read('.githooks/pre-push');
+
+  assert.match(hook, /validate-commit-subject\.mjs/);
+  assert.match(prePush, /pnpm check/);
+});
+
+test('the contribution policy publishes one closed list of scopes', async () => {
+  const readme = await read('README.md');
+  const skill = await read(
+    'plugins/lvbt-contributions/skills/github-contribution/SKILL.md',
+  );
+
+  assert.match(
+    readme,
+    /`web`, `worker`, `core`, `pwa`, `tooling`, `ci`, `deps`, and `repo`/,
+  );
+  assert.match(readme, /commit scopes are optional/i);
+  assert.match(skill, /`web`, `worker`, `core`, `pwa`, `tooling`, `ci`, `deps`, and `repo`/);
 });
 
 test('the ruleset requires only the repository Validate check', async () => {
