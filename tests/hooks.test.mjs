@@ -108,23 +108,23 @@ test('ordinary GitHub reads remain available', () => {
   assert.deepEqual(JSON.parse(result.stdout), {});
 });
 
-test('the shared validator accepts a closed repository scope', () => {
-  const result = validateSubject('chore(repo): standardize contribution tooling');
+test('the shared validator accepts the developer-experience scope', () => {
+  const result = validateSubject('chore(dx): standardize contribution tooling');
 
   assert.equal(result.status, 0, result.stderr);
 });
 
-test('the shared validator rejects an invented scope', () => {
+test('the shared validator rejects catch-all scopes', () => {
   const result = validateSubject(
-    'chore(contributing): standardize contribution tooling',
+    'chore(repo): standardize contribution tooling',
   );
 
   assert.equal(result.status, 1);
-  assert.match(result.stderr, /scope.*contributing.*allowed/i);
+  assert.match(result.stderr, /scope.*repo.*allowed/i);
 });
 
 test('the shared validator rejects a subject longer than 72 characters', () => {
-  const subject = `chore(repo): ${'a'.repeat(61)}`;
+  const subject = `chore(dx): ${'a'.repeat(63)}`;
   const result = validateSubject(subject);
 
   assert.equal(subject.length, 74);

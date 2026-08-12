@@ -103,10 +103,10 @@ test('the contribution policy publishes one closed list of scopes', async () => 
 
   assert.match(
     readme,
-    /`web`, `worker`, `core`, `pwa`, `tooling`, `ci`, `deps`, and `repo`/,
+    /`web`, `worker`,\s+`core`, `pwa`, `dx`, `tooling`, and `ci`/,
   );
   assert.match(readme, /commit scopes are optional/i);
-  assert.match(skill, /`web`, `worker`, `core`, `pwa`, `tooling`, `ci`, `deps`, and `repo`/);
+  assert.match(skill, /`web`, `worker`, `core`, `pwa`, `dx`, `tooling`, or `ci`/);
 });
 
 test('the ruleset requires only the repository Validate check', async () => {

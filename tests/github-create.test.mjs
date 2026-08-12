@@ -124,7 +124,7 @@ visible without asking reviewers to infer the change from a file list.
   assert.equal(JSON.parse(result.stdout).valid, true);
 });
 
-test('a pull request title accepts a stable repository scope', async () => {
+test('a pull request title accepts the developer-experience scope', async () => {
   const file = await bodyFile(`# TL;DR
 
 People can rely on one contribution policy across repositories.
@@ -140,7 +140,7 @@ The repository-wide policy has one named owner.
   const result = run([
     'pr',
     '--title',
-    'chore(repo): standardize contribution tooling',
+    'chore(dx): standardize contribution tooling',
     '--body-file',
     file,
     '--dry-run',

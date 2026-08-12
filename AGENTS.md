@@ -12,6 +12,6 @@ creation. Do not call `gh issue create`, `gh pr create`, or equivalent API or
 connector methods directly.
 
 Commit scopes are optional. When a change is confined to one durable boundary,
-use only `web`, `worker`, `core`, `pwa`, `tooling`, `ci`, `deps`, or `repo`.
+use only `web`, `worker`, `core`, `pwa`, `dx`, `tooling`, or `ci`.
 Do not invent a scope for a feature, file, or task; omit it when the change
 crosses boundaries.
