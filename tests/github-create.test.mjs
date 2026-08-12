@@ -99,16 +99,16 @@ Add a useful improvement.
 test('a readable pull request body passes the conventional title rule', async () => {
   const file = await bodyFile(`# TL;DR
 
-Restore the organization contribution workflow.
+People opening an LVBT pull request receive one readable contribution shape.
 
 # Overview of Changes
 
-## Verification
-
-Ran the repository check.
+The shared template keeps the summary, rationale, and unfinished product work
+visible without asking reviewers to infer the change from a file list.
 
 # Follow-ups
 
+- [ ] Publish the revised organization contribution template
 `);
   const result = run([
     'pr',
@@ -122,6 +122,57 @@ Ran the repository check.
 
   assert.equal(result.status, 0, result.stderr);
   assert.equal(JSON.parse(result.stdout).valid, true);
+});
+
+test('a pull request title accepts a stable repository scope', async () => {
+  const file = await bodyFile(`# TL;DR
+
+People can rely on one contribution policy across repositories.
+
+# Overview of Changes
+
+The repository-wide policy has one named owner.
+
+# Follow-ups
+
+- [ ] Publish the shared policy
+`);
+  const result = run([
+    'pr',
+    '--title',
+    'chore(repo): standardize contribution tooling',
+    '--body-file',
+    file,
+    '--dry-run',
+  ]);
+
+  assert.equal(result.status, 0, result.stderr);
+});
+
+test('a pull request title rejects an invented scope', async () => {
+  const file = await bodyFile(`# TL;DR
+
+People can rely on one contribution policy across repositories.
+
+# Overview of Changes
+
+The repository-wide policy has one named owner.
+
+# Follow-ups
+
+- [ ] Publish the shared policy
+`);
+  const result = run([
+    'pr',
+    '--title',
+    'chore(contributing): standardize contribution tooling',
+    '--body-file',
+    file,
+    '--dry-run',
+  ]);
+
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /scope.*contributing.*allowed/i);
 });
 
 test('a non-conventional pull request title is rejected', async () => {

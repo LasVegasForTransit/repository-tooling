@@ -14,10 +14,18 @@ The tooling guides people with native GitHub forms and readable Markdown.
 Agent-only guardrails prevent an agent from bypassing those same templates;
 they do not add hidden metadata or GitHub-side prose validation.
 
+Pull requests lead with the outcome for a person using the product, then
+explain the material behavior or trade-off in complete prose. Follow-ups name
+unfinished product or reliability objectives rather than repository chores.
+Conventional `feat` titles are reserved for capabilities people can use or
+observe; internal groundwork uses a more precise type.
+
+Commit scopes are optional. The complete organization list is `web`, `worker`, `core`, `pwa`, `tooling`, `ci`, `deps`, and `repo`. Each names a durable repository boundary. A cross-boundary change omits its scope; a feature name, file name, task name, or contributor role is never a scope.
+
 Run the complete local check with:
 
 ```bash
-npm run check
+pnpm check
 ```
 
 TransitMapper is the reference consumer. Repository-specific rules may add to
