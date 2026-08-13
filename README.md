@@ -32,6 +32,8 @@ Run the complete local check with:
 pnpm check
 ```
 
-TransitMapper is the reference consumer. Repository-specific rules may add to
-the organization standard, but weakening it requires a documented exception in
+TransitMapper is the reference consumer. Repository scopes are complete local
+policy: the shared tooling supplies the subject grammar and enforcement path,
+not an organization-wide domain vocabulary. A repository that needs to weaken
+another shared contribution rule requires a documented exception in
 [`standards/repositories.json`](standards/repositories.json).
