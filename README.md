@@ -20,10 +20,11 @@ unfinished product or reliability objectives rather than repository chores.
 Conventional `feat` titles are reserved for capabilities people can use or
 observe; internal groundwork uses a more precise type.
 
-Commit scopes are optional. The complete organization list is `web`, `worker`,
-`core`, `pwa`, `dx`, `tooling`, and `ci`. Each names a durable repository
-boundary. A cross-boundary change omits its scope; a feature name, file name,
-task name, or contributor role is never a scope.
+Commit scopes are optional and repository-owned. Every consumer declares its
+durable boundaries in [`.lvbt/commit-scopes.txt`](.lvbt/commit-scopes.txt); the
+shared validator reads that file for both commit hooks and pull-request titles.
+A cross-boundary change omits its scope; a feature name, file name, task name,
+or contributor role is never a scope.
 
 Run the complete local check with:
 

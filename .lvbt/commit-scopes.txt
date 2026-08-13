@@ -1,0 +1,5 @@
+# One scope per durable boundary in this repository.
+# Omit a scope when a change crosses boundaries.
+tooling
+dx
+ci

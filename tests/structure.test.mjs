@@ -95,18 +95,21 @@ test('the source repository installs the shared commit-subject validator', async
   assert.match(prePush, /pnpm check/);
 });
 
-test('the contribution policy publishes one closed list of scopes', async () => {
+test('the contribution policy leaves scopes to each repository', async () => {
   const readme = await read('README.md');
   const skill = await read(
     'plugins/lvbt-contributions/skills/github-contribution/SKILL.md',
   );
-
-  assert.match(
-    readme,
-    /`web`, `worker`,\s+`core`, `pwa`, `dx`, `tooling`, and `ci`/,
+  const scopes = await read('.lvbt/commit-scopes.txt');
+  const commitTypes = await read(
+    'plugins/lvbt-contributions/standards/commit-types.txt',
   );
+
   assert.match(readme, /commit scopes are optional/i);
-  assert.match(skill, /`web`, `worker`, `core`, `pwa`, `dx`, `tooling`, or `ci`/);
+  assert.match(readme, /\.lvbt\/commit-scopes\.txt/);
+  assert.match(skill, /\.lvbt\/commit-scopes\.txt/);
+  assert.match(scopes, /^tooling$/m);
+  assert.match(commitTypes, /^feat$/m);
 });
 
 test('the ruleset requires only the repository Validate check', async () => {
