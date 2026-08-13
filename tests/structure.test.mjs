@@ -107,6 +107,8 @@ test('the contribution policy leaves scopes to each repository', async () => {
 
   assert.match(readme, /commit scopes are optional/i);
   assert.match(readme, /\.lvbt\/commit-scopes\.txt/);
+  assert.match(readme, /repository scopes are complete local\s+policy/i);
+  assert.doesNotMatch(readme, /rules may add to\s+the organization standard/i);
   assert.match(skill, /\.lvbt\/commit-scopes\.txt/);
   assert.match(scopes, /^tooling$/m);
   assert.match(commitTypes, /^feat$/m);
