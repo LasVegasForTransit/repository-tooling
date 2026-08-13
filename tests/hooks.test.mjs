@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -22,11 +22,21 @@ function run(adapter, payload) {
   });
 }
 
-function validateSubject(subject) {
+function validateSubject(subject, cwd = repositoryRoot) {
   return spawnSync(process.execPath, [subjectValidator, subject], {
-    cwd: repositoryRoot,
+    cwd,
     encoding: 'utf8',
   });
+}
+
+async function repositoryWithScopes(scopes) {
+  const directory = await mkdtemp(path.join(tmpdir(), 'lvbt-commit-scopes-'));
+  await mkdir(path.join(directory, '.lvbt'));
+  await writeFile(
+    path.join(directory, '.lvbt/commit-scopes.txt'),
+    `${scopes.join('\n')}\n`,
+  );
+  return directory;
 }
 
 async function commitMessageFile(subject) {
@@ -112,6 +122,33 @@ test('the shared validator accepts the developer-experience scope', () => {
   const result = validateSubject('chore(dx): standardize contribution tooling');
 
   assert.equal(result.status, 0, result.stderr);
+});
+
+test('the shared validator reads scopes from the calling repository', async () => {
+  const repository = await repositoryWithScopes(['network', 'operations']);
+  const accepted = validateSubject(
+    'fix(network): keep timed transfers visible',
+    repository,
+  );
+  const rejected = validateSubject(
+    'chore(dx): standardize contribution tooling',
+    repository,
+  );
+
+  assert.equal(accepted.status, 0, accepted.stderr);
+  assert.equal(rejected.status, 1);
+  assert.match(rejected.stderr, /scope.*dx.*allowed/i);
+});
+
+test('the shared validator requires each repository to declare its scopes', async () => {
+  const repository = await mkdtemp(path.join(tmpdir(), 'lvbt-commit-scopes-'));
+  const result = validateSubject(
+    'chore: standardize contribution tooling',
+    repository,
+  );
+
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /\.lvbt\/commit-scopes\.txt/);
 });
 
 test('the shared validator rejects catch-all scopes', () => {

@@ -11,7 +11,7 @@ Use the `github-contribution` skill and its helper for issue or pull request
 creation. Do not call `gh issue create`, `gh pr create`, or equivalent API or
 connector methods directly.
 
-Commit scopes are optional. When a change is confined to one durable boundary,
-use only `web`, `worker`, `core`, `pwa`, `dx`, `tooling`, or `ci`.
-Do not invent a scope for a feature, file, or task; omit it when the change
-crosses boundaries.
+Commit scopes are optional. The repository's [`.lvbt/commit-scopes.txt`](.lvbt/commit-scopes.txt)
+file is the complete list of durable boundaries for this repository. Do not
+invent a scope for a feature, file, or task; omit it when the change crosses
+boundaries.
