@@ -29,6 +29,7 @@ or contributor role is never a scope.
 Run the complete local check with:
 
 ```bash
+pnpm install --frozen-lockfile
 pnpm check
 ```
 
