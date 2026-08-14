@@ -49,16 +49,18 @@ test('the organization registry contains every active repository', async () => {
   assert.deepEqual(registry.exceptions, []);
 });
 
-test('both harness manifests publish one plugin version', async () => {
+test('all published plugin manifests agree on one release', async () => {
   const codex = JSON.parse(
     await read('plugins/lvbt-contributions/.codex-plugin/plugin.json'),
   );
   const claude = JSON.parse(
     await read('plugins/lvbt-contributions/.claude-plugin/plugin.json'),
   );
+  const marketplace = JSON.parse(await read('.claude-plugin/marketplace.json'));
   assert.equal(codex.name, 'lvbt-contributions');
   assert.equal(claude.name, codex.name);
   assert.equal(claude.version, codex.version);
+  assert.equal(marketplace.plugins[0].version, codex.version);
 });
 
 test('the source repository uses the TransitMapper package-manager contract', async () => {
@@ -110,7 +112,12 @@ test('the contribution policy leaves scopes to each repository', async () => {
   assert.match(readme, /repository scopes are complete local\s+policy/i);
   assert.doesNotMatch(readme, /rules may add to\s+the organization standard/i);
   assert.match(skill, /\.lvbt\/commit-scopes\.txt/);
-  assert.match(scopes, /^tooling$/m);
+  assert.match(scopes, /^community-health$/m);
+  assert.match(scopes, /^plugin$/m);
+  assert.match(scopes, /^ruleset$/m);
+  assert.match(scopes, /^ci$/m);
+  assert.match(scopes, /^dx$/m);
+  assert.doesNotMatch(scopes, /^(?:repo|deps|tooling)$/m);
   assert.match(commitTypes, /^feat$/m);
 });
 
