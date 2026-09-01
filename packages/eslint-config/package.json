@@ -1,0 +1,31 @@
+{
+  "name": "@lvbt/eslint-config",
+  "version": "0.2.0",
+  "description": "The ESLint flat config every LVBT repository uses: type-checked TypeScript rules with Prettier last.",
+  "license": "MIT",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/LasVegasForTransit/repository-tooling.git",
+    "directory": "packages/eslint-config"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com",
+    "access": "restricted"
+  },
+  "exports": {
+    ".": "./index.mjs"
+  },
+  "files": [
+    "index.mjs"
+  ],
+  "dependencies": {
+    "globals": "^17.12.0"
+  },
+  "peerDependencies": {
+    "@eslint/js": ">=10",
+    "eslint": ">=10",
+    "eslint-config-prettier": ">=10",
+    "typescript-eslint": ">=8"
+  }
+}

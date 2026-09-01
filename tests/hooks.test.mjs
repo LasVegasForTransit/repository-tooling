@@ -7,13 +7,10 @@ import test from 'node:test';
 
 const pluginRoot = path.resolve(
   import.meta.dirname,
-  '../plugins/lvbt-contributions',
+  '../packages/repository-tooling/plugins/lvbt-contributions',
 );
 const repositoryRoot = path.resolve(import.meta.dirname, '..');
-const subjectValidator = path.join(
-  pluginRoot,
-  'scripts/validate-commit-subject.mjs',
-);
+const subjectValidator = path.join(pluginRoot, 'scripts/validate-commit-subject.mjs');
 
 function run(adapter, payload) {
   return spawnSync(process.execPath, [path.join(pluginRoot, 'hooks', adapter)], {
@@ -32,10 +29,7 @@ function validateSubject(subject, cwd = repositoryRoot) {
 async function repositoryWithScopes(scopes) {
   const directory = await mkdtemp(path.join(tmpdir(), 'lvbt-commit-scopes-'));
   await mkdir(path.join(directory, '.lvbt'));
-  await writeFile(
-    path.join(directory, '.lvbt/commit-scopes.txt'),
-    `${scopes.join('\n')}\n`,
-  );
+  await writeFile(path.join(directory, '.lvbt/commit-scopes.txt'), `${scopes.join('\n')}\n`);
   return directory;
 }
 
@@ -61,10 +55,7 @@ test('the Codex hook blocks direct pull request creation', () => {
 
 test('the Codex plugin loads its Codex-specific hook configuration', async () => {
   const manifest = JSON.parse(
-    await readFile(
-      path.join(pluginRoot, '.codex-plugin/plugin.json'),
-      'utf8',
-    ),
+    await readFile(path.join(pluginRoot, '.codex-plugin/plugin.json'), 'utf8'),
   );
   assert.equal(manifest.hooks, './hooks/codex-hooks.json');
 
@@ -87,10 +78,7 @@ test('the Claude hook blocks direct issue creation through gh api', () => {
   });
 
   assert.equal(result.status, 0, result.stderr);
-  assert.equal(
-    JSON.parse(result.stdout).hookSpecificOutput.permissionDecision,
-    'deny',
-  );
+  assert.equal(JSON.parse(result.stdout).hookSpecificOutput.permissionDecision, 'deny');
 });
 
 test('connector creation tools are blocked', () => {
@@ -101,10 +89,7 @@ test('connector creation tools are blocked', () => {
   });
 
   assert.equal(result.status, 0, result.stderr);
-  assert.equal(
-    JSON.parse(result.stdout).hookSpecificOutput.permissionDecision,
-    'deny',
-  );
+  assert.equal(JSON.parse(result.stdout).hookSpecificOutput.permissionDecision, 'deny');
 });
 
 test('ordinary GitHub reads remain available', () => {
@@ -126,14 +111,8 @@ test('the shared validator accepts the developer-experience scope', () => {
 
 test('the shared validator reads scopes from the calling repository', async () => {
   const repository = await repositoryWithScopes(['network', 'operations']);
-  const accepted = validateSubject(
-    'fix(network): keep timed transfers visible',
-    repository,
-  );
-  const rejected = validateSubject(
-    'chore(dx): standardize contribution tooling',
-    repository,
-  );
+  const accepted = validateSubject('fix(network): keep timed transfers visible', repository);
+  const rejected = validateSubject('chore(dx): standardize contribution tooling', repository);
 
   assert.equal(accepted.status, 0, accepted.stderr);
   assert.equal(rejected.status, 1);
@@ -142,19 +121,14 @@ test('the shared validator reads scopes from the calling repository', async () =
 
 test('the shared validator requires each repository to declare its scopes', async () => {
   const repository = await mkdtemp(path.join(tmpdir(), 'lvbt-commit-scopes-'));
-  const result = validateSubject(
-    'chore: standardize contribution tooling',
-    repository,
-  );
+  const result = validateSubject('chore: standardize contribution tooling', repository);
 
   assert.equal(result.status, 1);
   assert.match(result.stderr, /\.lvbt\/commit-scopes\.txt/);
 });
 
 test('the shared validator rejects catch-all scopes', () => {
-  const result = validateSubject(
-    'chore(repo): standardize contribution tooling',
-  );
+  const result = validateSubject('chore(repo): standardize contribution tooling');
 
   assert.equal(result.status, 1);
   assert.match(result.stderr, /scope.*repo.*allowed/i);
@@ -171,9 +145,7 @@ test('the shared validator rejects a subject longer than 72 characters', () => {
 
 test('the source repository commit hook rejects an invented scope', async () => {
   const hook = path.join(repositoryRoot, '.githooks/commit-msg');
-  const message = await commitMessageFile(
-    'chore(contributing): standardize contribution tooling',
-  );
+  const message = await commitMessageFile('chore(contributing): standardize contribution tooling');
   const result = spawnSync(hook, [message], {
     cwd: repositoryRoot,
     encoding: 'utf8',

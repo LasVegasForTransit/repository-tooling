@@ -1,19 +1,19 @@
 # Adopt the organization tooling in a repository
 
 This guide installs the shared LVBT contribution tooling into a repository that does not have it
-yet: the `lvbt-contributions` agent plugin, the commit hooks, the harness wiring for Claude Code
-and Codex, the CI setup action, and the pin file that lets `pnpm check:repository-tooling` prove
-nothing drifted. Use it when you create a new repository or bring an older one up to the standard.
+yet: the `lvbt-contributions` agent plugin, the commit hooks, the harness wiring for Claude Code and
+Codex, the CI setup action, and the pin file that lets `pnpm check:repository-tooling` prove nothing
+drifted. Use it when you create a new repository or bring an older one up to the standard.
 
 ## Before you start
 
-- You have a checkout of the repository with a `package.json` that sets `"packageManager"` to a
-  pnpm version, for example `"pnpm@11.15.1"`.
+- You have a checkout of the repository with a `package.json` that sets `"packageManager"` to a pnpm
+  version, for example `"pnpm@11.15.1"`.
 - Node.js 24 or newer and git are installed. Nothing else is needed; the tooling has no
   dependencies.
-- You know the repository's durable commit scopes: the two to six boundaries a change can belong
-  to, such as `web`, `worker`, `docs`, `ci`, `dx`. A scope is never a feature, file, task, or role.
-  See [commit scopes](../reference/managed-files.md#commit-scopes) if unsure.
+- You know the repository's durable commit scopes: the two to six boundaries a change can belong to,
+  such as `web`, `worker`, `docs`, `ci`, `dx`. A scope is never a feature, file, task, or role. See
+  [commit scopes](../reference/managed-files.md#commit-scopes) if unsure.
 
 ## 1. Run `init` from the latest release
 
@@ -62,8 +62,8 @@ pnpm install
 pnpm check:repository-tooling
 ```
 
-`pnpm install` runs the `prepare` script the tool added, which points git at `.githooks`. The
-check prints one line when everything matches:
+`pnpm install` runs the `prepare` script the tool added, which points git at `.githooks`. The check
+prints one line when everything matches:
 
 ```
 repository tooling: lvbt-contributions 0.2.0 matches v0.2.0; managed files verified; organization templates are inherited.
@@ -103,6 +103,6 @@ already adopted the tooling. Follow [Update a repository](update-repository-tool
 **`Run this inside a repository that has a package.json`**: create a minimal one first with
 `{"name": "<repo>", "private": true, "packageManager": "pnpm@11.15.1"}`.
 
-**`check` says a file differs from the pinned release**: someone edited a managed file locally.
-Move the change into `LasVegasForTransit/repository-tooling` so every repository gets it, then
-restore the file with `pnpm repository-tooling:update --release <the pinned tag>`.
+**`check` says a file differs from the pinned release**: someone edited a managed file locally. Move
+the change into `LasVegasForTransit/repository-tooling` so every repository gets it, then restore
+the file with `pnpm repository-tooling:update --release <the pinned tag>`.

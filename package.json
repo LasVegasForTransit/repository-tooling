@@ -3,20 +3,37 @@
   "private": true,
   "version": "0.2.0",
   "type": "module",
+  "description": "Source of truth for the LVBT repository standard: shared packages and the generator that ejects it.",
   "packageManager": "pnpm@11.15.1",
   "engines": {
     "node": ">=24"
   },
-  "scripts": {
-    "check": "node --test --test-concurrency=1",
-    "prepare": "git config --local core.hooksPath .githooks"
-  },
   "bin": {
     "lvbt-repository-tooling": "bin/cli.mjs"
   },
-  "files": [
-    "bin",
-    "templates",
-    "plugins"
-  ]
+  "scripts": {
+    "check": "pnpm format:check && pnpm lint && pnpm test",
+    "check:fix": "pnpm format && pnpm lint:fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "test": "node --test --test-concurrency=1 'tests/**/*.test.mjs'",
+    "prepare": "git config --local core.hooksPath .githooks 2>/dev/null || true"
+  },
+  "devDependencies": {
+    "@eslint/js": "catalog:",
+    "@lvbt/eslint-config": "workspace:*",
+    "@lvbt/prettier-config": "workspace:*",
+    "@lvbt/repository-tooling": "workspace:*",
+    "@lvbt/tsconfig": "workspace:*",
+    "@lvbt/vitest-config": "workspace:*",
+    "@types/node": "catalog:",
+    "eslint": "catalog:",
+    "eslint-config-prettier": "catalog:",
+    "prettier": "catalog:",
+    "typescript": "catalog:",
+    "typescript-eslint": "catalog:",
+    "vitest": "catalog:"
+  }
 }

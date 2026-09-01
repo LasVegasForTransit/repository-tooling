@@ -1,0 +1,4 @@
+{
+  "extends": "@lvbt/tsconfig/browser.json",
+  "include": ["src", "tests"]
+}

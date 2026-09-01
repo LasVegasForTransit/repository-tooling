@@ -31,30 +31,31 @@ test('the issue forms require actionable information through native fields', asy
   for (const field of ['problem', 'proposed-change']) {
     assert.match(feature, new RegExp(`id: ${field}`));
   }
-  assert.match(bug, /labels:\n  - bug/);
-  assert.match(feature, /labels:\n  - enhancement/);
+  assert.match(bug, /labels:\n {2}- bug/);
+  assert.match(feature, /labels:\n {2}- enhancement/);
   assert.match(config, /blank_issues_enabled: false/);
   assert.doesNotMatch(`${bug}\n${feature}`, /^title:\s*["']{2}\s*$/m);
   assert.doesNotMatch(`${bug}\n${feature}`, /transitmapper:|<!--/);
 });
 
 test('the organization registry contains every active repository', async () => {
-  const registry = JSON.parse(
-    await read('standards/repositories.json'),
-  );
-  assert.deepEqual(
-    registry.repositories.map(({ name }) => name).sort(),
-    ['.github', 'analytics', 'repository-tooling', 'transit-mapper', 'website'],
-  );
+  const registry = JSON.parse(await read('standards/repositories.json'));
+  assert.deepEqual(registry.repositories.map(({ name }) => name).sort(), [
+    '.github',
+    'analytics',
+    'repository-tooling',
+    'transit-mapper',
+    'website',
+  ]);
   assert.deepEqual(registry.exceptions, []);
 });
 
 test('both harness manifests publish one plugin version', async () => {
   const codex = JSON.parse(
-    await read('plugins/lvbt-contributions/.codex-plugin/plugin.json'),
+    await read('packages/repository-tooling/plugins/lvbt-contributions/.codex-plugin/plugin.json'),
   );
   const claude = JSON.parse(
-    await read('plugins/lvbt-contributions/.claude-plugin/plugin.json'),
+    await read('packages/repository-tooling/plugins/lvbt-contributions/.claude-plugin/plugin.json'),
   );
   assert.equal(codex.name, 'lvbt-contributions');
   assert.equal(claude.name, codex.name);
@@ -67,7 +68,12 @@ test('the source repository uses the TransitMapper package-manager contract', as
   const agents = await read('AGENTS.md');
 
   assert.equal(packageJson.packageManager, 'pnpm@11.15.1');
-  assert.equal(packageJson.scripts.prepare, 'git config --local core.hooksPath .githooks');
+  // Tolerant of a missing .git so `npx github:LasVegasForTransit/repository-tooling`
+  // can install this package outside a checkout to bootstrap a new repository.
+  assert.equal(
+    packageJson.scripts.prepare,
+    'git config --local core.hooksPath .githooks 2>/dev/null || true',
+  );
   await access(path.join(root, 'pnpm-lock.yaml'));
   assert.match(readme, /pnpm check/);
   assert.doesNotMatch(readme, /npm run check/);
@@ -89,20 +95,22 @@ test('continuous integration uses the same pnpm setup contract', async () => {
 
 test('the source repository installs the shared commit-subject validator', async () => {
   const hook = await read('.githooks/commit-msg');
-  const prePush = await read('.githooks/pre-push');
+  const sharedHook = await read('packages/repository-tooling/hooks/commit-msg.sh');
+  const prePush = await read('packages/repository-tooling/hooks/pre-push.sh');
 
-  assert.match(hook, /validate-commit-subject\.mjs/);
+  assert.match(hook, /packages\/repository-tooling\/hooks\/commit-msg\.sh/);
+  assert.match(sharedHook, /validate-commit-subject\.mjs/);
   assert.match(prePush, /pnpm check/);
 });
 
 test('the contribution policy leaves scopes to each repository', async () => {
   const readme = await read('README.md');
   const skill = await read(
-    'plugins/lvbt-contributions/skills/github-contribution/SKILL.md',
+    'packages/repository-tooling/plugins/lvbt-contributions/skills/github-contribution/SKILL.md',
   );
   const scopes = await read('.lvbt/commit-scopes.txt');
   const commitTypes = await read(
-    'plugins/lvbt-contributions/standards/commit-types.txt',
+    'packages/repository-tooling/plugins/lvbt-contributions/standards/commit-types.txt',
   );
 
   assert.match(readme, /commit scopes are optional/i);
@@ -114,13 +122,23 @@ test('the contribution policy leaves scopes to each repository', async () => {
   assert.match(commitTypes, /^feat$/m);
 });
 
+test('the workspace catalog is the same baseline the generator writes', async () => {
+  const workspace = await read('pnpm-workspace.yaml');
+  const { catalog } = JSON.parse(await read('packages/repository-tooling/catalog.json'));
+  const block = workspace.slice(workspace.indexOf('catalog:\n') + 'catalog:\n'.length);
+  const entries = Object.fromEntries(
+    block
+      .split('\n')
+      .map((line) => /^ {2}'?([^':]+)'?: (\S+)$/.exec(line))
+      .filter(Boolean)
+      .map(([, name, version]) => [name, version]),
+  );
+  assert.deepEqual(entries, catalog);
+});
+
 test('the ruleset requires only the repository Validate check', async () => {
   const ruleset = JSON.parse(await read('standards/ruleset.json'));
-  const statusRule = ruleset.rules.find(
-    ({ type }) => type === 'required_status_checks',
-  );
-  assert.deepEqual(statusRule.parameters.required_status_checks, [
-    { context: 'Validate' },
-  ]);
+  const statusRule = ruleset.rules.find(({ type }) => type === 'required_status_checks');
+  assert.deepEqual(statusRule.parameters.required_status_checks, [{ context: 'Validate' }]);
   assert.deepEqual(ruleset.bypass_actors, []);
 });

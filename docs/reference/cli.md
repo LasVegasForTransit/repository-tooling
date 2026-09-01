@@ -1,57 +1,68 @@
 # Command reference
 
-The lifecycle CLI is `bin/cli.mjs` in this repository and `.lvbt/repository-tooling/cli.mjs` in
-every consumer. Consumers run the vendored copy so the check and the files it checks come from one
-release. It needs Node.js 24 or newer and git, and nothing from npm.
+The generator is the `lvbt-repository-tooling` binary of `@lvbt/repository-tooling`. In a repository
+that has installed the package, run it with `pnpm exec lvbt-repository-tooling`; the standard
+scripts `bootstrap`, `preflight`, and `deploy` call it for you. To generate a repository that has
+nothing installed yet, run the same binary from a release:
+`npx --yes github:LasVegasForTransit/repository-tooling#<tag> ...`.
+
+It needs Node.js 24 or newer and git, and nothing from a registry.
 
 ## Commands
 
-| Command  | Purpose                                                                                 | Exit code                   |
-| -------- | --------------------------------------------------------------------------------------- | --------------------------- |
-| `init`   | Vendor the managed files into a repository that has no pin, and scaffold the rest       | 0 done, 2 bad usage         |
-| `update` | Replace the managed files from another release and rewrite the pin                     | 0 done, 2 bad usage         |
-| `check`  | Verify the vendored files match the pin and the repository still wires them up          | 0 pass, 1 fail, 2 bad usage |
-| `help`   | Print usage                                                                             | 0                           |
+| Command     | Purpose                                                                  | Exit code                       |
+| ----------- | ------------------------------------------------------------------------ | ------------------------------- |
+| `init`      | Write the standard into this repository; existing files are skipped      | 0 done, 2 bad usage             |
+| `diff`      | Report standard files that are missing or differ from what `init` writes | 0 matches, 1 drift, 2 bad usage |
+| `apply`     | Overwrite the named files with the standard's version                    | 0 done, 2 bad usage             |
+| `bootstrap` | `pnpm install`, then `preflight`                                         | as preflight                    |
+| `preflight` | Check Node, pnpm, dependencies, hooks, scopes, and Cloudflare access     | 0 pass, 1 fail                  |
+| `deploy`    | `pnpm build`, then `pnpm exec wrangler deploy`                           | 0 done, 2 nothing to deploy     |
+| `help`      | Print usage                                                              | 0                               |
 
 ## Options
 
-| Option              | Applies to     | Meaning                                                                                                   |
-| ------------------- | -------------- | --------------------------------------------------------------------------------------------------------- |
-| `--scopes <a,b,c>`  | `init`         | Required. Lowercase, hyphenated commit scopes written to `.lvbt/commit-scopes.txt`.                       |
-| `--release <tag>`   | `init`, `update` | Clone this tag of `LasVegasForTransit/repository-tooling` and vendor from it.                            |
-| `--source <dir>`    | `init`, `update` | Vendor from a local checkout instead of cloning. Used by tests and when developing the tooling itself.    |
-| `--ref <tag>`       | `init`, `update` | Tag name to record in the pin when `--source` is not checked out at a tag.                               |
-| `--dry-run`         | `init`, `update` | Print the plan and write nothing.                                                                        |
+| Option             | Applies to                | Meaning                                                                        |
+| ------------------ | ------------------------- | ------------------------------------------------------------------------------ |
+| `--profile <name>` | `init`, `diff`, `apply`   | `package`, `site`, or `app`. Required for `init`; otherwise inferred from deps |
+| `--scopes <a,b,c>` | `init`                    | Required. Lowercase, hyphenated commit scopes for `.lvbt/commit-scopes.txt`    |
+| `--local <dir>`    | `init`                    | Write `link:` dependencies to a local checkout instead of git-tag dependencies |
+| `--dry-run`        | `init`, `apply`, `deploy` | Print what would happen and change nothing                                     |
 
-When neither `--release` nor `--source` is given, `init` run from a checkout of this repository
-vendors from that checkout; run from a consumer it fails and asks for `--release`.
+`diff` and `apply` infer the profile: `astro` in the dependencies means `site`, `vite` means `app`,
+anything else means `package`. Pass `--profile` to override.
 
-## Consumer package scripts
+## Preflight checks
 
-`init` adds these to `package.json`, and `check` requires them:
+| Check         | Passes when                                       | Fix it prints                                |
+| ------------- | ------------------------------------------------- | -------------------------------------------- |
+| Node.js       | the running version satisfies `engines.node`      | install Node.js 24                           |
+| pnpm          | `pnpm --version` equals `packageManager`          | `corepack prepare pnpm@<version> --activate` |
+| dependencies  | `node_modules` exists                             | `pnpm install`                               |
+| git hooks     | `core.hooksPath` is `.githooks`                   | `pnpm install` (the prepare script sets it)  |
+| commit scopes | `.lvbt/commit-scopes.txt` exists                  | `init --profile ... --scopes ...`            |
+| Cloudflare    | no wrangler config, or `wrangler whoami` succeeds | `pnpm exec wrangler login`                   |
 
-| Script                      | Command                                        |
-| --------------------------- | ---------------------------------------------- |
-| `prepare`                   | `git config --local core.hooksPath .githooks`  |
-| `check:repository-tooling`  | `node .lvbt/repository-tooling/cli.mjs check`  |
-| `repository-tooling:update` | `node .lvbt/repository-tooling/cli.mjs update` |
+## Standard scripts
 
-An existing `prepare` script that does not already set the hooks path is prefixed with the
-command rather than replaced.
+`init` adds these to `package.json` without replacing scripts that already exist.
 
-## What `check` verifies
+| Script                    | Every profile                                                   |
+| ------------------------- | --------------------------------------------------------------- |
+| `bootstrap`               | `lvbt-repository-tooling bootstrap`                             |
+| `preflight`               | `lvbt-repository-tooling preflight`                             |
+| `check`                   | `pnpm format:check && pnpm lint && pnpm typecheck && pnpm test` |
+| `check:fix`               | `pnpm format && pnpm lint:fix`                                  |
+| `format` / `format:check` | `prettier --write .` / `prettier --check .`                     |
+| `lint` / `lint:fix`       | `eslint .` / `eslint . --fix`                                   |
+| `typecheck`               | `tsc --noEmit -p tsconfig.json`                                 |
+| `test` / `test:watch`     | `vitest run` / `vitest`                                         |
+| `prepare`                 | `git config --local core.hooksPath .githooks`                   |
 
-Each failure prints on its own line, prefixed `repository tooling:`, and names the fix.
-
-1. `.lvbt/repository-tooling.json` exists, uses schema 2, and points at the organization repository.
-2. Every file under the managed paths hashes to what the pin recorded; a mismatch names the files.
-3. Both plugin manifests name the pinned plugin and version.
-4. `.claude/settings.json` registers the `lvbt` marketplace at the pinned ref and enables the plugin.
-5. `.agents/plugins/marketplace.json` loads the vendored plugin; `.codex/hooks.json` runs the guard.
-6. The managed hooks exist and are executable.
-7. `.lvbt/commit-scopes.txt` exists with valid, unique scopes.
-8. `package.json` pins pnpm and carries the three consumer scripts.
-9. A workflow under `.github/workflows/` has a job named `Validate` that runs `pnpm check`.
-10. `AGENTS.md` requires the `github-contribution` skill and `github-create.mjs` helper.
-11. No local `.github/ISSUE_TEMPLATE/` or `.github/pull_request_template.md` shadows the
-    organization defaults.
+| Script     | `package`                    | `site`                           | `app`                            |
+| ---------- | ---------------------------- | -------------------------------- | -------------------------------- |
+| `dev`      |                              | `astro dev`                      | `vite`                           |
+| `build`    | `tsc -p tsconfig.build.json` | `astro build`                    | `vite build`                     |
+| `preview`  |                              | `astro preview`                  | `vite preview`                   |
+| `deploy`   |                              | `lvbt-repository-tooling deploy` | `lvbt-repository-tooling deploy` |
+| `test:e2e` |                              | `playwright test`                | `playwright test`                |
