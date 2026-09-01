@@ -14,7 +14,7 @@ function git(cwd, ...args) {
   return result.stdout.trim();
 }
 
-async function isSourceCheckout(directory) {
+export async function isSourceCheckout(directory) {
   return (
     (await exists(path.join(directory, 'bin/cli.mjs'))) &&
     (await exists(path.join(directory, 'templates/managed'))) &&

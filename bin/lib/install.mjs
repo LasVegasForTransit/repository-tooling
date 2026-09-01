@@ -10,7 +10,7 @@ import {
   managedPaths,
   scaffoldedPaths,
 } from './manifest.mjs';
-import { resolveSource } from './source.mjs';
+import { isSourceCheckout, resolveSource } from './source.mjs';
 
 const scopePattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
@@ -59,6 +59,15 @@ function packageScripts(existing) {
 }
 
 export async function install({ command, cwd, cliRoot, options }) {
+  // The managed paths are the same relative paths in the source repository, so
+  // running here would delete the source before copying it onto itself.
+  if (await isSourceCheckout(cwd)) {
+    throw new CliError(
+      `${cwd} is a repository-tooling source checkout; run \`${command}\` from the consumer repository instead.`,
+      2,
+    );
+  }
+
   const pinPath = path.join(cwd, PIN_FILE);
   const existingPin = (await exists(pinPath)) ? await readJson(pinPath) : undefined;
 

@@ -108,6 +108,20 @@ test('init scaffolds the repository-owned files once and leaves them alone after
   );
 });
 
+test('init and update refuse to run inside a tooling source checkout', async () => {
+  const fork = await mkdtemp(path.join(tmpdir(), 'lvbt-source-'));
+  await cp(sourceRoot, fork, {
+    recursive: true,
+    filter: (file) => !/(?:^|\/)(?:node_modules|\.git)(?:\/|$)/.test(path.relative(sourceRoot, file)),
+  });
+  git(fork, 'init', '-q', '-b', 'main');
+
+  const result = run(['init', '--source', fork, '--ref', 'v9.9.9', '--scopes', 'core'], fork);
+  assert.equal(result.status, 2);
+  assert.match(result.stderr, /source checkout/);
+  assert.ok(await exists(path.join(fork, 'plugins/lvbt-contributions/scripts/github-create.mjs')));
+});
+
 test('init refuses to run without the repository scopes', async () => {
   const repository = await emptyRepository();
   const result = run(['init', '--source', sourceRoot, '--ref', 'v9.9.9'], repository);
