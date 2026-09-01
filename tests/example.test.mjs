@@ -1,9 +1,26 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { cp, mkdir, mkdtemp, readFile, readdir, stat, symlink, writeFile } from 'node:fs/promises';
+import {
+  cp,
+  mkdir,
+  mkdtemp,
+  readFile,
+  readdir,
+  rm,
+  stat,
+  symlink,
+  writeFile,
+} from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import test from 'node:test';
+import test, { after } from 'node:test';
+
+// Every copy made below is removed when the file's tests finish, so repeated
+// runs do not accumulate example copies under the system temp directory.
+const copies = [];
+after(async () => {
+  for (const copy of copies) await rm(copy, { recursive: true, force: true });
+});
 
 const sourceRoot = path.resolve(import.meta.dirname, '..');
 const example = path.join(sourceRoot, 'examples/package');
@@ -43,6 +60,7 @@ function git(cwd, ...args) {
  */
 async function installedCopy() {
   const repository = await mkdtemp(path.join(tmpdir(), 'lvbt-example-'));
+  copies.push(repository);
   await cp(example, repository, { recursive: true });
   git(repository, 'init', '-q', '-b', 'main');
 
