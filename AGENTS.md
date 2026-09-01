@@ -7,6 +7,12 @@ Changes to the organization contribution workflow must update its tests, both
 plugin manifests, and the published community-health files in
 `LasVegasForTransit/.github` in the same rollout.
 
+A change to anything a consumer vendors (`plugins/`, `bin/`,
+`templates/managed/`) is a release: bump the version in `package.json`, both
+plugin manifests, and `.claude-plugin/marketplace.json` together, and describe
+what changes for consumers in the release notes. Never edit a managed file in
+a consumer repository; change it here so every repository gets it.
+
 Use the `github-contribution` skill and its helper for issue or pull request
 creation. Do not call `gh issue create`, `gh pr create`, or equivalent API or
 connector methods directly.

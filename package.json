@@ -1,7 +1,7 @@
 {
   "name": "lvbt-repository-tooling",
   "private": true,
-  "version": "0.1.6",
+  "version": "0.2.0",
   "type": "module",
   "packageManager": "pnpm@11.15.1",
   "engines": {
@@ -10,5 +10,13 @@
   "scripts": {
     "check": "node --test --test-concurrency=1",
     "prepare": "git config --local core.hooksPath .githooks"
-  }
+  },
+  "bin": {
+    "lvbt-repository-tooling": "bin/cli.mjs"
+  },
+  "files": [
+    "bin",
+    "templates",
+    "plugins"
+  ]
 }

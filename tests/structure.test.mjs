@@ -44,7 +44,7 @@ test('the organization registry contains every active repository', async () => {
   );
   assert.deepEqual(
     registry.repositories.map(({ name }) => name).sort(),
-    ['.github', 'repository-tooling', 'transit-mapper', 'website'],
+    ['.github', 'analytics', 'repository-tooling', 'transit-mapper', 'website'],
   );
   assert.deepEqual(registry.exceptions, []);
 });
