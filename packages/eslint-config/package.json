@@ -1,7 +1,7 @@
 {
   "name": "@lvbt/eslint-config",
   "version": "0.2.0",
-  "description": "The ESLint flat config every LVBT repository uses: type-checked TypeScript rules with Prettier last.",
+  "description": "The ESLint configurations every LVBT repository uses.",
   "license": "MIT",
   "type": "module",
   "repository": {
@@ -14,18 +14,23 @@
     "access": "restricted"
   },
   "exports": {
-    ".": "./index.mjs"
+    "./base": "./base.js",
+    "./react-internal": "./react-internal.js"
   },
   "files": [
-    "index.mjs"
+    "base.js",
+    "react-internal.js"
   ],
   "dependencies": {
-    "globals": "^17.12.0"
+    "@eslint/js": "10.0.1",
+    "eslint-config-prettier": "10.1.8",
+    "eslint-plugin-react-hooks": "7.1.1",
+    "eslint-plugin-turbo": "2.10.12",
+    "globals": "17.12.0",
+    "typescript-eslint": "8.69.0"
   },
   "peerDependencies": {
-    "@eslint/js": ">=10",
     "eslint": ">=10",
-    "eslint-config-prettier": ">=10",
-    "typescript-eslint": ">=8"
+    "typescript": ">=5.9"
   }
 }

@@ -52,10 +52,10 @@ test('the organization registry contains every active repository', async () => {
 
 test('both harness manifests publish one plugin version', async () => {
   const codex = JSON.parse(
-    await read('packages/repository-tooling/plugins/lvbt-contributions/.codex-plugin/plugin.json'),
+    await read('packages/cli/plugins/lvbt-contributions/.codex-plugin/plugin.json'),
   );
   const claude = JSON.parse(
-    await read('packages/repository-tooling/plugins/lvbt-contributions/.claude-plugin/plugin.json'),
+    await read('packages/cli/plugins/lvbt-contributions/.claude-plugin/plugin.json'),
   );
   assert.equal(codex.name, 'lvbt-contributions');
   assert.equal(claude.name, codex.name);
@@ -95,10 +95,10 @@ test('continuous integration uses the same pnpm setup contract', async () => {
 
 test('the source repository installs the shared commit-subject validator', async () => {
   const hook = await read('.githooks/commit-msg');
-  const sharedHook = await read('packages/repository-tooling/hooks/commit-msg.sh');
-  const prePush = await read('packages/repository-tooling/hooks/pre-push.sh');
+  const sharedHook = await read('packages/cli/hooks/commit-msg.sh');
+  const prePush = await read('packages/cli/hooks/pre-push.sh');
 
-  assert.match(hook, /packages\/repository-tooling\/hooks\/commit-msg\.sh/);
+  assert.match(hook, /packages\/cli\/hooks\/commit-msg\.sh/);
   assert.match(sharedHook, /validate-commit-subject\.mjs/);
   assert.match(prePush, /pnpm check/);
 });
@@ -106,11 +106,11 @@ test('the source repository installs the shared commit-subject validator', async
 test('the contribution policy leaves scopes to each repository', async () => {
   const readme = await read('README.md');
   const skill = await read(
-    'packages/repository-tooling/plugins/lvbt-contributions/skills/github-contribution/SKILL.md',
+    'packages/cli/plugins/lvbt-contributions/skills/github-contribution/SKILL.md',
   );
   const scopes = await read('.lvbt/commit-scopes.txt');
   const commitTypes = await read(
-    'packages/repository-tooling/plugins/lvbt-contributions/standards/commit-types.txt',
+    'packages/cli/plugins/lvbt-contributions/standards/commit-types.txt',
   );
 
   assert.match(readme, /commit scopes are optional/i);
@@ -122,9 +122,9 @@ test('the contribution policy leaves scopes to each repository', async () => {
   assert.match(commitTypes, /^feat$/m);
 });
 
-test('the workspace catalog is the same baseline the generator writes', async () => {
+test('the workspace catalog is the same baseline the example ships', async () => {
   const workspace = await read('pnpm-workspace.yaml');
-  const { catalog } = JSON.parse(await read('packages/repository-tooling/catalog.json'));
+  const { catalog } = JSON.parse(await read('packages/cli/catalog.json'));
   const block = workspace.slice(workspace.indexOf('catalog:\n') + 'catalog:\n'.length);
   const entries = Object.fromEntries(
     block

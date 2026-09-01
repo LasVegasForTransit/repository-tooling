@@ -5,16 +5,16 @@ reference pages record facts and contracts, and explanation gives the reasoning.
 
 ## How-to guides
 
-- [Generate a repository from the standard](how-to/generate-a-repository.md)
-- [Bring a repository up to a newer standard](how-to/update-a-repository.md)
+- [Create a repository](how-to/create-a-repository.md)
+- [Adopt the standard in an existing repository](how-to/adopt-in-an-existing-repository.md)
 - [Publish a tooling release](how-to/publish-a-release.md)
 
 ## Reference
 
 - [Command reference](reference/cli.md)
 - [The shared packages](reference/packages.md)
-- [Generated files](reference/generated-files.md)
+- [The example repositories](reference/examples.md)
 
 ## Explanation
 
-- [Why packages and a generator](explanation/packages-and-a-generator.md)
+- [Why packages and examples](explanation/packages-and-examples.md)

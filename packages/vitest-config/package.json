@@ -1,7 +1,7 @@
 {
   "name": "@lvbt/vitest-config",
   "version": "0.2.0",
-  "description": "The Vitest configuration every LVBT repository uses: tests live under tests/, and an empty suite fails.",
+  "description": "The Vitest configuration every LVBT repository spreads into its own.",
   "license": "MIT",
   "type": "module",
   "repository": {
@@ -14,10 +14,14 @@
     "access": "restricted"
   },
   "exports": {
-    ".": "./index.mjs"
+    ".": {
+      "types": "./index.d.ts",
+      "default": "./index.js"
+    }
   },
   "files": [
-    "index.mjs"
+    "index.js",
+    "index.d.ts"
   ],
   "peerDependencies": {
     "vitest": ">=4"

@@ -1,4 +1,0 @@
-{
-  "extends": "@lvbt/tsconfig/node.json",
-  "include": ["src", "tests"]
-}

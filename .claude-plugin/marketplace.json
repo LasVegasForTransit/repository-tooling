@@ -8,7 +8,7 @@
       "name": "lvbt-contributions",
       "description": "Create readable LVBT GitHub issues and pull requests.",
       "version": "0.2.0",
-      "source": "./packages/repository-tooling/plugins/lvbt-contributions"
+      "source": "./packages/cli/plugins/lvbt-contributions"
     }
   ]
 }

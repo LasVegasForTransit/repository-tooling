@@ -1,50 +1,45 @@
 # LVBT repository tooling
 
 This repository is the source of truth for the LVBT repository standard: the shape every Las Vegans
-for Better Transit repository has, the commands it answers to, and the rules it checks.
+for Better Transit repository has, the commands it answers to, and the rules it checks. It follows
+[Turborepo](https://turborepo.dev) conventions throughout, so nothing here is specific to LVBT
+except the rules themselves.
 
 It owns four things:
 
-- the shared packages every repository depends on: `@lvbt/tsconfig`, `@lvbt/eslint-config`,
-  `@lvbt/prettier-config`, `@lvbt/vitest-config`, and `@lvbt/repository-tooling` (git hooks, the
-  `lvbt-contributions` agent plugin, and the `bootstrap`, `preflight`, and `deploy` commands);
-- the generator that writes a new repository from the standard and reports drift in an existing one;
+- the shared packages every repository depends on: `@lvbt/eslint-config`, `@lvbt/typescript-config`,
+  `@lvbt/prettier-config`, `@lvbt/vitest-config`, and `@lvbt/cli` (the `lvbt` command for
+  `bootstrap`, `preflight`, and `deploy`, the git hooks, and the `lvbt-contributions` agent plugin);
+- the example repositories under `examples/` that `create-turbo` copies to start a new repository;
 - the GitHub issue forms and pull request template published by
   [`LasVegasForTransit/.github`](https://github.com/LasVegasForTransit/.github);
 - the default-branch ruleset applied to every active organization repository.
 
-A generated repository is a conventional TypeScript repository. Its configs are one-liners that
-extend the shared packages, its hooks call into the installed package, and nothing in it is
-bookkeeping for this tool. Standardization happens through the packages, not through files only LVBT
-would recognize.
-
-## Generate a repository
-
-From a directory with a minimal `package.json`:
+## Create a repository
 
 ```bash
-npx --yes github:LasVegasForTransit/repository-tooling#v0.2.0 init --profile package --scopes core,docs,ci,dx
+npx create-turbo@latest --example https://github.com/LasVegasForTransit/repository-tooling/tree/main/examples/package
+cd <your-repo>
 pnpm bootstrap
 pnpm check
 ```
 
-Profiles: `package` (a library, CLI, or worker workspace), `site` (an Astro site), `app` (a Vite and
-React application). The shared packages install straight from this repository's git tags, so nobody
-needs a registry token.
+The shared packages install from this repository's git tags, so nobody needs a registry token.
+Inside a repository, `turbo gen workspace` scaffolds a new package or app.
 
 ## Every repository answers to the same commands
 
-| Command          | What it does                                             |
-| ---------------- | -------------------------------------------------------- |
-| `pnpm bootstrap` | Install dependencies, wire git hooks, and run preflight  |
-| `pnpm preflight` | Confirm the machine can build and deploy this repository |
-| `pnpm check`     | Format check, lint, typecheck, and tests, in that order  |
-| `pnpm check:fix` | Apply formatting and lint fixes                          |
-| `pnpm build`     | Produce the deployable output                            |
-| `pnpm deploy`    | Build, then `wrangler deploy` (deployable profiles)      |
-| `pnpm test`      | Run the unit tests under `tests/`                        |
+| Command          | What it does                                                    |
+| ---------------- | --------------------------------------------------------------- |
+| `pnpm bootstrap` | Install dependencies, wire git hooks, and run preflight         |
+| `pnpm preflight` | Confirm the machine can build and deploy this repository        |
+| `pnpm check`     | Format check, then lint, typecheck, and tests through Turborepo |
+| `pnpm check:fix` | Apply formatting and lint fixes                                 |
+| `pnpm build`     | Build every package                                             |
+| `pnpm deploy`    | Build, then `wrangler deploy` (deployable repositories)         |
+| `pnpm test`      | Run every package's tests                                       |
 
-Guides, the command reference, and the list of generated files are in [`docs/`](docs/README.md).
+Guides, the command reference, and the package reference are in [`docs/`](docs/README.md).
 
 ## Contribution rules the packages enforce
 
@@ -66,9 +61,9 @@ Run the complete local check with:
 pnpm check
 ```
 
-It formats, lints, and runs every test under `tests/`, including an end-to-end run that generates a
-repository into a temporary directory and proves it passes its own `pnpm check` with the shared
-packages. This repository consumes its own packages and hooks.
+It formats, lints, and runs every test under `tests/`, including one that copies each example into a
+temporary directory and proves it passes its own checks with the shared packages. This repository
+consumes its own packages and hooks.
 
 TransitMapper is the reference consumer. Repository scopes are complete local policy: the shared
 tooling supplies the subject grammar and enforcement path, not an organization-wide domain

@@ -5,10 +5,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import test from 'node:test';
 
-const pluginRoot = path.resolve(
-  import.meta.dirname,
-  '../packages/repository-tooling/plugins/lvbt-contributions',
-);
+const pluginRoot = path.resolve(import.meta.dirname, '../packages/cli/plugins/lvbt-contributions');
 const repositoryRoot = path.resolve(import.meta.dirname, '..');
 const subjectValidator = path.join(pluginRoot, 'scripts/validate-commit-subject.mjs');
 

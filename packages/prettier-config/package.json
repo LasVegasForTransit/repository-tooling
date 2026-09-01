@@ -14,10 +14,10 @@
     "access": "restricted"
   },
   "exports": {
-    ".": "./index.mjs"
+    ".": "./index.js"
   },
   "files": [
-    "index.mjs"
+    "index.js"
   ],
   "peerDependencies": {
     "prettier": ">=3"

@@ -1,0 +1,30 @@
+{
+  "name": "lvbt-package-example",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "bootstrap": "lvbt bootstrap",
+    "preflight": "lvbt preflight",
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "check-types": "turbo run check-types",
+    "test": "turbo run test",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "check": "pnpm format:check && turbo run lint check-types test",
+    "check:fix": "pnpm format && turbo run lint -- --fix",
+    "prepare": "git config --local core.hooksPath .githooks"
+  },
+  "devDependencies": {
+    "@lvbt/cli": "github:LasVegasForTransit/repository-tooling#v0.2.0&path:/packages/cli",
+    "@lvbt/prettier-config": "github:LasVegasForTransit/repository-tooling#v0.2.0&path:/packages/prettier-config",
+    "prettier": "catalog:",
+    "turbo": "catalog:",
+    "typescript": "catalog:"
+  },
+  "packageManager": "pnpm@11.15.1",
+  "engines": {
+    "node": ">=24"
+  }
+}

@@ -8,7 +8,7 @@ import test from 'node:test';
 const repositoryRoot = path.resolve(import.meta.dirname, '..');
 const helper = path.join(
   repositoryRoot,
-  'packages/repository-tooling/plugins/lvbt-contributions/scripts/github-create.mjs',
+  'packages/cli/plugins/lvbt-contributions/scripts/github-create.mjs',
 );
 
 async function bodyFile(body) {

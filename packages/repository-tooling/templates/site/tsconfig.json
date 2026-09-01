@@ -1,4 +1,0 @@
-{
-  "extends": "@lvbt/tsconfig/browser.json",
-  "include": ["src", "tests", ".astro/types.d.ts"]
-}

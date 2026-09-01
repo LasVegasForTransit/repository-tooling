@@ -22,6 +22,7 @@ catalog:
   eslint: 10.9.1
   eslint-config-prettier: 10.1.8
   eslint-plugin-react-hooks: 7.1.1
+  eslint-plugin-turbo: 2.10.12
   globals: 17.12.0
   hono: 4.6.14
   markdownlint-cli2: 0.18.1
