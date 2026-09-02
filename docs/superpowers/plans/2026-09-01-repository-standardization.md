@@ -16,7 +16,10 @@ standalone `transit-funding` checkout is older than the copy inside labs and was
 
 Phase 2: `labs` is converged and has its first two commits on `main` (local); check, build, deploy
 dry-run, and browser suites pass. `transit-mapper` is converged on branch `feat/lvbt-standard`
-(local; check, generator check, build, and deploy dry-run pass); `website` follows.
+(local; check, generator check, build, and deploy dry-run pass). `website` is converged on its own
+`feat/lvbt-standard` (local): the site lives in `apps/site`, docs are domain-first, check and build
+pass; deploys stay on Cloudflare Pages until the Phase 3 Workers migration. Its UI-contract browser
+suite has 11 environment-dependent failures locally that `main` also fails on this machine.
 
 ## Context
 
