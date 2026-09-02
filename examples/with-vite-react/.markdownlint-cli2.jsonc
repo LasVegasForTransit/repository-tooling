@@ -10,6 +10,7 @@
   },
   "globs": ["**/*.md"],
   "ignores": [
+    ".claude/worktrees",
     "node_modules",
     "**/node_modules",
     "dist",
