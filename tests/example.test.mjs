@@ -203,7 +203,7 @@ for (const [name, { uses, deploys }] of Object.entries(examples)) {
     assert.equal(root.scripts.bootstrap, 'lvbt bootstrap');
     assert.equal(
       root.scripts.check,
-      'pnpm format:check && markdownlint-cli2 && lvbt check && turbo run lint check-types test',
+      'pnpm format:check && markdownlint-cli2 && lvbt check && turbo run lint check-types test validate',
     );
     if (deploys) assert.equal(root.scripts.deploy, 'lvbt deploy');
     for (const directory of await workspacePackages(example)) {
