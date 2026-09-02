@@ -1,13 +1,18 @@
 # LVBT repository standardization plan (mass-volunteer readiness)
 
-## Status (2026-09-01)
+## Status (2026-09-02)
 
-Phase 0 items 1 to 11 are complete on branch `feat/turborepo-standard` (commits 7098be2, 175d8af,
-0fe2b45), local only. The example names are `basic`, `with-astro`, and `with-vite-react`, published
-to `template-basic`, `template-with-astro`, and `template-with-vite-react`. The `analytics`
-repository is resynced to `examples/basic` with `link:` specifiers (commit 214291d). Item 12 (push,
-pull request, tag `v0.2.0`, template repositories, `TEMPLATE_PUBLISH_TOKEN`) waits for explicit
-approval. Phases 1 to 6 have not started.
+Phase 0 is on pull request #11 (`feat/turborepo-standard`), CI green, awaiting merge; after the
+merge, tag `v0.2.0` and publish the release so the template repositories fill. Done on GitHub:
+`template-basic`, `template-with-astro`, `template-with-vite-react` exist and are marked as
+templates; the `maintainers` team exists with maintain access on the three active repositories; the
+label taxonomy is applied. Still needed from a person: the `TEMPLATE_PUBLISH_TOKEN` secret, the
+Renovate GitHub app installation (not installed on the organization), and the pull request merge.
+Phase 2: `labs` is converged locally (two commits on `main`, `link:` specifiers, check and browser
+suites green) and is not pushed; the standalone `transit-funding` repository is an older copy of
+`labs/apps/transit-funding` and was not pushed pending a decision. `analytics` is resynced and not
+pushed. Next: switch `link:` to the `v0.2.0` tag once it exists, push `labs` and `analytics`, then
+converge `transit-mapper` and `website`.
 
 ## Context
 
