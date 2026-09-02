@@ -33,6 +33,23 @@ function show(cwd, ref, path) {
 }
 
 const parseLedger = (text) => (text === undefined ? {} : JSON.parse(text));
+
+/**
+ * A file whose only changed lines are import specifiers was renamed or moved
+ * against, not edited: that change neither adds nor pays down debt, so the
+ * ratchet leaves it alone. Every other change to a suppressed file has to
+ * shrink it.
+ */
+function onlyImportsChanged(cwd, baseRef, path) {
+  const diff = git(cwd, ['diff', baseRef, '--', path]);
+  const changed = diff
+    .split('\n')
+    .filter((line) => /^[+-]/.test(line) && !/^(\+\+\+|---)/.test(line));
+  return (
+    changed.length > 0 &&
+    changed.every((line) => /^[+-]\s*(import\b|\}?\s*from\s+['"]|[\w$]+,?\s*$)/.test(line))
+  );
+}
 const total = (rules) =>
   Object.values(rules ?? {}).reduce((sum, rule) => sum + (rule?.count ?? 0), 0);
 const lineCount = (text) => text.split('\n').length;
@@ -65,6 +82,7 @@ function unpaidEdits({ cwd, ledgerPath, base, current, changed, baseRef }) {
     const before = show(cwd, baseRef, path);
     const after = lineCount(readFileSync(join(cwd, path), 'utf8'));
     if (before !== undefined && after < lineCount(before)) continue;
+    if (onlyImportsChanged(cwd, baseRef, path)) continue;
     lines.push(
       `${path} carries ${total(rules)} suppressed findings and was changed without shrinking`,
     );

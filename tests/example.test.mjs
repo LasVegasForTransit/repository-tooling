@@ -397,6 +397,18 @@ test('lvbt check debt lets a newly adopted rule be recorded once but never lets 
   const grown = debt();
   assert.equal(grown.status, 1);
   assert.match(grown.stdout, /complexity 2 times, up from 1/);
+
+  // A suppressed file touched only in its import lines (a rename it depends on) is not an edit.
+  await writeFile(ledger, JSON.stringify({ 'src/index.ts': { complexity: { count: 1 } } }));
+  const source = path.join(repository, 'packages/example/src/index.ts');
+  const original = await readFile(source, 'utf8');
+  await writeFile(source, `import { helper } from './moved/helper';\n${original}`);
+  const renamed = debt();
+  assert.equal(renamed.status, 0, `${renamed.stdout}\n${renamed.stderr}`);
+  await writeFile(source, `${original}export const extra = 1;\n`);
+  const edited = debt();
+  assert.equal(edited.status, 1);
+  assert.match(edited.stdout, /changed without shrinking/);
 });
 
 test('preflight names the fix for every failing check and passes once they are done', async () => {
