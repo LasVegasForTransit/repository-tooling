@@ -23,6 +23,7 @@ import { devices } from 'playwright-core';
 export const sharedConfig = {
   testDir: './tests/e2e',
   testMatch: '**/*.spec.ts',
+  testIgnore: '**/support/**',
   fullyParallel: true,
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 2 : 0,

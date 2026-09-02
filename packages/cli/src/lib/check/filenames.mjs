@@ -5,7 +5,8 @@ import { resolve } from 'node:path';
 /**
  * Production and test trees stay legible from filenames alone: source files
  * under `src/` are `<name>.<ext>`, tests under `tests/` are `<name>.test.ts(x)`,
- * and `.spec.ts(x)` is reserved for end-to-end tests under `tests/e2e/`.
+ * `.spec.ts(x)` is reserved for end-to-end tests under `tests/e2e/`, and
+ * test-only support lives under a `support/` (or `snapshots/`) directory.
  * `--staged` checks the exact tree being committed.
  */
 const MODULE_FILE = /^(?:apps|packages)\/[^/]+\/(src|tests)\/(.+)$/;
@@ -13,6 +14,9 @@ const SOURCE_FILE = /^[^.]+\.[^.]+$/;
 // Astro routes files by name, and an endpoint such as src/pages/robots.txt.ts
 // needs the extra dot to say what it serves.
 const ROUTE_FILE = /^(?:apps|packages)\/[^/]+\/src\/pages\//;
+// Test-only support (helpers, fixtures) and committed snapshots are not
+// suites, so they take ordinary source names.
+const SUPPORT_FILE = /^(?:.*\/)?(?:support|snapshots)\//;
 const TEST_FILE = /^[^.]+\.(test|spec)\.(ts|tsx)$/;
 
 function exists(root, path) {
@@ -44,6 +48,11 @@ function violation(path) {
     return SOURCE_FILE.test(filename) || ROUTE_FILE.test(path)
       ? undefined
       : { path, expected: 'source files use exactly <name>.<extension>' };
+  }
+  if (SUPPORT_FILE.test(relative)) {
+    return SOURCE_FILE.test(filename) || /\.(?:png|jpe?g|webp|txt|json|snap)$/.test(filename)
+      ? undefined
+      : { path, expected: 'support and snapshot files use <name>.<extension>' };
   }
   if (!TEST_FILE.test(filename)) {
     return { path, expected: 'test files use exactly <name>.test.ts(x) or <name>.spec.ts(x)' };

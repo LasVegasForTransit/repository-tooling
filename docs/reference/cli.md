@@ -34,11 +34,11 @@ Each failing check prints the command that fixes it.
 
 ## Shape checks
 
-| Check       | Enforces                                                                                                                                                                                     |
-| ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `filenames` | Under `apps/*` and `packages/*`: `src/` files are `<name>.<ext>`; tests are `<name>.test.ts(x)`; `.spec.ts(x)` only under `tests/e2e/`                                                       |
-| `contract`  | Every package that ships code declares `lint`, `check-types`, `test`; every dependency is `catalog:`, `workspace:`, a repository-tooling tag, or `link:`; test material lives under `tests/` |
-| `debt`      | `eslint-suppressions.json` ledgers never grow against `main`, and a changed file that carries suppressions shrinks (fewer findings or lines)                                                 |
+| Check       | Enforces                                                                                                                                                                                       |
+| ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `filenames` | Under `apps/*` and `packages/*`: `src/` files are `<name>.<ext>`; tests are `<name>.test.ts(x)`; `.spec.ts(x)` only under `tests/e2e/`; helpers and snapshots under `support/` or `snapshots/` |
+| `contract`  | Every package that ships code declares `lint`, `check-types`, `test`; every dependency is `catalog:`, `workspace:`, a repository-tooling tag, or `link:`; test material lives under `tests/`   |
+| `debt`      | `eslint-suppressions.json` ledgers never grow against `main`, and a changed file that carries suppressions shrinks (fewer findings or lines)                                                   |
 
 ## Standard scripts
 

@@ -16,7 +16,7 @@
 export const sharedConfig = {
   test: {
     include: ['tests/**/*.test.{ts,tsx}'],
-    exclude: ['**/node_modules/**', '**/dist/**', 'tests/e2e/**'],
+    exclude: ['**/node_modules/**', '**/dist/**', 'tests/e2e/**', 'tests/support/**'],
     passWithNoTests: false,
   },
 };
