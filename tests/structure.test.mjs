@@ -42,6 +42,8 @@ test('the organization registry contains every active repository', async () => {
   const registry = JSON.parse(await read('standards/repositories.json'));
   assert.deepEqual(registry.repositories.map(({ name }) => name).sort(), [
     '.github',
+    'analytics',
+    'labs',
     'repository-tooling',
     'transit-mapper',
     'website',
