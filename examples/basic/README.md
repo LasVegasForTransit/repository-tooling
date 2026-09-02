@@ -3,7 +3,7 @@
 A Turborepo workspace following the LVBT repository standard. It was created with:
 
 ```bash
-npx create-turbo@latest --example https://github.com/LasVegasForTransit/repository-tooling/tree/main/examples/package
+npx create-turbo@latest --example https://github.com/LasVegasForTransit/repository-tooling/tree/main/examples/basic
 ```
 
 ## Getting started

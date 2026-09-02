@@ -66,7 +66,7 @@ test('the source repository uses the TransitMapper package-manager contract', as
   const readme = await read('README.md');
   const agents = await read('AGENTS.md');
 
-  assert.equal(packageJson.packageManager, 'pnpm@11.15.1');
+  assert.equal(packageJson.packageManager, 'pnpm@11.24.0');
   // Tolerant of a missing .git so `npx github:LasVegasForTransit/repository-tooling`
   // can install this package outside a checkout to bootstrap a new repository.
   assert.equal(
@@ -98,7 +98,7 @@ test('the source repository installs the shared commit-subject validator', async
   const prePush = await read('packages/cli/hooks/pre-push.sh');
 
   assert.match(hook, /packages\/cli\/hooks\/commit-msg\.sh/);
-  assert.match(sharedHook, /validate-commit-subject\.mjs/);
+  assert.match(sharedHook, /validate-commit-message\.mjs/);
   assert.match(prePush, /pnpm check/);
 });
 

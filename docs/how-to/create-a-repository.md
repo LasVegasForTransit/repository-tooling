@@ -15,17 +15,17 @@ shared rules arrive as ordinary dependencies.
 ## 1. Create the repository from the template
 
 Either open
-[LasVegasForTransit/template-package](https://github.com/LasVegasForTransit/template-package) and
-press **Use this template → Create a new repository**, or from a terminal:
+[LasVegasForTransit/template-basic](https://github.com/LasVegasForTransit/template-basic) and press
+**Use this template → Create a new repository**, or from a terminal:
 
 ```bash
-gh repo create LasVegasForTransit/<your-repo> --template LasVegasForTransit/template-package --public --clone
+gh repo create LasVegasForTransit/<your-repo> --template LasVegasForTransit/template-basic --public --clone
 cd <your-repo>
 ```
 
-The template is published from `examples/package` in this repository on every release, so it is
-always the current standard. (Turborepo's own scaffolder works too, from any release:
-`npx create-turbo@latest --example https://github.com/LasVegasForTransit/repository-tooling/tree/main/examples/package`.)
+The template is published from `examples/basic` in this repository on every release, so it is always
+the current standard. (Turborepo's own scaffolder works too, from any release:
+`npx create-turbo@latest --example https://github.com/LasVegasForTransit/repository-tooling/tree/main/examples/basic`.)
 
 ## 2. Bootstrap and check
 

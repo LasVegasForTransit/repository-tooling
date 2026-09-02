@@ -1,6 +1,6 @@
-# Publishes examples/package to the LasVegasForTransit/template-package
+# Publishes examples/basic to the LasVegasForTransit/template-basic
 # repository, so a new repository starts from GitHub's "Use this template"
-# button (or `gh repo create <name> --template LasVegasForTransit/template-package`)
+# button (or `gh repo create <name> --template LasVegasForTransit/template-basic`)
 # with no command line to remember. Runs on each release and by hand; the
 # example in this repository stays the single source.
 #
@@ -22,7 +22,7 @@ permissions:
 
 jobs:
   publish:
-    name: Publish examples/package to template-package
+    name: Publish examples/basic to template-basic
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
@@ -38,7 +38,7 @@ jobs:
       - name: Checkout the template repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
-          repository: LasVegasForTransit/template-package
+          repository: LasVegasForTransit/template-basic
           token: ${{ secrets.TEMPLATE_PUBLISH_TOKEN }}
           path: template
 
@@ -47,7 +47,7 @@ jobs:
         run: |
           set -euo pipefail
           find template -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
-          cp -R source/examples/package/. template/
+          cp -R source/examples/basic/. template/
           # The example is committed with .gitkeep placeholders that GitHub templates keep.
           cd template
           git add -A

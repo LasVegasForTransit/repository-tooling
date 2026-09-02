@@ -10,13 +10,14 @@ the dependency specifier names the release:
 All packages share one version, the tooling version. Renovate groups their bumps into one pull
 request titled "LVBT repository standard".
 
-| Package                   | What a repository gets                                                                                                                                   |
-| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `@lvbt/typescript-config` | `base.json` (strict, ES2024, bundler resolution), `node.json`, `browser.json`, `worker.json`, `react-library.json`                                       |
-| `@lvbt/eslint-config`     | `config` arrays from `./base` and `./react-internal`: type-checked TypeScript rules, Turborepo env-var rule, Prettier last. Owns its plugin dependencies |
-| `@lvbt/prettier-config`   | The Prettier settings object: 100 columns, single quotes, trailing commas, wrapped prose                                                                 |
-| `@lvbt/vitest-config`     | `sharedConfig`: tests under `tests/`, empty suites fail                                                                                                  |
-| `@lvbt/cli`               | The `lvbt` command, the git hooks, the `lvbt-contributions` agent plugin, and the version catalog                                                        |
+| Package                   | What a repository gets                                                                                                                                                                                        |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@lvbt/typescript-config` | `base.json` (strict, ES2024, bundler resolution, unchecked-index and unused checks), `node.json`, `browser.json`, `worker.json`, `react-library.json`, and `astro.json` (Astro's strict config plus the base) |
+| `@lvbt/eslint-config`     | `config` arrays from `./base` and `./react-internal`: strict and stylistic type-checked rules, suppression hygiene, shape caps, four SonarJS rules, the Turborepo env rule, Prettier last. Owns its plugins   |
+| `@lvbt/prettier-config`   | The Prettier settings object: 100 columns, single quotes, trailing commas, wrapped prose                                                                                                                      |
+| `@lvbt/vitest-config`     | `sharedConfig`: unit tests under `tests/`, empty suites fail                                                                                                                                                  |
+| `@lvbt/playwright-config` | `sharedConfig`: end-to-end tests under `tests/e2e/*.spec.ts`, desktop and mobile projects, traces on failure, retries in CI                                                                                   |
+| `@lvbt/cli`               | The `lvbt` command (`bootstrap`, `preflight`, `check`, `deploy`), the git hooks, the `lvbt-contributions` agent plugin, and the version catalog                                                               |
 
 ## How a package uses them
 
@@ -38,6 +39,17 @@ import { sharedConfig } from '@lvbt/vitest-config';
 export default defineConfig({ ...sharedConfig });
 ```
 
+```ts
+// apps/<name>/playwright.config.ts
+import { defineConfig } from '@playwright/test';
+import { sharedConfig } from '@lvbt/playwright-config';
+export default defineConfig({
+  ...sharedConfig,
+  webServer: { command: 'pnpm preview', url: 'http://127.0.0.1:4321' },
+  use: { ...sharedConfig.use, baseURL: 'http://127.0.0.1:4321' },
+});
+```
+
 ```js
 // prettier.config.js (repository root)
 import config from '@lvbt/prettier-config';
@@ -47,6 +59,13 @@ export default config;
 A package that needs more than the shared rule adds to it in its own file: spread the ESLint array
 and append blocks, spread the Prettier object and add plugins, spread `sharedConfig` and override.
 The shared floor stays shared.
+
+## Lint level
+
+The baseline is deliberately strict, because the alternative is three repositories each deciding
+what strict means. Findings that exist when a repository adopts it go into
+`eslint-suppressions.json` through `eslint --suppress-all`; `lvbt check debt` then makes sure that
+ledger only shrinks, and a file with suppressions has to get better when it is touched.
 
 ## The version catalog
 

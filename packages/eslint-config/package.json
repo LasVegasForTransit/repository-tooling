@@ -22,9 +22,11 @@
     "react-internal.js"
   ],
   "dependencies": {
+    "@eslint-community/eslint-plugin-eslint-comments": "4.7.2",
     "@eslint/js": "10.0.1",
     "eslint-config-prettier": "10.1.8",
     "eslint-plugin-react-hooks": "7.1.1",
+    "eslint-plugin-sonarjs": "4.2.0",
     "eslint-plugin-turbo": "2.10.12",
     "globals": "17.12.0",
     "typescript-eslint": "8.69.0"

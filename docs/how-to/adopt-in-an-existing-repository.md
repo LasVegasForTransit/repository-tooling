@@ -7,19 +7,19 @@ repository created from the example, reached by copying files from it.
 ## Before you start
 
 - The working tree is clean, so the adoption is the only thing in the diff you review.
-- You have a checkout of this repository, or the [examples/package](../../examples/package)
-  directory open on GitHub, to copy from.
+- You have a checkout of this repository, or the [examples/basic](../../examples/basic) directory
+  open on GitHub, to copy from.
 
 ## 1. Add the shared packages
 
 In the root `package.json`, add the dev dependencies and the standard scripts exactly as
-`examples/package/package.json` declares them (`bootstrap`, `preflight`, `check`, `check:fix`,
+`examples/basic/package.json` declares them (`bootstrap`, `preflight`, `check`, `check:fix`,
 `format`, `format:check`, `lint`, `check-types`, `test`, `build`, `dev`, `prepare`). In each
 workspace package, add `@lvbt/eslint-config`, `@lvbt/typescript-config`, and `@lvbt/vitest-config`
-as `examples/package/packages/example/package.json` does, and give it `lint`, `check-types`, `test`,
+as `examples/basic/packages/example/package.json` does, and give it `lint`, `check-types`, `test`,
 and `build` scripts.
 
-Copy the `catalog:` block of `examples/package/pnpm-workspace.yaml` into yours and switch tool
+Copy the `catalog:` block of `examples/basic/pnpm-workspace.yaml` into yours and switch tool
 versions to `catalog:`. Copy `turbo.json` if the repository has none.
 
 ## 2. Copy the standard files

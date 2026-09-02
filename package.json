@@ -4,13 +4,13 @@
   "version": "0.2.0",
   "type": "module",
   "description": "Source of truth for the LVBT repository standard: the shared @lvbt packages and the example repositories create-turbo copies.",
-  "packageManager": "pnpm@11.15.1",
+  "packageManager": "pnpm@11.24.0",
   "engines": {
-    "node": ">=24"
+    "node": ">=24.18.0"
   },
   "scripts": {
-    "check": "pnpm format:check && pnpm lint && pnpm test",
-    "check:fix": "pnpm format && pnpm lint:fix",
+    "check": "pnpm format:check && markdownlint-cli2 && pnpm lint && pnpm test",
+    "check:fix": "pnpm format && markdownlint-cli2 --fix && pnpm lint:fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "eslint .",
@@ -21,14 +21,22 @@
   "devDependencies": {
     "@lvbt/cli": "workspace:*",
     "@lvbt/eslint-config": "workspace:*",
+    "@lvbt/playwright-config": "workspace:*",
     "@lvbt/prettier-config": "workspace:*",
     "@lvbt/typescript-config": "workspace:*",
     "@lvbt/vitest-config": "workspace:*",
+    "@playwright/test": "catalog:",
     "@types/node": "catalog:",
     "eslint": "catalog:",
+    "lint-staged": "catalog:",
+    "markdownlint-cli2": "catalog:",
+    "markdownlint-rule-relative-links": "catalog:",
     "prettier": "catalog:",
     "turbo": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
+  },
+  "lint-staged": {
+    "*": "prettier --write --ignore-unknown"
   }
 }
