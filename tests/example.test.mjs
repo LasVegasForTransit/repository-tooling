@@ -257,6 +257,11 @@ test('lvbt check reports the file that breaks a shape rule', async () => {
     'export {};\n',
   );
   await writeFile(path.join(repository, 'packages/example/src/stray.test.ts'), 'export {};\n');
+  // Coverage output mirrors the tests tree and is not test material.
+  await mkdir(path.join(repository, 'packages/example/coverage/tests/support'), {
+    recursive: true,
+  });
+  await writeFile(path.join(repository, 'packages/example/coverage/tests/support/index.html'), '');
   // Helpers under tests/support and committed snapshots take ordinary names.
   await mkdir(path.join(repository, 'packages/example/tests/support'), { recursive: true });
   await writeFile(
@@ -290,6 +295,7 @@ test('lvbt check reports the file that breaks a shape rule', async () => {
   for (const file of conventional) assert.ok(!result.stdout.includes(file), `${file} is allowed`);
   assert.match(result.stdout, /FAIL {2}contract/);
   assert.match(result.stdout, /stray\.test\.ts/);
+  assert.doesNotMatch(result.stdout, /coverage\//);
 });
 
 test('lvbt check debt lets a newly adopted rule be recorded once but never lets a known rule grow', async () => {
