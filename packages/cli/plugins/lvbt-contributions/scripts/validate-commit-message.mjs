@@ -79,7 +79,13 @@ function bodyErrors(lines, type) {
  */
 function attributionErrors(lines) {
   const errors = [];
-  const agentDriven = Boolean(process.env.AI_AGENT) || process.env.CLAUDECODE === '1';
+  // The same signals prepare-commit-msg reads, so the two hooks agree on who
+  // is driving: AI_AGENT is the cross-vendor spelling, CODEX_SESSION_ID and
+  // CLAUDECODE are what Codex and Claude Code set themselves.
+  const agentDriven =
+    Boolean(process.env.AI_AGENT) ||
+    Boolean(process.env.CODEX_SESSION_ID) ||
+    process.env.CLAUDECODE === '1';
   const written = lines.filter((line) => /^co-authored-by:/i.test(line));
   const inFooter = footerBlock(lines).filter((line) => /^co-authored-by:/i.test(line));
 
