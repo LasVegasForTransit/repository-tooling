@@ -46,19 +46,19 @@ Every repository's root `package.json` carries these, as `examples/basic/package
 Workspace packages carry `lint`, `check-types`, `test`, and `build` where they build, which is what
 `turbo run` fans out to.
 
-| Script                    | Command                                                                                   |
-| ------------------------- | ----------------------------------------------------------------------------------------- |
-| `bootstrap`               | `lvbt bootstrap`                                                                          |
-| `preflight`               | `lvbt preflight`                                                                          |
-| `build` / `dev`           | `turbo run build` / `turbo run dev`                                                       |
-| `lint`                    | `turbo run lint`                                                                          |
-| `check-types`             | `turbo run check-types`                                                                   |
-| `test` / `test:e2e`       | `turbo run test` / `turbo run test:e2e`                                                   |
-| `format` / `format:check` | `prettier --write .` / `prettier --check .`                                               |
-| `check`                   | `pnpm format:check && markdownlint-cli2 && lvbt check && turbo run lint check-types test` |
-| `check:fix`               | `pnpm format && markdownlint-cli2 --fix && turbo run lint -- --fix`                       |
-| `prepare`                 | `git config --local core.hooksPath .githooks`                                             |
-| `deploy` (deployable)     | `lvbt deploy`                                                                             |
+| Script                    | Command                                                                                       |
+| ------------------------- | --------------------------------------------------------------------------------------------- |
+| `bootstrap`               | `lvbt bootstrap`                                                                              |
+| `preflight`               | `lvbt preflight`                                                                              |
+| `build` / `dev`           | `turbo run build` / `turbo run dev`                                                           |
+| `lint`                    | `turbo run lint`                                                                              |
+| `check-types`             | `turbo run check-types`                                                                       |
+| `test` / `test:e2e`       | `turbo run test` / `turbo run test:e2e --concurrency=1` (suites bind ports, so one at a time) |
+| `format` / `format:check` | `prettier --write .` / `prettier --check .`                                                   |
+| `check`                   | `pnpm format:check && markdownlint-cli2 && lvbt check && turbo run lint check-types test`     |
+| `check:fix`               | `pnpm format && markdownlint-cli2 --fix && turbo run lint -- --fix`                           |
+| `prepare`                 | `git config --local core.hooksPath .githooks`                                                 |
+| `deploy` (deployable)     | `lvbt deploy`                                                                                 |
 
 ## Git hooks
 
