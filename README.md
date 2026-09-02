@@ -17,15 +17,20 @@ It owns four things:
 
 ## Create a repository
 
+Press **Use this template** on
+[LasVegasForTransit/template-package](https://github.com/LasVegasForTransit/template-package), or:
+
 ```bash
-npx create-turbo@latest --example https://github.com/LasVegasForTransit/repository-tooling/tree/main/examples/package
+gh repo create LasVegasForTransit/<your-repo> --template LasVegasForTransit/template-package --public --clone
 cd <your-repo>
 pnpm bootstrap
 pnpm check
 ```
 
-The shared packages install from this repository's git tags, so nobody needs a registry token.
-Inside a repository, `turbo gen workspace` scaffolds a new package or app.
+The template is published from `examples/package` here on every release. The shared packages install
+from this repository's git tags, so nobody needs a registry token, and Renovate opens one grouped
+pull request per release to keep every repository current. Inside a repository,
+`turbo gen workspace` scaffolds a new package or app.
 
 ## Every repository answers to the same commands
 

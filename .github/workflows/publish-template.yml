@@ -1,0 +1,60 @@
+# Publishes examples/package to the LasVegasForTransit/template-package
+# repository, so a new repository starts from GitHub's "Use this template"
+# button (or `gh repo create <name> --template LasVegasForTransit/template-package`)
+# with no command line to remember. Runs on each release and by hand; the
+# example in this repository stays the single source.
+#
+# Needs a secret TEMPLATE_PUBLISH_TOKEN with contents:write on the template
+# repository, and the template repository marked as a template in its settings.
+name: Publish template
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: The release tag whose example to publish (for example v0.2.0)
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: Publish examples/package to template-package
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      TAG: ${{ inputs.tag || github.event.release.tag_name }}
+    steps:
+      - name: Checkout the release
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ env.TAG }}
+          persist-credentials: false
+          path: source
+
+      - name: Checkout the template repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: LasVegasForTransit/template-package
+          token: ${{ secrets.TEMPLATE_PUBLISH_TOKEN }}
+          path: template
+
+      - name: Replace the template contents with the example
+        shell: bash
+        run: |
+          set -euo pipefail
+          find template -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
+          cp -R source/examples/package/. template/
+          # The example is committed with .gitkeep placeholders that GitHub templates keep.
+          cd template
+          git add -A
+          git -c user.name='lvbt-bot' -c user.email='noreply@lasvegasfortransit.org' \
+            commit -m "chore: publish the LVBT repository standard ${TAG}" || echo "nothing changed"
+
+      - name: Push
+        shell: bash
+        working-directory: template
+        run: git push origin HEAD:main
