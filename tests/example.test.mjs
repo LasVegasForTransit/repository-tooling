@@ -339,6 +339,44 @@ test('lvbt check reports the file that breaks a shape rule', async () => {
   assert.match(result.stdout, /stray\.test\.ts/);
 });
 
+test('lvbt check debt lets a newly adopted rule be recorded once but never lets a known rule grow', async () => {
+  const repository = await installedCopy('basic');
+  const ledger = path.join(repository, 'packages/example/eslint-suppressions.json');
+  const commit = (message) => {
+    git(repository, 'add', '-A');
+    git(
+      repository,
+      '-c',
+      'user.name=t',
+      '-c',
+      'user.email=t@example.org',
+      'commit',
+      '-q',
+      '--no-verify',
+      '-m',
+      message,
+    );
+  };
+  const debt = () =>
+    spawnSync(process.execPath, [cli, 'check', 'debt'], { cwd: repository, encoding: 'utf8' });
+
+  await writeFile(ledger, JSON.stringify({ 'src/index.ts': { complexity: { count: 1 } } }));
+  commit('chore: baseline');
+  git(repository, 'switch', '-q', '-c', 'adopt');
+
+  await writeFile(
+    ledger,
+    JSON.stringify({ 'src/index.ts': { complexity: { count: 1 }, 'max-params': { count: 3 } } }),
+  );
+  const adopted = debt();
+  assert.equal(adopted.status, 0, `${adopted.stdout}\n${adopted.stderr}`);
+
+  await writeFile(ledger, JSON.stringify({ 'src/index.ts': { complexity: { count: 2 } } }));
+  const grown = debt();
+  assert.equal(grown.status, 1);
+  assert.match(grown.stdout, /complexity 2 times, up from 1/);
+});
+
 test('preflight names the fix for every failing check and passes once they are done', async () => {
   const repository = await installedCopy('basic');
   const packagePath = path.join(repository, 'package.json');

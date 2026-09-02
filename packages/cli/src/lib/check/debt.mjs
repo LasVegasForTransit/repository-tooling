@@ -8,6 +8,10 @@ import { dirname, join } from 'node:path';
  * without stopping every branch in flight; this check adds the other half:
  * no ledger grows against the base branch, and a changed file that carries
  * suppressions comes out strictly better (fewer findings or fewer lines).
+ *
+ * One growth is allowed: a rule the base ledger never recorded anywhere is a
+ * rule the repository is adopting, and `eslint --suppress-all` records its
+ * existing findings once. Every rule already in the ledger stays a ratchet.
  */
 const LEDGER = 'eslint-suppressions.json';
 
@@ -35,12 +39,13 @@ const lineCount = (text) => text.split('\n').length;
 
 function growth(ledgerPath, base, current) {
   const prefix = dirname(ledgerPath) === '.' ? '' : `${dirname(ledgerPath)}/`;
+  const knownRules = new Set(Object.values(base).flatMap((rules) => Object.keys(rules ?? {})));
   const lines = [];
   for (const [file, rules] of Object.entries(current)) {
     for (const [rule, entry] of Object.entries(rules ?? {})) {
       const count = entry?.count ?? 0;
       const before = base[file]?.[rule]?.count ?? 0;
-      if (count > before) {
+      if (count > before && knownRules.has(rule)) {
         lines.push(
           `${prefix}${file} ${before === 0 ? `newly suppresses ${rule}` : `suppresses ${rule} ${count} times, up from ${before}`}`,
         );
