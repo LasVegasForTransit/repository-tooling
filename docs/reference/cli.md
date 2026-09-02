@@ -2,7 +2,7 @@
 
 `lvbt` is the binary of `@lvbt/cli`. A repository's standard scripts call it, so you normally run
 `pnpm bootstrap`, `pnpm preflight`, `pnpm check`, and `pnpm run deploy` rather than the binary. It
-needs Node.js 24.20 or newer and git.
+needs Node.js 24.20 or newer on the 24 line, and git.
 
 ## Commands
 

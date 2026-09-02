@@ -1,6 +1,6 @@
 {
   "packageManager": "pnpm@11.25.0",
-  "node": ">=24.20.0",
+  "node": "^24.20.0",
   "catalog": {
     "@astrojs/check": "0.9.10",
     "@astrojs/sitemap": "3.7.4",

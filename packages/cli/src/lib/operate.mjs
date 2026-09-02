@@ -104,6 +104,11 @@ async function repositoryFindings(cwd, report) {
       "copy .lvbt/commit-scopes.txt from the standard example and list this repository's scopes",
     );
 
+  // Issues and pull requests are created by people, so a runner does not need gh.
+  if (process.env.CI) {
+    report.pass('GitHub CLI', 'not needed in CI');
+    return;
+  }
   const gh = output('gh', ['auth', 'status'], cwd);
   if (gh !== undefined) report.pass('GitHub CLI', 'gh is installed and signed in');
   else
