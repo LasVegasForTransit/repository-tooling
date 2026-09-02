@@ -6,7 +6,7 @@ import { devices } from 'playwright-core';
 /**
  * The shared Playwright configuration for every LVBT repository. End-to-end
  * tests live under `tests/e2e/` and end in `.spec.ts`; every suite runs on one
- * desktop and one mobile profile; a failing test keeps its trace.
+ * desktop and one mobile Chromium profile; a failing test keeps its trace.
  *
  * Spread it into a package's playwright.config.ts and add the web server:
  *
@@ -33,6 +33,7 @@ export const sharedConfig = {
   },
   projects: [
     { name: 'desktop', use: { ...devices['Desktop Chrome'] } },
-    { name: 'mobile', use: { ...devices['iPhone 13'] } },
+    // A Chromium phone profile, so CI installs one browser. iPhone profiles run WebKit.
+    { name: 'mobile', use: { ...devices['Pixel 7'] } },
   ],
 };
