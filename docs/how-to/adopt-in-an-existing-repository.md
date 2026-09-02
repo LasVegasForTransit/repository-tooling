@@ -8,7 +8,10 @@ repository created from the example, reached by copying files from it.
 
 - The working tree is clean, so the adoption is the only thing in the diff you review.
 - You have a checkout of this repository, or the [examples/basic](../../examples/basic) directory
-  open on GitHub, to copy from.
+  open on GitHub, to copy from. For an Astro site or a Vite and React app, also keep
+  [examples/with-astro](../../examples/with-astro) or
+  [examples/with-vite-react](../../examples/with-vite-react) open: their `apps/*` directories show
+  the app-level files (`wrangler.jsonc`, `playwright.config.ts`, the tsconfig target).
 
 ## 1. Add the shared packages
 

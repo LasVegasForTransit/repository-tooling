@@ -12,10 +12,18 @@ shared rules arrive as ordinary dependencies.
 - You know the repository's durable commit scopes: the two to six boundaries a change can belong to,
   such as `web`, `worker`, `docs`, `ci`, `dx`. A scope is never a feature, file, task, or role.
 
-## 1. Create the repository from the template
+## 1. Create the repository from a template
 
-Either open
-[LasVegasForTransit/template-basic](https://github.com/LasVegasForTransit/template-basic) and press
+Pick the template that matches what the repository ships:
+
+| Template                   | For                                                       |
+| -------------------------- | --------------------------------------------------------- |
+| `template-basic`           | Libraries, CLIs, and Cloudflare Workers without a site    |
+| `template-with-astro`      | A content site: Astro on Cloudflare Workers static assets |
+| `template-with-vite-react` | An application: Vite and React on Cloudflare Workers      |
+
+Either open the template on GitHub (for example
+[LasVegasForTransit/template-basic](https://github.com/LasVegasForTransit/template-basic)) and press
 **Use this template → Create a new repository**, or from a terminal:
 
 ```bash
@@ -23,9 +31,10 @@ gh repo create LasVegasForTransit/<your-repo> --template LasVegasForTransit/temp
 cd <your-repo>
 ```
 
-The template is published from `examples/basic` in this repository on every release, so it is always
-the current standard. (Turborepo's own scaffolder works too, from any release:
-`npx create-turbo@latest --example https://github.com/LasVegasForTransit/repository-tooling/tree/main/examples/basic`.)
+Each template is published from the matching directory under `examples/` in this repository on every
+release, so it is always the current standard. (Turborepo's own scaffolder works too, from any
+release:
+`npx create-turbo@latest --example https://github.com/LasVegasForTransit/repository-tooling/tree/main/examples/<example>`.)
 
 ## 2. Bootstrap and check
 
@@ -35,16 +44,17 @@ pnpm check
 ```
 
 `bootstrap` installs dependencies (the `prepare` script points git at `.githooks`), then runs
-`preflight`, which confirms Node, pnpm, hooks, and Cloudflare access and names the fix for anything
-missing. `check` runs the format check, then lint, typecheck, and tests through Turborepo, exactly
-as CI does. Both pass on a fresh copy. The `@lvbt/*` packages install from a git tag of this
-repository, so no registry login is needed.
+`preflight`, which confirms Node, pnpm, hooks, GitHub CLI, and Cloudflare access and names the fix
+for anything missing. `check` runs the format check, then lint, typecheck, and tests through
+Turborepo, exactly as CI does. Both pass on a fresh copy. The `@lvbt/*` packages install from a git
+tag of this repository, so no registry login is needed.
 
 ## 3. Make it yours
 
 - Rename the root package in `package.json`.
-- Rename `packages/example` to your first real package, or scaffold one with `turbo gen workspace`
-  and delete the sample.
+- Rename `packages/example`, `apps/site`, or `apps/app` to your first real package or app, or
+  scaffold one with `turbo gen workspace` and delete the sample. Deployable templates also need the
+  Worker name in `apps/*/wrangler.jsonc` and, for a site, `site` in `astro.config.ts`.
 - Replace the scopes in `.lvbt/commit-scopes.txt` with this repository's boundaries.
 - `.github/workflows/ci.yml` runs a job named `Validate`. Keep that name: the organization ruleset
   requires it on every pull request. Add steps to the job.
@@ -62,7 +72,8 @@ git push
 ```
 
 Then add the repository's name to `standards/repositories.json` here so the organization ruleset
-applies.
+applies. A deployable repository also needs the `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`
+secrets in a `production` environment before `.github/workflows/deploy.yml` can run.
 
 ## Common problems
 

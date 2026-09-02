@@ -8,7 +8,7 @@
  *   lvbt deploy     build, then `wrangler deploy` for every app that has a config
  *
  * A repository's package.json maps its standard scripts to these, so
- * `pnpm bootstrap`, `pnpm preflight`, `pnpm check`, and `pnpm deploy` behave
+ * `pnpm bootstrap`, `pnpm preflight`, `pnpm check`, and `pnpm run deploy` behave
  * identically across the organization. Everything else a repository needs is
  * an ordinary dependency or an ordinary file it owns.
  */

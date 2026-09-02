@@ -17,8 +17,12 @@ It owns four things:
 
 ## Create a repository
 
-Press **Use this template** on
-[LasVegasForTransit/template-basic](https://github.com/LasVegasForTransit/template-basic), or:
+Press **Use this template** on the template that matches what the repository ships:
+[template-basic](https://github.com/LasVegasForTransit/template-basic) for libraries, CLIs, and
+Workers; [template-with-astro](https://github.com/LasVegasForTransit/template-with-astro) for an
+Astro site;
+[template-with-vite-react](https://github.com/LasVegasForTransit/template-with-vite-react) for a
+Vite and React application. Or, from a terminal:
 
 ```bash
 gh repo create LasVegasForTransit/<your-repo> --template LasVegasForTransit/template-basic --public --clone
@@ -27,22 +31,22 @@ pnpm bootstrap
 pnpm check
 ```
 
-The template is published from `examples/basic` here on every release. The shared packages install
-from this repository's git tags, so nobody needs a registry token, and Renovate opens one grouped
-pull request per release to keep every repository current. Inside a repository,
-`turbo gen workspace` scaffolds a new package or app.
+Each template is published from the matching directory under `examples/` here on every release. The
+shared packages install from this repository's git tags, so nobody needs a registry token, and
+Renovate opens one grouped pull request per release to keep every repository current. Inside a
+repository, `turbo gen workspace` scaffolds a new package or app.
 
 ## Every repository answers to the same commands
 
-| Command          | What it does                                                    |
-| ---------------- | --------------------------------------------------------------- |
-| `pnpm bootstrap` | Install dependencies, wire git hooks, and run preflight         |
-| `pnpm preflight` | Confirm the machine can build and deploy this repository        |
-| `pnpm check`     | Format check, then lint, typecheck, and tests through Turborepo |
-| `pnpm check:fix` | Apply formatting and lint fixes                                 |
-| `pnpm build`     | Build every package                                             |
-| `pnpm deploy`    | Build, then `wrangler deploy` (deployable repositories)         |
-| `pnpm test`      | Run every package's tests                                       |
+| Command           | What it does                                                    |
+| ----------------- | --------------------------------------------------------------- |
+| `pnpm bootstrap`  | Install dependencies, wire git hooks, and run preflight         |
+| `pnpm preflight`  | Confirm the machine can build and deploy this repository        |
+| `pnpm check`      | Format check, then lint, typecheck, and tests through Turborepo |
+| `pnpm check:fix`  | Apply formatting and lint fixes                                 |
+| `pnpm build`      | Build every package                                             |
+| `pnpm run deploy` | Build, then `wrangler deploy` (deployable repositories)         |
+| `pnpm test`       | Run every package's tests                                       |
 
 Guides, the command reference, and the package reference are in [`docs/`](docs/README.md).
 

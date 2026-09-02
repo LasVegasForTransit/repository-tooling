@@ -19,6 +19,8 @@
     "prepare": "git config --local core.hooksPath .githooks 2>/dev/null || true"
   },
   "devDependencies": {
+    "@astrojs/check": "catalog:",
+    "@astrojs/sitemap": "catalog:",
     "@lvbt/cli": "workspace:*",
     "@lvbt/eslint-config": "workspace:*",
     "@lvbt/playwright-config": "workspace:*",
@@ -26,15 +28,26 @@
     "@lvbt/typescript-config": "workspace:*",
     "@lvbt/vitest-config": "workspace:*",
     "@playwright/test": "catalog:",
+    "@tailwindcss/vite": "catalog:",
     "@types/node": "catalog:",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "@vitejs/plugin-react": "catalog:",
+    "astro": "catalog:",
     "eslint": "catalog:",
     "lint-staged": "catalog:",
     "markdownlint-cli2": "catalog:",
     "markdownlint-rule-relative-links": "catalog:",
     "prettier": "catalog:",
+    "prettier-plugin-astro": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "tailwindcss": "catalog:",
     "turbo": "catalog:",
     "typescript": "catalog:",
-    "vitest": "catalog:"
+    "vite": "catalog:",
+    "vitest": "catalog:",
+    "wrangler": "catalog:"
   },
   "lint-staged": {
     "*": "prettier --write --ignore-unknown"

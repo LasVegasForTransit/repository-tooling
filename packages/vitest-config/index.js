@@ -1,7 +1,8 @@
 /**
- * The shared Vitest configuration for every LVBT repository. Test files live
- * under `tests/` and end in `.test.ts`, `.test.tsx`, `.spec.ts`, or
- * `.spec.tsx`. A suite with no tests fails, so a mis-glob cannot pass CI
+ * The shared Vitest configuration for every LVBT repository. Unit tests live
+ * under `tests/` and end in `.test.ts` or `.test.tsx`. End-to-end tests under
+ * `tests/e2e/` end in `.spec.ts` and belong to Playwright, so Vitest never
+ * collects them. A suite with no tests fails, so a mis-glob cannot pass CI
  * silently.
  *
  * Spread it into a package's vitest.config.ts:
@@ -14,7 +15,8 @@
  */
 export const sharedConfig = {
   test: {
-    include: ['tests/**/*.{test,spec}.{ts,tsx}'],
+    include: ['tests/**/*.test.{ts,tsx}'],
+    exclude: ['**/node_modules/**', '**/dist/**', 'tests/e2e/**'],
     passWithNoTests: false,
   },
 };

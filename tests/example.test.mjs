@@ -23,7 +23,6 @@ after(async () => {
 });
 
 const sourceRoot = path.resolve(import.meta.dirname, '..');
-const example = path.join(sourceRoot, 'examples/basic');
 const cli = path.join(sourceRoot, 'packages/cli/src/cli.mjs');
 const version = JSON.parse(
   await readFile(path.join(sourceRoot, 'packages/cli/package.json'), 'utf8'),
@@ -36,6 +35,14 @@ const sharedPackages = [
   'typescript-config',
   'vitest-config',
 ];
+
+/** Every example, with the shared packages a copy of it must pin and whether it deploys. */
+const examples = {
+  basic: { uses: sharedPackages.filter((name) => name !== 'playwright-config'), deploys: false },
+  'with-astro': { uses: sharedPackages, deploys: true },
+  'with-vite-react': { uses: sharedPackages, deploys: true },
+};
+const exampleDirectory = (name) => path.join(sourceRoot, 'examples', name);
 
 async function exists(file) {
   return stat(file).then(
@@ -54,23 +61,41 @@ function git(cwd, ...args) {
   return result.stdout.trim();
 }
 
+/** The workspace packages of an example, as directories relative to its root. */
+async function workspacePackages(root) {
+  const found = [];
+  for (const parent of ['apps', 'packages']) {
+    if (!(await exists(path.join(root, parent)))) continue;
+    for (const entry of await readdir(path.join(root, parent), { withFileTypes: true })) {
+      if (
+        entry.isDirectory() &&
+        (await exists(path.join(root, parent, entry.name, 'package.json')))
+      )
+        found.push(`${parent}/${entry.name}`);
+    }
+  }
+  return found;
+}
+
 /**
- * A fresh copy of the example with its dependencies satisfied the way
+ * A fresh copy of an example with its dependencies satisfied the way
  * `pnpm install` would satisfy them, without touching the network: the shared
- * packages link to this checkout and the tools link to the root node_modules.
+ * packages link to this checkout and the tools link to the root node_modules,
+ * including its `.bin`, so the example's own scripts run unchanged.
  */
-async function installedCopy() {
-  const repository = await mkdtemp(path.join(tmpdir(), 'lvbt-example-'));
+async function installedCopy(name) {
+  const repository = await mkdtemp(path.join(tmpdir(), `lvbt-${name}-`));
   copies.push(repository);
-  await cp(example, repository, { recursive: true });
+  await cp(exampleDirectory(name), repository, { recursive: true });
   git(repository, 'init', '-q', '-b', 'main');
 
   const modules = path.join(repository, 'node_modules');
   await mkdir(path.join(modules, '@lvbt'), { recursive: true });
-  for (const name of sharedPackages) {
-    await symlink(path.join(sourceRoot, 'packages', name), path.join(modules, '@lvbt', name));
+  for (const shared of sharedPackages) {
+    await symlink(path.join(sourceRoot, 'packages', shared), path.join(modules, '@lvbt', shared));
   }
   const sourceModules = path.join(sourceRoot, 'node_modules');
+  await symlink(path.join(sourceModules, '.bin'), path.join(modules, '.bin'));
   for (const entry of await readdir(sourceModules)) {
     if (entry.startsWith('.') || entry === '@lvbt') continue;
     if (entry.startsWith('@')) {
@@ -85,6 +110,25 @@ async function installedCopy() {
   return repository;
 }
 
+/** Run one of a package's own scripts, as `turbo run` would, and assert it passes. */
+async function runScript(repository, directory, script) {
+  const cwd = path.join(repository, directory);
+  const manifest = await json(path.join(cwd, 'package.json'));
+  const command = manifest.scripts[script];
+  assert.ok(command, `${directory} must declare a "${script}" script`);
+  const result = spawnSync('sh', ['-c', command], {
+    cwd,
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      PATH: `${path.join(repository, 'node_modules/.bin')}:${process.env.PATH}`,
+      CI: '1',
+    },
+  });
+  assert.equal(result.status, 0, `${directory} ${script}\n${result.stdout}\n${result.stderr}`);
+  return result;
+}
+
 /** Run the copied repository's commit-msg hook with agent variables cleared unless given. */
 function runCommitHook(repository, message, env = {}) {
   return spawnSync(path.join(repository, '.githooks/commit-msg'), [message], {
@@ -96,98 +140,124 @@ function runCommitHook(repository, message, env = {}) {
 
 const bin = (tool, file) => path.join(sourceRoot, 'node_modules', tool, file);
 
-test('the example pins every shared package to the current release tag', async () => {
-  const root = await json(path.join(example, 'package.json'));
-  const pkg = await json(path.join(example, 'packages/example/package.json'));
-  const specifiers = { ...root.devDependencies, ...pkg.devDependencies };
-  for (const name of sharedPackages) {
-    // The basic example has no end-to-end tests, so it does not depend on the Playwright config.
-    if (name === 'playwright-config') continue;
-    assert.equal(
-      specifiers[`@lvbt/${name}`],
-      `github:LasVegasForTransit/repository-tooling#v${version}&path:/packages/${name}`,
-      `@lvbt/${name} must be pinned to v${version}`,
+for (const [name, { uses, deploys }] of Object.entries(examples)) {
+  const example = exampleDirectory(name);
+
+  test(`${name}: pins every shared package it uses to the current release tag`, async () => {
+    const specifiers = {};
+    for (const directory of ['.', ...(await workspacePackages(example))]) {
+      const manifest = await json(path.join(example, directory, 'package.json'));
+      Object.assign(specifiers, manifest.dependencies, manifest.devDependencies);
+    }
+    for (const [dependency, range] of Object.entries(specifiers)) {
+      if (dependency.startsWith('@lvbt/')) {
+        assert.equal(
+          range,
+          `github:LasVegasForTransit/repository-tooling#v${version}&path:/packages/${dependency.slice('@lvbt/'.length)}`,
+          `${dependency} must be pinned to v${version}`,
+        );
+      }
+    }
+    for (const shared of uses) {
+      assert.ok(specifiers[`@lvbt/${shared}`], `@lvbt/${shared} must be a dependency`);
+    }
+    const settings = await json(path.join(example, '.claude/settings.json'));
+    assert.equal(settings.extraKnownMarketplaces.lvbt.source.ref, `v${version}`);
+  });
+
+  test(`${name}: carries the same version catalog as the packages`, async () => {
+    const workspace = await readFile(path.join(example, 'pnpm-workspace.yaml'), 'utf8');
+    const { catalog } = await json(path.join(sourceRoot, 'packages/cli/catalog.json'));
+    const block = workspace.slice(workspace.indexOf('catalog:\n') + 'catalog:\n'.length);
+    const entries = Object.fromEntries(
+      block
+        .split('\n')
+        .map((line) => /^ {2}'?([^':]+)'?: (\S+)$/.exec(line))
+        .filter(Boolean)
+        .map(([, dependency, range]) => [dependency, range]),
     );
-  }
-  const settings = await json(path.join(example, '.claude/settings.json'));
-  assert.equal(settings.extraKnownMarketplaces.lvbt.source.ref, `v${version}`);
-});
+    assert.deepEqual(entries, catalog);
+  });
 
-test('the example carries the same version catalog as the packages', async () => {
-  const workspace = await readFile(path.join(example, 'pnpm-workspace.yaml'), 'utf8');
-  const { catalog } = await json(path.join(sourceRoot, 'packages/cli/catalog.json'));
-  const block = workspace.slice(workspace.indexOf('catalog:\n') + 'catalog:\n'.length);
-  const entries = Object.fromEntries(
-    block
-      .split('\n')
-      .map((line) => /^ {2}'?([^':]+)'?: (\S+)$/.exec(line))
-      .filter(Boolean)
-      .map(([, name, version]) => [name, version]),
-  );
-  assert.deepEqual(entries, catalog);
-});
+  test(`${name}: answers to the standard commands`, async () => {
+    const root = await json(path.join(example, 'package.json'));
+    const scripts = [
+      'bootstrap',
+      'preflight',
+      'build',
+      'dev',
+      'lint',
+      'check-types',
+      'test',
+      'test:e2e',
+      'format',
+      'format:check',
+      'check',
+      'check:fix',
+      'prepare',
+      ...(deploys ? ['preview', 'deploy'] : []),
+    ];
+    for (const script of scripts) {
+      assert.ok(root.scripts[script], `root script ${script} must exist`);
+    }
+    assert.equal(root.scripts.bootstrap, 'lvbt bootstrap');
+    assert.equal(
+      root.scripts.check,
+      'pnpm format:check && markdownlint-cli2 && lvbt check && turbo run lint check-types test',
+    );
+    if (deploys) assert.equal(root.scripts.deploy, 'lvbt deploy');
+    for (const directory of await workspacePackages(example)) {
+      const manifest = await json(path.join(example, directory, 'package.json'));
+      for (const script of ['lint', 'check-types', 'test']) {
+        assert.ok(manifest.scripts[script], `${directory} must declare ${script}`);
+      }
+    }
+    for (const hook of ['pre-commit', 'commit-msg', 'prepare-commit-msg', 'pre-push']) {
+      const mode = (await stat(path.join(example, '.githooks', hook))).mode;
+      assert.ok(mode & 0o111, `${hook} must be executable`);
+    }
+    assert.equal(await exists(path.join(example, '.github/workflows/deploy.yml')), deploys);
+  });
 
-test('the example answers to the standard commands', async () => {
-  const root = await json(path.join(example, 'package.json'));
-  for (const script of [
-    'bootstrap',
-    'preflight',
-    'build',
-    'dev',
-    'lint',
-    'check-types',
-    'test',
-    'format',
-    'format:check',
-    'check',
-    'check:fix',
-    'prepare',
-  ]) {
-    assert.ok(root.scripts[script], `root script ${script} must exist`);
-  }
-  assert.equal(root.scripts.bootstrap, 'lvbt bootstrap');
-  assert.equal(
-    root.scripts.check,
-    'pnpm format:check && markdownlint-cli2 && lvbt check && turbo run lint check-types test',
-  );
-  for (const hook of ['pre-commit', 'commit-msg', 'prepare-commit-msg', 'pre-push']) {
-    const mode = (await stat(path.join(example, '.githooks', hook))).mode;
-    assert.ok(mode & 0o111, `${hook} must be executable`);
-  }
-});
+  test(`${name}: passes its own check with the shared packages`, async () => {
+    const repository = await installedCopy(name);
+    const exec = (cwd, args) => spawnSync(process.execPath, args, { cwd, encoding: 'utf8' });
 
-test('the example passes its own check with the shared packages', async () => {
-  const repository = await installedCopy();
-  const pkg = path.join(repository, 'packages/example');
-  const exec = (cwd, args) => spawnSync(process.execPath, args, { cwd, encoding: 'utf8' });
+    const format = exec(repository, [bin('prettier', 'bin/prettier.cjs'), '--check', '.']);
+    assert.equal(format.status, 0, `${format.stdout}\n${format.stderr}`);
 
-  const format = exec(repository, [bin('prettier', 'bin/prettier.cjs'), '--check', '.']);
-  assert.equal(format.status, 0, `${format.stdout}\n${format.stderr}`);
+    const docs = exec(repository, [bin('markdownlint-cli2', 'markdownlint-cli2-bin.mjs')]);
+    assert.equal(docs.status, 0, `${docs.stdout}\n${docs.stderr}`);
 
-  const docs = exec(repository, [bin('markdownlint-cli2', 'markdownlint-cli2-bin.mjs')]);
-  assert.equal(docs.status, 0, `${docs.stdout}\n${docs.stderr}`);
+    const shape = exec(repository, [cli, 'check']);
+    assert.equal(shape.status, 0, `${shape.stdout}\n${shape.stderr}`);
+    assert.match(shape.stdout, /ok {4}filenames/);
+    assert.match(shape.stdout, /ok {4}contract/);
 
-  const shape = exec(repository, [cli, 'check']);
-  assert.equal(shape.status, 0, `${shape.stdout}\n${shape.stderr}`);
-  assert.match(shape.stdout, /ok {4}filenames/);
-  assert.match(shape.stdout, /ok {4}contract/);
-
-  const lint = exec(pkg, [bin('eslint', 'bin/eslint.js'), '.', '--max-warnings', '0']);
-  assert.equal(lint.status, 0, `${lint.stdout}\n${lint.stderr}`);
-
-  const types = exec(pkg, [bin('typescript', 'bin/tsc'), '--noEmit']);
-  assert.equal(types.status, 0, `${types.stdout}\n${types.stderr}`);
-
-  const build = exec(pkg, [bin('typescript', 'bin/tsc'), '-p', 'tsconfig.build.json']);
-  assert.equal(build.status, 0, `${build.stdout}\n${build.stderr}`);
-  assert.ok(await exists(path.join(pkg, 'dist/index.js')));
-
-  const tests = exec(pkg, [bin('vitest', 'vitest.mjs'), 'run']);
-  assert.equal(tests.status, 0, `${tests.stdout}\n${tests.stderr}`);
-});
+    for (const directory of await workspacePackages(repository)) {
+      const manifest = await json(path.join(repository, directory, 'package.json'));
+      for (const script of ['lint', 'check-types', 'build', 'test']) {
+        if (manifest.scripts[script]) await runScript(repository, directory, script);
+      }
+      if (manifest.scripts.build) {
+        assert.ok(await exists(path.join(repository, directory, 'dist')), `${directory} builds`);
+      }
+      if (manifest.scripts['test:e2e']) {
+        // Listing proves the Playwright configuration loads without starting a browser.
+        const listed = spawnSync(bin('@playwright/test', 'cli.js'), ['test', '--list'], {
+          cwd: path.join(repository, directory),
+          encoding: 'utf8',
+        });
+        assert.equal(listed.status, 0, `${listed.stdout}\n${listed.stderr}`);
+        assert.match(listed.stdout, /\[desktop\]/);
+        assert.match(listed.stdout, /\[mobile\]/);
+      }
+    }
+  });
+}
 
 test('the example commit hook enforces the scope list through the installed package', async () => {
-  const repository = await installedCopy();
+  const repository = await installedCopy('basic');
   const message = path.join(repository, 'COMMIT_EDITMSG');
 
   await writeFile(message, 'chore(example): tidy\n');
@@ -201,7 +271,7 @@ test('the example commit hook enforces the scope list through the installed pack
 });
 
 test('the commit hook requires a body for feat and fix and wraps the body at 72 columns', async () => {
-  const repository = await installedCopy();
+  const repository = await installedCopy('basic');
   const message = path.join(repository, 'COMMIT_EDITMSG');
   const hook = (env) => runCommitHook(repository, message, env);
 
@@ -221,7 +291,7 @@ test('the commit hook requires a body for feat and fix and wraps the body at 72 
 });
 
 test('the commit hook requires attribution when an agent drives the commit', async () => {
-  const repository = await installedCopy();
+  const repository = await installedCopy('basic');
   const message = path.join(repository, 'COMMIT_EDITMSG');
   const hook = (env) => runCommitHook(repository, message, env);
 
@@ -247,7 +317,7 @@ test('the commit hook requires attribution when an agent drives the commit', asy
 });
 
 test('lvbt check reports the file that breaks a shape rule', async () => {
-  const repository = await installedCopy();
+  const repository = await installedCopy('basic');
   await writeFile(path.join(repository, 'packages/example/src/greet.helper.ts'), 'export {};\n');
   await writeFile(path.join(repository, 'packages/example/src/stray.test.ts'), 'export {};\n');
 
@@ -263,7 +333,7 @@ test('lvbt check reports the file that breaks a shape rule', async () => {
 });
 
 test('preflight names the fix for every failing check and passes once they are done', async () => {
-  const repository = await installedCopy();
+  const repository = await installedCopy('basic');
   const packagePath = path.join(repository, 'package.json');
   const packageJson = await json(packagePath);
   // Preflight compares against this machine; the copy pins whatever is installed here.
@@ -285,13 +355,23 @@ test('preflight names the fix for every failing check and passes once they are d
 });
 
 test('deploy refuses to run where there is nothing to deploy', async () => {
-  const repository = await installedCopy();
+  const repository = await installedCopy('basic');
   const result = spawnSync(process.execPath, [cli, 'deploy', '--dry-run'], {
     cwd: repository,
     encoding: 'utf8',
   });
   assert.equal(result.status, 2);
   assert.match(result.stderr, /wrangler/);
+});
+
+test('deploy finds every app with a wrangler config and honors --filter', async () => {
+  const repository = await installedCopy('with-astro');
+  const result = spawnSync(process.execPath, [cli, 'deploy', '--dry-run', '--filter', 'worker'], {
+    cwd: repository,
+    encoding: 'utf8',
+  });
+  assert.equal(result.status, 2);
+  assert.match(result.stderr, /worker has no wrangler/);
 });
 
 test('the source repository consumes its own packages and every package shares one version', async () => {

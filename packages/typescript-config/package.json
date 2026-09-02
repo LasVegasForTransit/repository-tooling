@@ -14,5 +14,13 @@
   },
   "files": [
     "*.json"
-  ]
+  ],
+  "peerDependencies": {
+    "astro": "*"
+  },
+  "peerDependenciesMeta": {
+    "astro": {
+      "optional": true
+    }
+  }
 }

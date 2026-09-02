@@ -1,8 +1,9 @@
-# Publishes examples/basic to the LasVegasForTransit/template-basic
-# repository, so a new repository starts from GitHub's "Use this template"
-# button (or `gh repo create <name> --template LasVegasForTransit/template-basic`)
-# with no command line to remember. Runs on each release and by hand; the
-# example in this repository stays the single source.
+# Publishes each example to its template repository
+# (examples/basic to LasVegasForTransit/template-basic, and so on), so a new
+# repository starts from GitHub's "Use this template" button (or
+# `gh repo create <name> --template LasVegasForTransit/template-basic`) with no
+# command line to remember. Runs on each release and by hand; the examples in
+# this repository stay the single source.
 #
 # Needs a secret TEMPLATE_PUBLISH_TOKEN with contents:write on the template
 # repository, and the template repository marked as a template in its settings.
@@ -22,11 +23,16 @@ permissions:
 
 jobs:
   publish:
-    name: Publish examples/basic to template-basic
+    name: Publish examples/${{ matrix.example }} to template-${{ matrix.example }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        example: [basic, with-astro, with-vite-react]
     env:
       TAG: ${{ inputs.tag || github.event.release.tag_name }}
+      EXAMPLE: ${{ matrix.example }}
     steps:
       - name: Checkout the release
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -38,7 +44,7 @@ jobs:
       - name: Checkout the template repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
-          repository: LasVegasForTransit/template-basic
+          repository: LasVegasForTransit/template-${{ matrix.example }}
           token: ${{ secrets.TEMPLATE_PUBLISH_TOKEN }}
           path: template
 
@@ -47,7 +53,7 @@ jobs:
         run: |
           set -euo pipefail
           find template -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
-          cp -R source/examples/basic/. template/
+          cp -R "source/examples/${EXAMPLE}/." template/
           # The example is committed with .gitkeep placeholders that GitHub templates keep.
           cd template
           git add -A

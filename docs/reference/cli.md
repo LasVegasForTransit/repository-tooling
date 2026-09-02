@@ -1,8 +1,8 @@
 # Command reference
 
 `lvbt` is the binary of `@lvbt/cli`. A repository's standard scripts call it, so you normally run
-`pnpm bootstrap`, `pnpm preflight`, `pnpm check`, and `pnpm deploy` rather than the binary. It needs
-Node.js 24.18 or newer and git.
+`pnpm bootstrap`, `pnpm preflight`, `pnpm check`, and `pnpm run deploy` rather than the binary. It
+needs Node.js 24.18 or newer and git.
 
 ## Commands
 
