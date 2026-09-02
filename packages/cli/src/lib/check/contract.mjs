@@ -11,7 +11,18 @@ const REQUIRED_TASKS = ['lint', 'check-types', 'test'];
 const SOURCE_EXTENSIONS = ['.ts', '.tsx', '.js', '.jsx', '.mjs', '.cjs'];
 const TEST_FILE = /\.(?:test|spec)\.(?:[cm]?[jt]sx?)$/;
 const TEST_DIRECTORIES = new Set(['test', 'tests', 'testing', '__tests__']);
-const IGNORED = new Set(['node_modules', 'dist', 'dist-archive', '.turbo', '.wrangler', '.astro']);
+// Build, cache, and report output is never source or test material.
+const IGNORED = new Set([
+  'node_modules',
+  'dist',
+  'dist-archive',
+  'coverage',
+  'playwright-report',
+  'test-results',
+  '.turbo',
+  '.wrangler',
+  '.astro',
+]);
 
 /** Version specifiers the standard permits besides the catalog. */
 function allowedRange(range) {
