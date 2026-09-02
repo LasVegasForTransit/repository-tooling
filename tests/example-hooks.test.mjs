@@ -78,4 +78,23 @@ test('the commit hook requires attribution when an agent drives the commit', asy
   const misplaced = hook({ CLAUDECODE: '1' });
   assert.equal(misplaced.status, 1);
   assert.match(misplaced.stderr, /last block/);
+
+  // Any vendor's agent is held to the same rule, and the trailer only has to
+  // carry a usable address; no address is singled out as the right one.
+  await writeFile(message, 'chore(example): tidy\n');
+  const codexUnattributed = hook({ CODEX_SESSION_ID: 'session' });
+  assert.equal(codexUnattributed.status, 1);
+  assert.match(codexUnattributed.stderr, /without attribution/);
+
+  await writeFile(
+    message,
+    'chore(example): tidy\n\nCo-Authored-By: Some Model <agent@example.org>\n',
+  );
+  const anyVendor = hook({ AI_AGENT: 'other' });
+  assert.equal(anyVendor.status, 0, anyVendor.stderr);
+
+  await writeFile(message, 'chore(example): tidy\n\nCo-Authored-By: Some Model\n');
+  const addressless = hook({ AI_AGENT: 'other' });
+  assert.equal(addressless.status, 1);
+  assert.match(addressless.stderr, /usable address/);
 });
