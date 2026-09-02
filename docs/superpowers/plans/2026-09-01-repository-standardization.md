@@ -1,5 +1,14 @@
 # LVBT repository standardization plan (mass-volunteer readiness)
 
+## Status (2026-09-01)
+
+Phase 0 items 1 to 11 are complete on branch `feat/turborepo-standard` (commits 7098be2, 175d8af,
+0fe2b45), local only. The example names are `basic`, `with-astro`, and `with-vite-react`, published
+to `template-basic`, `template-with-astro`, and `template-with-vite-react`. The `analytics`
+repository is resynced to `examples/basic` with `link:` specifiers (commit 214291d). Item 12 (push,
+pull request, tag `v0.2.0`, template repositories, `TEMPLATE_PUBLISH_TOKEN`) waits for explicit
+approval. Phases 1 to 6 have not started.
+
 ## Context
 
 LVBT is preparing for many volunteer contributors across its repositories. Today the three active
