@@ -15,7 +15,7 @@
     "format:check": "prettier --check .",
     "check": "pnpm format:check && markdownlint-cli2 && lvbt check && turbo run lint check-types test validate",
     "check:fix": "pnpm format && markdownlint-cli2 --fix && turbo run lint -- --fix",
-    "prepare": "git config --local core.hooksPath .githooks"
+    "prepare": "git config --local core.hooksPath .githooks 2>/dev/null || true"
   },
   "lint-staged": {
     "*": "prettier --write --ignore-unknown"
