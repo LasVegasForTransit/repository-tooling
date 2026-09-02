@@ -1,8 +1,12 @@
 {
   "$schema": "https://json.schemastore.org/tsconfig",
-  "extends": ["astro/tsconfigs/strict", "./browser.json"],
+  "extends": "./browser.json",
   "compilerOptions": {
+    "allowImportingTsExtensions": true,
+    "allowJs": true,
+    "esModuleInterop": true,
     "jsx": "preserve",
-    "allowJs": true
+    "module": "ESNext",
+    "target": "ESNext"
   }
 }

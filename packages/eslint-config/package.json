@@ -15,11 +15,13 @@
   },
   "exports": {
     "./base": "./base.js",
-    "./react-internal": "./react-internal.js"
+    "./react-internal": "./react-internal.js",
+    "./browser": "./browser.js"
   },
   "files": [
     "base.js",
-    "react-internal.js"
+    "react-internal.js",
+    "browser.js"
   ],
   "dependencies": {
     "@eslint-community/eslint-plugin-eslint-comments": "4.7.2",
