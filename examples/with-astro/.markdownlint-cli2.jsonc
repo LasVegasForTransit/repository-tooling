@@ -9,5 +9,13 @@
     "relative-links": true,
   },
   "globs": ["**/*.md"],
-  "ignores": ["node_modules", "**/node_modules", "dist", "**/dist", ".turbo", "CHANGELOG.md"],
+  "ignores": [
+    "node_modules",
+    "**/node_modules",
+    "dist",
+    "**/dist",
+    ".turbo",
+    "docs/superpowers",
+    "CHANGELOG.md",
+  ],
 }
