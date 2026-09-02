@@ -4,9 +4,9 @@
   "version": "0.2.0",
   "type": "module",
   "description": "Source of truth for the LVBT repository standard: the shared @lvbt packages and the example repositories create-turbo copies.",
-  "packageManager": "pnpm@11.24.0",
+  "packageManager": "pnpm@11.25.0",
   "engines": {
-    "node": ">=24.18.0"
+    "node": ">=24.20.0"
   },
   "scripts": {
     "check": "pnpm format:check && markdownlint-cli2 && pnpm lint && pnpm test",

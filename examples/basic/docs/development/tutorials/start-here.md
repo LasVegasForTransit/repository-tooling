@@ -6,7 +6,7 @@ terminal; nothing else is assumed.
 
 ## Before you start
 
-- Node.js 24.18 or newer. Check with `node --version`; install from [nodejs.org](https://nodejs.org)
+- Node.js 24.20 or newer. Check with `node --version`; install from [nodejs.org](https://nodejs.org)
   if needed.
 - git, and a GitHub account with access to this repository.
 - The GitHub CLI (`gh`), signed in with `gh auth login`. Issues and pull requests are created
@@ -28,8 +28,8 @@ pnpm bootstrap
 prints one line per check:
 
 ```text
-  ok    Node.js        24.18.0 satisfies >=24.18.0
-  ok    pnpm           11.24.0 matches packageManager
+  ok    Node.js        24.20.0 satisfies >=24.20.0
+  ok    pnpm           11.25.0 matches packageManager
   ok    dependencies   node_modules is present
   ok    git hooks      core.hooksPath is .githooks
   ok    commit scopes  .lvbt/commit-scopes.txt is present

@@ -66,7 +66,7 @@ test('the source repository uses the TransitMapper package-manager contract', as
   const readme = await read('README.md');
   const agents = await read('AGENTS.md');
 
-  assert.equal(packageJson.packageManager, 'pnpm@11.24.0');
+  assert.equal(packageJson.packageManager, 'pnpm@11.25.0');
   // Tolerant of a missing .git so `npx github:LasVegasForTransit/repository-tooling`
   // can install this package outside a checkout to bootstrap a new repository.
   assert.equal(

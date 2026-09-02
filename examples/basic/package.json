@@ -30,8 +30,8 @@
     "turbo": "catalog:",
     "typescript": "catalog:"
   },
-  "packageManager": "pnpm@11.24.0",
+  "packageManager": "pnpm@11.25.0",
   "engines": {
-    "node": ">=24.18.0"
+    "node": ">=24.20.0"
   }
 }
