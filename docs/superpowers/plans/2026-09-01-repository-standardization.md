@@ -15,8 +15,8 @@ taxonomy is applied to all three. Renovate is not installed as a GitHub app yet 
 standalone `transit-funding` checkout is older than the copy inside labs and was not pushed.
 
 Phase 2: `labs` is converged and has its first two commits on `main` (local); check, build, deploy
-dry-run, and browser suites pass. `transit-mapper` is in progress on branch `feat/lvbt-standard`;
-`website` follows.
+dry-run, and browser suites pass. `transit-mapper` is converged on branch `feat/lvbt-standard`
+(local; check, generator check, build, and deploy dry-run pass); `website` follows.
 
 ## Context
 
