@@ -319,6 +319,12 @@ test('the commit hook requires attribution when an agent drives the commit', asy
 test('lvbt check reports the file that breaks a shape rule', async () => {
   const repository = await installedCopy('basic');
   await writeFile(path.join(repository, 'packages/example/src/greet.helper.ts'), 'export {};\n');
+  // Astro endpoints such as src/pages/robots.txt.ts are routes, so the extra dot is allowed there.
+  await mkdir(path.join(repository, 'packages/example/src/pages'), { recursive: true });
+  await writeFile(
+    path.join(repository, 'packages/example/src/pages/robots.txt.ts'),
+    'export {};\n',
+  );
   await writeFile(path.join(repository, 'packages/example/src/stray.test.ts'), 'export {};\n');
 
   const result = spawnSync(process.execPath, [cli, 'check', 'filenames', 'contract'], {
@@ -328,6 +334,7 @@ test('lvbt check reports the file that breaks a shape rule', async () => {
   assert.equal(result.status, 1);
   assert.match(result.stdout, /FAIL {2}filenames/);
   assert.match(result.stdout, /greet\.helper\.ts/);
+  assert.doesNotMatch(result.stdout, /robots\.txt\.ts/);
   assert.match(result.stdout, /FAIL {2}contract/);
   assert.match(result.stdout, /stray\.test\.ts/);
 });

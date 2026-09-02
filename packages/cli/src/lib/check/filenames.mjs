@@ -10,6 +10,9 @@ import { resolve } from 'node:path';
  */
 const MODULE_FILE = /^(?:apps|packages)\/[^/]+\/(src|tests)\/(.+)$/;
 const SOURCE_FILE = /^[^.]+\.[^.]+$/;
+// Astro routes files by name, and an endpoint such as src/pages/robots.txt.ts
+// needs the extra dot to say what it serves.
+const ROUTE_FILE = /^(?:apps|packages)\/[^/]+\/src\/pages\//;
 const TEST_FILE = /^[^.]+\.(test|spec)\.(ts|tsx)$/;
 
 function exists(root, path) {
@@ -38,7 +41,7 @@ function violation(path) {
   const filename = relative.split('/').at(-1) ?? '';
 
   if (tree === 'src') {
-    return SOURCE_FILE.test(filename)
+    return SOURCE_FILE.test(filename) || ROUTE_FILE.test(path)
       ? undefined
       : { path, expected: 'source files use exactly <name>.<extension>' };
   }
