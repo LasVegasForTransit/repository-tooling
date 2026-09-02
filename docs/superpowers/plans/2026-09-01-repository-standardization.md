@@ -2,24 +2,16 @@
 
 ## Status (2026-09-02)
 
-Phase 0 is complete and under review as
-[repository-tooling#11](https://github.com/LasVegasForTransit/repository-tooling/pull/11) (CI green;
-merge, the `v0.2.0` tag, and the release are the maintainer's call). The catalog is on current
-releases (Astro 7, Vite 8, React 19), Node is `^24.20.0`, pnpm 11.25.0. The template repositories
-`template-basic`, `template-with-astro`, and `template-with-vite-react` exist and are marked as
-templates; they fill on the first release once `TEMPLATE_PUBLISH_TOKEN` is set.
+Phase 0 is released: PR #11 merged (squash), then #12 and #13 (rebase) as patch releases; the
+current tag is `v0.2.2`. Template repositories exist and are marked as templates; they fill once
+`TEMPLATE_PUBLISH_TOKEN` is set (the publish workflow has failed on every release so far for that
+reason). The `maintainers` team exists and the label taxonomy is applied. Renovate is not installed
+as a GitHub app yet (user action).
 
-Phase 1: the `maintainers` team exists with maintain on the three active repositories; the label
-taxonomy is applied to all three. Renovate is not installed as a GitHub app yet (user action).
-`analytics` is resynced to the standard (local, `link:` specifiers until the tag exists). The
-standalone `transit-funding` checkout is older than the copy inside labs and was not pushed.
-
-Phase 2: `labs` is converged and has its first two commits on `main` (local); check, build, deploy
-dry-run, and browser suites pass. `transit-mapper` is converged on branch `feat/lvbt-standard`
-(local; check, generator check, build, and deploy dry-run pass). `website` is converged on its own
-`feat/lvbt-standard` (local): the site lives in `apps/site`, docs are domain-first, check and build
-pass; deploys stay on Cloudflare Pages until the Phase 3 Workers migration. Its UI-contract browser
-suite has 11 environment-dependent failures locally that `main` also fails on this machine.
+Phase 1 and 2: `labs` and `analytics` are pushed to the organization on `main` with the ruleset
+applied; `transit-mapper` (PR #140) and `website` (PR #25) adopt the standard through pull requests.
+Every consumer pins `v0.2.2`. The website still deploys to Cloudflare Pages until the Phase 3
+Workers migration. The standalone `transit-funding` checkout stays in limbo by decision.
 
 ## Context
 
