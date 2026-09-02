@@ -1,0 +1,6 @@
+#!/usr/bin/env sh
+# This repository consumes its own standard: the same hook every LVBT
+# repository gets, pointed at the package source instead of node_modules.
+set -eu
+ROOT=$(git rev-parse --show-toplevel)
+sh "$ROOT/packages/cli/hooks/prepare-commit-msg.sh" "$@"

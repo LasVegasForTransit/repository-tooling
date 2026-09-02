@@ -8,7 +8,7 @@ import test from 'node:test';
 const repositoryRoot = path.resolve(import.meta.dirname, '..');
 const helper = path.join(
   repositoryRoot,
-  'plugins/lvbt-contributions/scripts/github-create.mjs',
+  'packages/cli/plugins/lvbt-contributions/scripts/github-create.mjs',
 );
 
 async function bodyFile(body) {
@@ -186,14 +186,7 @@ The repository now follows the shared standard.
 
 # Follow-ups
 `);
-  const result = run([
-    'pr',
-    '--title',
-    'Standardize everything',
-    '--body-file',
-    file,
-    '--dry-run',
-  ]);
+  const result = run(['pr', '--title', 'Standardize everything', '--body-file', file, '--dry-run']);
 
   assert.equal(result.status, 1);
   assert.match(result.stderr, /conventional/i);

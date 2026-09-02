@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
-# Run the same serial check contributors use before this source of shared
-# tooling publishes a policy other repositories would inherit.
+# This repository consumes its own standard: the same hook every LVBT
+# repository gets, pointed at the package source instead of node_modules.
 set -eu
-cd "$(git rev-parse --show-toplevel)"
-pnpm check
+ROOT=$(git rev-parse --show-toplevel)
+sh "$ROOT/packages/cli/hooks/pre-push.sh" "$@"
