@@ -192,6 +192,8 @@ for (const [name, { uses, deploys }] of Object.entries(examples)) {
       assert.ok(root.scripts[script], `root script ${script} must exist`);
     }
     assert.equal(root.scripts.bootstrap, 'lvbt bootstrap');
+    // pnpm install must succeed without a .git directory (a tarball, a container build stage).
+    assert.match(root.scripts.prepare, /\|\| true$/);
     assert.equal(
       root.scripts.check,
       'pnpm format:check && markdownlint-cli2 && lvbt check && turbo run lint check-types test validate',

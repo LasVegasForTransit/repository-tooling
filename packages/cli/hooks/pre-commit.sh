@@ -14,6 +14,14 @@ if ! pnpm --silent exec lint-staged; then
   exit 1
 fi
 
+# Filenames are checked against the staged tree, so a misnamed file is caught
+# at the commit rather than at push or in CI.
+if ! pnpm --silent exec lvbt check filenames --staged; then
+  printf '\n  Commit blocked: a source or test filename is out of contract.\n' >&2
+  printf '    fix:  rename the file and update its imports\n\n' >&2
+  exit 1
+fi
+
 # Secret scanning, net 1 of 3. CI and GitHub push protection are the others,
 # because this one is bypassable by design.
 if command -v gitleaks >/dev/null 2>&1; then

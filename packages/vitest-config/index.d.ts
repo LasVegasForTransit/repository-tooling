@@ -6,6 +6,7 @@
 export declare const sharedConfig: {
   test: {
     include: string[];
+    exclude: string[];
     passWithNoTests: boolean;
   };
 };
