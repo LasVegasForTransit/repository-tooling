@@ -349,6 +349,14 @@ test('lvbt check reports the file that breaks a shape rule', async () => {
   assert.match(result.stdout, /greet\.helper\.ts/);
   assert.doesNotMatch(result.stdout, /robots\.txt\.ts/);
   assert.doesNotMatch(result.stdout, /fixtures\.ts|home\.png/);
+  // CSS modules, config files, placeholders, and a README beside tests are conventions.
+  const conventional = [
+    'src/card.module.css',
+    'src/content.config.ts',
+    'src/pages/.gitkeep',
+    'tests/README.md',
+  ];
+  for (const file of conventional) assert.ok(!result.stdout.includes(file), `${file} is allowed`);
   assert.match(result.stdout, /FAIL {2}contract/);
   assert.match(result.stdout, /stray\.test\.ts/);
 });

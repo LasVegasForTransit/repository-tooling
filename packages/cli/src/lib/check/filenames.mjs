@@ -11,6 +11,11 @@ import { resolve } from 'node:path';
  */
 const MODULE_FILE = /^(?:apps|packages)\/[^/]+\/(src|tests)\/(.+)$/;
 const SOURCE_FILE = /^[^.]+\.[^.]+$/;
+// Conventions that carry a second dot on purpose: CSS modules, tool config
+// files (Astro requires src/content.config.ts), and placeholder files.
+const CONVENTIONAL_SOURCE = /^(?:[^.]+\.(?:module\.[a-z]+|config\.[a-z]+)|\.gitkeep)$/;
+// Documentation beside tests describes them and is not a suite.
+const DOCUMENT = /^[A-Z][A-Z0-9-]*\.md$/;
 // Astro routes files by name, and an endpoint such as src/pages/robots.txt.ts
 // needs the extra dot to say what it serves.
 const ROUTE_FILE = /^(?:apps|packages)\/[^/]+\/src\/pages\//;
@@ -45,10 +50,11 @@ function violation(path) {
   const filename = relative.split('/').at(-1) ?? '';
 
   if (tree === 'src') {
-    return SOURCE_FILE.test(filename) || ROUTE_FILE.test(path)
+    return SOURCE_FILE.test(filename) || CONVENTIONAL_SOURCE.test(filename) || ROUTE_FILE.test(path)
       ? undefined
       : { path, expected: 'source files use exactly <name>.<extension>' };
   }
+  if (DOCUMENT.test(filename)) return undefined;
   if (SUPPORT_FILE.test(relative)) {
     return SOURCE_FILE.test(filename) || /\.(?:png|jpe?g|webp|txt|json|snap)$/.test(filename)
       ? undefined
