@@ -208,6 +208,9 @@ importers:
       '@playwright/test':
         specifier: '>=1.60'
         version: 1.62.1
+      playwright-core:
+        specifier: 1.62.1
+        version: 1.62.1
 
   packages/prettier-config:
     dependencies:

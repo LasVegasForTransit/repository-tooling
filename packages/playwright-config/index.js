@@ -1,4 +1,7 @@
-import { devices } from '@playwright/test';
+// The device descriptors come from playwright-core rather than @playwright/test so
+// this package never loads the test runner: a consumer that links this package
+// from another checkout would otherwise load @playwright/test twice, which it refuses.
+import { devices } from 'playwright-core';
 
 /**
  * The shared Playwright configuration for every LVBT repository. End-to-end
