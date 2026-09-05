@@ -16,7 +16,7 @@ function runCommitHook(repository, message, env = {}) {
   return spawnSync(path.join(repository, '.githooks/commit-msg'), [message], {
     cwd: repository,
     encoding: 'utf8',
-    env: { ...process.env, AI_AGENT: '', CLAUDECODE: '', ...env },
+    env: { ...process.env, AI_AGENT: '', CLAUDECODE: '', CODEX_SESSION_ID: '', ...env },
   });
 }
 
