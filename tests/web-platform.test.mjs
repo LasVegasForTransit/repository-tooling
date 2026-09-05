@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import { test } from 'node:test';
 import { mkdtemp, mkdir, readFile, rm, stat, symlink, writeFile } from 'node:fs/promises';
 import os from 'node:os';
@@ -96,10 +97,18 @@ test('an applied update replaces removed files and is idempotent', () =>
     await assert.rejects(readFile(path.join(root, '.lvbt/web-platform/old')), { code: 'ENOENT' });
   }));
 
-test('reads only a tagged commit and includes both web profiles', () => {
-  const bundle = readRelease(new URL('..', import.meta.url).pathname, 'v0.2.3');
-  assert.match(bundle.commit, /^[a-f0-9]{40}$/);
-  assert.ok(bundle.files['examples/with-astro/apps/site/astro.config.ts']);
-  assert.ok(bundle.files['examples/with-vite-react/apps/app/vite.config.ts']);
-  assert.throws(() => readRelease('.', 'main'), /explicit version/);
-});
+test('reads only a tagged commit and includes both web profiles', () =>
+  fixture(async (root) => {
+    const repository = path.join(root, 'source.git');
+    execFileSync(
+      'git',
+      ['clone', '--bare', '--shared', new URL('..', import.meta.url).pathname, repository],
+      { stdio: 'pipe' },
+    );
+    execFileSync('git', ['-C', repository, 'tag', 'v99.0.0', 'HEAD']);
+    const bundle = readRelease(repository, 'v99.0.0');
+    assert.match(bundle.commit, /^[a-f0-9]{40}$/);
+    assert.ok(bundle.files['examples/with-astro/apps/site/astro.config.ts']);
+    assert.ok(bundle.files['examples/with-vite-react/apps/app/vite.config.ts']);
+    assert.throws(() => readRelease(repository, 'main'), /explicit version/);
+  }));
