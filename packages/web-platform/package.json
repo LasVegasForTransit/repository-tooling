@@ -13,7 +13,8 @@
     ".": "./src/index.ts",
     "./cloudflare": "./src/cloudflare.ts",
     "./github": "./src/github.ts",
-    "./provision": "./src/provision.ts"
+    "./provision": "./src/provision.ts",
+    "./release": "./src/release.ts"
   },
   "files": [
     "src"
