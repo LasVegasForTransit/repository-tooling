@@ -13,6 +13,12 @@ allowBuilds:
 # that is compromised and yanked the same day never reaches a repository.
 minimumReleaseAge: 1440
 
+# Temporary transitive pins for published security fixes not yet selected by
+# their direct dependents.
+overrides:
+  sharp: 0.35.4
+  smol-toml: 1.8.0
+
 # The organization version baseline. Every LVBT repository carries this same
 # catalog, so a package declares "catalog:" and two repositories cannot drift
 # onto different versions of one tool without it showing up as a change here.

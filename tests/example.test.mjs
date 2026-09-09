@@ -406,3 +406,18 @@ test('the source repository consumes its own packages and every package shares o
     assert.equal(manifest.publishConfig?.registry, 'https://npm.pkg.github.com');
   }
 });
+
+test('source and generated repositories pin audited transitive fixes', async () => {
+  for (const directory of [
+    '.',
+    'examples/basic',
+    'examples/with-astro',
+    'examples/with-vite-react',
+  ]) {
+    const workspace = await readFile(
+      path.join(sourceRoot, directory, 'pnpm-workspace.yaml'),
+      'utf8',
+    );
+    assert.match(workspace, /^overrides:\n {2}sharp: 0\.35\.4\n {2}smol-toml: 1\.8\.0$/m);
+  }
+});
