@@ -90,6 +90,29 @@ function unpaidEdits({ cwd, ledgerPath, base, current, changed, baseRef }) {
   return lines;
 }
 
+function currentLedger({
+  cwd,
+  ledgerPath,
+  baseText,
+  currentLedgers,
+  newLedgers,
+  missingLedgers,
+  renames,
+}) {
+  if (existsSync(join(cwd, ledgerPath))) return ledgerPath;
+  const detectedRename = renames.get(ledgerPath);
+  if (detectedRename !== undefined) return detectedRename;
+  const identicalMoves = currentLedgers.filter(
+    (path) =>
+      path !== ledgerPath &&
+      existsSync(join(cwd, path)) &&
+      readFileSync(join(cwd, path), 'utf8') === baseText,
+  );
+  if (identicalMoves.length === 1) return identicalMoves[0];
+  if (missingLedgers.length === 1 && newLedgers.length === 1) return newLedgers[0];
+  return undefined;
+}
+
 export function checkDebt({ cwd, baseBranch = process.env.DEBT_BASE_REF ?? 'main' }) {
   let base;
   try {
@@ -113,8 +136,13 @@ export function checkDebt({ cwd, baseBranch = process.env.DEBT_BASE_REF ?? 'main
   const currentLedgers = git(cwd, ['ls-files', '--cached', '--others', '--exclude-standard'])
     .split('\n')
     .filter((path) => path === LEDGER || path.endsWith(`/${LEDGER}`));
+  const baseLedgers = git(cwd, ['ls-tree', '-r', '--name-only', base])
+    .split('\n')
+    .filter((path) => path === LEDGER || path.endsWith(`/${LEDGER}`));
+  const newLedgers = currentLedgers.filter((path) => !baseLedgers.includes(path));
+  const missingLedgers = baseLedgers.filter((path) => !existsSync(join(cwd, path)));
   const ledgers = new Set(
-    [...currentLedgers, ...git(cwd, ['ls-tree', '-r', '--name-only', base]).split('\n')].filter(
+    [...currentLedgers, ...baseLedgers].filter(
       (path) => path === LEDGER || path.endsWith(`/${LEDGER}`),
     ),
   );
@@ -123,15 +151,15 @@ export function checkDebt({ cwd, baseBranch = process.env.DEBT_BASE_REF ?? 'main
   for (const ledgerPath of ledgers) {
     const baseText = show(cwd, base, ledgerPath);
     if (baseText === undefined) continue; // new on this branch: no baseline yet
-    const identicalMoves = currentLedgers.filter(
-      (path) =>
-        path !== ledgerPath &&
-        existsSync(join(cwd, path)) &&
-        readFileSync(join(cwd, path), 'utf8') === baseText,
-    );
-    const currentLedgerPath = existsSync(join(cwd, ledgerPath))
-      ? ledgerPath
-      : (renames.get(ledgerPath) ?? (identicalMoves.length === 1 ? identicalMoves[0] : undefined));
+    const currentLedgerPath = currentLedger({
+      cwd,
+      ledgerPath,
+      baseText,
+      currentLedgers,
+      newLedgers,
+      missingLedgers,
+      renames,
+    });
     if (currentLedgerPath === undefined || !existsSync(join(cwd, currentLedgerPath))) {
       lines.push(
         `${ledgerPath} existed on the base branch and is gone; restore it or commit an empty ledger`,
