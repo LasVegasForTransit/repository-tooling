@@ -17,6 +17,7 @@ import {
   sealArtifact,
   previewConfiguration,
   activeVersion,
+  uploadPreview,
 } from '../packages/web-platform/src/index.ts';
 
 test('publishes the provider-neutral web platform operations', () => {
@@ -36,6 +37,7 @@ test('publishes the provider-neutral web platform operations', () => {
     sealArtifact,
     previewConfiguration,
     activeVersion,
+    uploadPreview,
   ]) {
     assert.equal(typeof operation, 'function');
   }
