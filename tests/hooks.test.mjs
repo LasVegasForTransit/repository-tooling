@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
+import { chmod, mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -150,4 +150,33 @@ test('the source repository commit hook rejects an invented scope', async () => 
 
   assert.equal(result.status, 1);
   assert.match(result.stderr, /scope.*contributing.*allowed/i);
+});
+
+test('the pre-push hook clears repository-local Git variables before checks', async () => {
+  const directory = await mkdtemp(path.join(tmpdir(), 'lvbt-pre-push-'));
+  const resultFile = path.join(directory, 'result');
+  const pnpm = path.join(directory, 'pnpm');
+  await writeFile(
+    pnpm,
+    '#!/bin/sh\nprintf "%s|%s" "${GIT_DIR-unset}" "${GIT_WORK_TREE-unset}" > "$RESULT_FILE"\n',
+  );
+  await chmod(pnpm, 0o755);
+  const gitDirectory = spawnSync('git', ['rev-parse', '--git-dir'], {
+    cwd: repositoryRoot,
+    encoding: 'utf8',
+  }).stdout.trim();
+  const result = spawnSync(path.join(repositoryRoot, 'packages/cli/hooks/pre-push.sh'), [], {
+    cwd: repositoryRoot,
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      GIT_DIR: gitDirectory,
+      GIT_WORK_TREE: repositoryRoot,
+      PATH: `${directory}:${process.env.PATH}`,
+      RESULT_FILE: resultFile,
+    },
+  });
+
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(await readFile(resultFile, 'utf8'), 'unset|unset');
 });
