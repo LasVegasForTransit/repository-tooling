@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { doctorCheck } from './doctor-check.ts';
+import { doctorCheck } from './doctor-check.js';
 
 export interface CloudflareTarget {
   accountId: string;

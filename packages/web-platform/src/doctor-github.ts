@@ -1,6 +1,6 @@
 import { z } from 'zod';
-import { doctorCheck } from './doctor-check.ts';
-import { matchesPinnedRules } from './ruleset.ts';
+import { doctorCheck } from './doctor-check.js';
+import { matchesPinnedRules } from './ruleset.js';
 
 interface GitHubTarget {
   repository: string;

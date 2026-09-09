@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import { z } from 'zod';
-import type { ProvisionResource } from './provision-reconcile.ts';
+import type { ProvisionResource } from './provision-reconcile.js';
 
 interface Variable {
   name: string;

@@ -1,3 +1,3 @@
-export { doctorCheck } from './doctor-check.ts';
-export { reconcileResources } from './provision-reconcile.ts';
-export type { ProvisionResource } from './provision-reconcile.ts';
+export { doctorCheck } from './doctor-check.js';
+export { reconcileResources } from './provision-reconcile.js';
+export type { ProvisionResource } from './provision-reconcile.js';
