@@ -1,5 +1,5 @@
 import { expect, test } from 'vitest';
-import { provisionVariables } from '../src/provision-variables.ts';
+import { provisionRepositoryVariable, provisionVariables } from '../src/provision-variables.ts';
 import { reconcileResources } from '../src/provision-reconcile.ts';
 
 test('reconciles only declared nonsecret variables and preserves unrelated values', async () => {
@@ -28,4 +28,36 @@ test('reconciles only declared nonsecret variables and preserves unrelated value
   expect(variables.get('CLOUDFLARE_ZONE_ID')).toBe('zone');
   expect((await reconcileResources(resources, true)).changed).toBe(false);
   expect(writes).toHaveLength(2);
+});
+
+test('reconciles one explicitly named repository variable', async () => {
+  let value: string | null = null;
+  const resource = provisionRepositoryVariable(
+    {
+      repository: 'LasVegasForTransit/labs',
+      name: 'CLOUDFLARE_PREVIEWS_ENABLED',
+      value: 'true',
+    },
+    () =>
+      Promise.resolve({
+        variables: value === null ? [] : [{ name: 'CLOUDFLARE_PREVIEWS_ENABLED', value }],
+      }),
+    (_method, _endpoint, body) => {
+      value = body.value;
+      return Promise.resolve();
+    },
+  );
+  expect((await reconcileResources([resource], true)).ok).toBe(true);
+  expect(value).toBe('true');
+  expect((await reconcileResources([resource], true)).changed).toBe(false);
+});
+
+test('rejects an unsafe repository variable API target', () => {
+  expect(() =>
+    provisionRepositoryVariable(
+      { repository: '../other', name: 'ENABLED', value: 'true' },
+      () => Promise.resolve({ variables: [] }),
+      () => Promise.resolve(),
+    ),
+  ).toThrow();
 });

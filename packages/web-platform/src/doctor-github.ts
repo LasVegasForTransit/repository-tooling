@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { doctorCheck } from './doctor-check.js';
+import { doctorCheck, type DoctorCheck } from './doctor-check.js';
 import { matchesPinnedRules } from './ruleset.js';
 
 interface GitHubTarget {
@@ -9,11 +9,57 @@ interface GitHubTarget {
   accountId: string;
   zoneId: string;
   ruleset: unknown;
+  preview?: {
+    environment: string;
+    secret: string;
+    enabledVariable: string;
+  };
 }
 
 const variables = z.object({
   variables: z.array(z.object({ name: z.string(), value: z.string() })),
 });
+type Read = (endpoint: string) => Promise<unknown>;
+type Check = (
+  id: string,
+  requirement: string,
+  inspect: () => Promise<boolean>,
+) => Promise<DoctorCheck>;
+
+async function previewChecks(
+  previewTarget: NonNullable<GitHubTarget['preview']>,
+  base: string,
+  read: Read,
+  check: Check,
+) {
+  const preview = `${base}/environments/${encodeURIComponent(previewTarget.environment)}`;
+  return Promise.all([
+    check('preview', 'The pull-request preview environment exists.', async () => {
+      const value = await read(preview);
+      return typeof value === 'object' && value !== null;
+    }),
+    check(
+      'preview-credentials',
+      `The preview environment contains ${previewTarget.secret}.`,
+      async () =>
+        z
+          .object({ secrets: z.array(z.object({ name: z.string() })) })
+          .parse(await read(`${preview}/secrets`))
+          .secrets.some((secret) => secret.name === previewTarget.secret),
+    ),
+    check(
+      'preview-enabled',
+      `The ${previewTarget.enabledVariable} repository variable enables previews.`,
+      async () =>
+        variables
+          .parse(await read(`${base}/actions/variables`))
+          .variables.some(
+            (variable) =>
+              variable.name === previewTarget.enabledVariable && variable.value === 'true',
+          ),
+    ),
+  ]);
+}
 
 async function productionPolicy(
   read: (endpoint: string) => Promise<unknown>,
@@ -34,15 +80,12 @@ async function productionPolicy(
   return branches.length === 1 && branches[0]?.name === branch && branches[0].type === 'branch';
 }
 
-export async function githubDoctor(
-  target: GitHubTarget,
-  read: (endpoint: string) => Promise<unknown>,
-) {
+export async function githubDoctor(target: GitHubTarget, read: Read) {
   const base = `repos/${target.repository}`;
   const environment = `${base}/environments/${encodeURIComponent(target.environment)}`;
   const check = (id: string, requirement: string, inspect: () => Promise<boolean>) =>
     doctorCheck(`github.${id}`, requirement, inspect);
-  return [
+  const checks = [
     await check(
       'repository',
       'Public, unarchived repository with the expected default branch.',
@@ -112,4 +155,7 @@ export async function githubDoctor(
           ),
     ),
   ];
+  if (target.preview !== undefined)
+    checks.push(...(await previewChecks(target.preview, base, read, check)));
+  return checks;
 }

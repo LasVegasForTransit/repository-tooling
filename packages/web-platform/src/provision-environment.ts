@@ -86,3 +86,23 @@ export function provisionEnvironment(
     },
   };
 }
+
+export function provisionEnvironmentPresence(
+  target: { repository: string; environment: string },
+  read: (endpoint: string) => Promise<unknown>,
+  write: (method: 'PUT', endpoint: string, body: object) => Promise<void>,
+): ProvisionResource {
+  const selected = z
+    .object({
+      repository: z.string().regex(/^[A-Za-z0-9-]+\/[A-Za-z0-9._-]+$/),
+      environment: z.string().regex(/^[A-Za-z0-9._-]+$/),
+    })
+    .parse(target);
+  const endpoint = `repos/${selected.repository}/environments/${encodeURIComponent(selected.environment)}`;
+  return {
+    id: `github.environment.${selected.environment}`,
+    read: async () => (await read(endpoint)) !== null,
+    desired: () => true,
+    write: () => write('PUT', endpoint, {}),
+  };
+}

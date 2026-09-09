@@ -1,5 +1,8 @@
 import { expect, test } from 'vitest';
-import { provisionEnvironment } from '../src/provision-environment.ts';
+import {
+  provisionEnvironment,
+  provisionEnvironmentPresence,
+} from '../src/provision-environment.ts';
 import { reconcileResources } from '../src/provision-reconcile.ts';
 
 function fixture() {
@@ -107,4 +110,32 @@ test('withholds branch creation when a provider changes existing protections', a
   expect(result.ok).toBe(false);
   expect(result.changed).toBeNull();
   expect(writes).toEqual(['PUT']);
+});
+
+test('creates a missing named environment and preserves an existing environment', async () => {
+  let present = false;
+  const writes: string[] = [];
+  const resource = provisionEnvironmentPresence(
+    { repository: 'example/labs', environment: 'preview' },
+    () => Promise.resolve(present ? { id: 42 } : null),
+    (_method, endpoint) => {
+      writes.push(endpoint);
+      present = true;
+      return Promise.resolve();
+    },
+  );
+  expect((await reconcileResources([resource], false)).operations[0]?.status).toBe('planned');
+  expect((await reconcileResources([resource], true)).ok).toBe(true);
+  expect(writes).toEqual(['repos/example/labs/environments/preview']);
+  expect((await reconcileResources([resource], true)).changed).toBe(false);
+});
+
+test('rejects an unsafe environment API target', () => {
+  expect(() =>
+    provisionEnvironmentPresence(
+      { repository: '../other', environment: '../production' },
+      () => Promise.resolve(null),
+      () => Promise.resolve(),
+    ),
+  ).toThrow();
 });
