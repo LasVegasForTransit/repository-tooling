@@ -278,6 +278,13 @@ test('lvbt check reports the file that breaks a shape rule', async () => {
     path.join(repository, 'packages/example/tests/e2e/snapshots/desktop/home.png'),
     '',
   );
+  await mkdir(path.join(repository, 'packages/example/tests/e2e/home.spec.ts-snapshots'), {
+    recursive: true,
+  });
+  await writeFile(
+    path.join(repository, 'packages/example/tests/e2e/home.spec.ts-snapshots/home-desktop.png'),
+    '',
+  );
 
   const result = spawnSync(process.execPath, [cli, 'check', 'filenames', 'contract'], {
     cwd: repository,
@@ -287,7 +294,7 @@ test('lvbt check reports the file that breaks a shape rule', async () => {
   assert.match(result.stdout, /FAIL {2}filenames/);
   assert.match(result.stdout, /greet\.helper\.ts/);
   assert.doesNotMatch(result.stdout, /robots\.txt\.ts/);
-  assert.doesNotMatch(result.stdout, /fixtures\.ts|home\.png/);
+  assert.doesNotMatch(result.stdout, /fixtures\.ts|home-desktop\.png/);
   // CSS modules, config files, placeholders, and a README beside tests are conventions.
   const conventional = [
     'src/card.module.css',

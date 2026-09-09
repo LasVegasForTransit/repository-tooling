@@ -21,7 +21,7 @@ const DOCUMENT = /^[A-Z][A-Z0-9-]*\.md$/;
 const ROUTE_FILE = /^(?:apps|packages)\/[^/]+\/src\/pages\//;
 // Test-only support (helpers, fixtures) and committed snapshots are not
 // suites, so they take ordinary source names.
-const SUPPORT_FILE = /^(?:.*\/)?(?:support|snapshots)\//;
+const SUPPORT_FILE = /^(?:.*\/)?(?:support|snapshots|[^/]+\.spec\.tsx?-snapshots)\//;
 const TEST_FILE = /^[^.]+\.(test|spec)\.(ts|tsx)$/;
 
 function exists(root, path) {
