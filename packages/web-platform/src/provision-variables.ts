@@ -13,22 +13,33 @@ interface VariableTarget {
   zoneId: string;
 }
 
-export function provisionVariables(
-  target: VariableTarget,
+interface RepositoryVariableTarget {
+  repository: string;
+  name: string;
+  value: string;
+}
+
+export function provisionRepositoryVariable(
+  input: RepositoryVariableTarget,
   read: (endpoint: string) => Promise<unknown>,
   write: VariableWrite,
-): ProvisionResource[] {
+): ProvisionResource {
+  const target = z
+    .object({
+      repository: z.string().regex(/^[A-Za-z0-9-]+\/[A-Za-z0-9._-]+$/),
+      name: z.string().regex(/^[A-Z][A-Z0-9_]*$/),
+      value: z.string(),
+    })
+    .parse(input);
+  const desired = { name: target.name, value: target.value };
   const endpoint = `repos/${target.repository}/actions/variables`;
-  return [
-    { name: 'CLOUDFLARE_ACCOUNT_ID', value: target.accountId },
-    { name: 'CLOUDFLARE_ZONE_ID', value: target.zoneId },
-  ].map((desired) => ({
+  return {
     id: `github.variable.${desired.name}`,
     read: async () => {
-      const variables = z
+      const values = z
         .object({ variables: z.array(z.object({ name: z.string(), value: z.string() })) })
         .parse(await read(endpoint)).variables;
-      const matches = variables.filter((variable) => variable.name === desired.name);
+      const matches = values.filter((variable) => variable.name === desired.name);
       if (matches.length > 1) throw new Error('Duplicate provider variable names require review.');
       return matches[0] ?? null;
     },
@@ -39,7 +50,18 @@ export function provisionVariables(
         before === null ? endpoint : `${endpoint}/${desired.name}`,
         desired,
       ),
-  }));
+  };
+}
+
+export function provisionVariables(
+  target: VariableTarget,
+  read: (endpoint: string) => Promise<unknown>,
+  write: VariableWrite,
+): ProvisionResource[] {
+  return [
+    { name: 'CLOUDFLARE_ACCOUNT_ID', value: target.accountId },
+    { name: 'CLOUDFLARE_ZONE_ID', value: target.zoneId },
+  ].map((desired) => provisionRepositoryVariable({ ...target, ...desired }, read, write));
 }
 
 export function githubVariableWriter(root: string, repository: string): VariableWrite {

@@ -8,6 +8,11 @@ const target = {
   environment: 'production',
   accountId: 'account',
   zoneId: 'zone',
+  preview: {
+    environment: 'preview',
+    secret: 'CLOUDFLARE_PREVIEW_API_TOKEN',
+    enabledVariable: 'CLOUDFLARE_PREVIEWS_ENABLED',
+  },
   ruleset: standard,
 };
 const fixture: Record<string, unknown> = {
@@ -24,11 +29,14 @@ const fixture: Record<string, unknown> = {
     variables: [
       { name: 'CLOUDFLARE_ACCOUNT_ID', value: 'account' },
       { name: 'CLOUDFLARE_ZONE_ID', value: 'zone' },
+      { name: 'CLOUDFLARE_PREVIEWS_ENABLED', value: 'true' },
     ],
   },
   '/environments/production/variables': {
     variables: [{ name: 'CLOUDFLARE_WEB_ANALYTICS_TOKEN', value: 'public-analytics-id' }],
   },
+  '/environments/preview': { id: 42 },
+  '/environments/preview/secrets': { secrets: [{ name: 'CLOUDFLARE_PREVIEW_API_TOKEN' }] },
 };
 
 test('checks repository controls and production configuration without reading secret values', async () => {
@@ -40,6 +48,9 @@ test('checks repository controls and production configuration without reading se
   expect(result.every((check) => check.status === 'pass')).toBe(true);
   expect(paths.every((endpoint) => endpoint.startsWith(`repos/${target.repository}`))).toBe(true);
   expect(JSON.stringify(result)).not.toContain('public-analytics-id');
+  expect(result.find((check) => check.id === 'github.preview')?.status).toBe('pass');
+  expect(result.find((check) => check.id === 'github.preview-credentials')?.status).toBe('pass');
+  expect(result.find((check) => check.id === 'github.preview-enabled')?.status).toBe('pass');
 });
 
 test('distinguishes missing credentials from an inaccessible provider', async () => {
@@ -54,6 +65,21 @@ test('distinguishes missing credentials from an inaccessible provider', async ()
   const denied = await githubDoctor(target, () => Promise.reject(new Error('private token')));
   expect(denied.every((check) => check.status === 'unknown')).toBe(true);
   expect(JSON.stringify(denied)).not.toContain('private token');
+});
+
+test('distinguishes missing preview credentials and a disabled preview workflow', async () => {
+  const result = await githubDoctor(target, (endpoint) => {
+    if (endpoint.endsWith('/environments/preview/secrets')) return Promise.resolve({ secrets: [] });
+    if (endpoint.endsWith('/actions/variables'))
+      return Promise.resolve({
+        variables: (
+          fixture['/actions/variables'] as { variables: { name: string; value: string }[] }
+        ).variables.filter((variable) => variable.name !== 'CLOUDFLARE_PREVIEWS_ENABLED'),
+      });
+    return Promise.resolve(fixture[endpoint.replace(`repos/${target.repository}`, '')]);
+  });
+  expect(result.find((check) => check.id === 'github.preview-credentials')?.status).toBe('fail');
+  expect(result.find((check) => check.id === 'github.preview-enabled')?.status).toBe('fail');
 });
 
 test('rejects unrestricted production branches and a nonrequired Validate check', async () => {
