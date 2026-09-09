@@ -103,27 +103,48 @@ export function checkDebt({ cwd, baseBranch = process.env.DEBT_BASE_REF ?? 'main
   }
 
   const changed = new Set(git(cwd, ['diff', '--name-only', base]).split('\n').filter(Boolean));
+  const renames = new Map(
+    git(cwd, ['diff', '--name-status', '--find-renames', base])
+      .split('\n')
+      .map((line) => line.split('\t'))
+      .filter(([status, from, to]) => status?.startsWith('R') && from && to)
+      .map(([, from, to]) => [from, to]),
+  );
+  const currentLedgers = git(cwd, ['ls-files', '--cached', '--others', '--exclude-standard'])
+    .split('\n')
+    .filter((path) => path === LEDGER || path.endsWith(`/${LEDGER}`));
   const ledgers = new Set(
-    [
-      ...git(cwd, ['ls-files', `*${LEDGER}`]).split('\n'),
-      ...git(cwd, ['ls-tree', '-r', '--name-only', base]).split('\n'),
-    ].filter((path) => path === LEDGER || path.endsWith(`/${LEDGER}`)),
+    [...currentLedgers, ...git(cwd, ['ls-tree', '-r', '--name-only', base]).split('\n')].filter(
+      (path) => path === LEDGER || path.endsWith(`/${LEDGER}`),
+    ),
   );
 
   const lines = [];
   for (const ledgerPath of ledgers) {
     const baseText = show(cwd, base, ledgerPath);
     if (baseText === undefined) continue; // new on this branch: no baseline yet
-    if (!existsSync(join(cwd, ledgerPath))) {
+    const identicalMoves = currentLedgers.filter(
+      (path) =>
+        path !== ledgerPath &&
+        existsSync(join(cwd, path)) &&
+        readFileSync(join(cwd, path), 'utf8') === baseText,
+    );
+    const currentLedgerPath = existsSync(join(cwd, ledgerPath))
+      ? ledgerPath
+      : (renames.get(ledgerPath) ?? (identicalMoves.length === 1 ? identicalMoves[0] : undefined));
+    if (currentLedgerPath === undefined || !existsSync(join(cwd, currentLedgerPath))) {
       lines.push(
         `${ledgerPath} existed on the base branch and is gone; restore it or commit an empty ledger`,
       );
       continue;
     }
     const before = parseLedger(baseText);
-    const current = parseLedger(readFileSync(join(cwd, ledgerPath), 'utf8'));
-    lines.push(...growth(ledgerPath, before, current));
-    lines.push(...unpaidEdits({ cwd, ledgerPath, base: before, current, changed, baseRef: base }));
+    const current = parseLedger(readFileSync(join(cwd, currentLedgerPath), 'utf8'));
+    lines.push(...growth(currentLedgerPath, before, current));
+    if (currentLedgerPath === ledgerPath)
+      lines.push(
+        ...unpaidEdits({ cwd, ledgerPath, base: before, current, changed, baseRef: base }),
+      );
   }
   return {
     name: 'debt',

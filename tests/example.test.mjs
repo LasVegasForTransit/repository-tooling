@@ -6,6 +6,7 @@ import {
   mkdtemp,
   readFile,
   readdir,
+  rename,
   rm,
   stat,
   symlink,
@@ -348,6 +349,12 @@ test('lvbt check debt lets a newly adopted rule be recorded once but never lets 
   const edited = debt();
   assert.equal(edited.status, 1);
   assert.match(edited.stdout, /changed without shrinking/);
+
+  await writeFile(source, original);
+  const movedDirectory = path.join(repository, 'packages/renamed');
+  await rename(path.join(repository, 'packages/example'), movedDirectory);
+  const moved = debt();
+  assert.equal(moved.status, 0, `${moved.stdout}\n${moved.stderr}`);
 });
 
 test('preflight names the fix for every failing check and passes once they are done', async () => {
