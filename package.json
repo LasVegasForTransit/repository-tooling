@@ -16,7 +16,7 @@
     "format:check": "prettier --check .",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "test": "node --test --test-concurrency=1 'tests/**/*.test.mjs'",
+    "test": "node --test --test-concurrency=1 'tests/**/*.test.mjs' && pnpm --filter @lvbt/web-platform test",
     "prepare": "git config --local core.hooksPath .githooks 2>/dev/null || true"
   },
   "devDependencies": {

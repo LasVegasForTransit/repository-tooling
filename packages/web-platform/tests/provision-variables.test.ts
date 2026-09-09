@@ -1,0 +1,31 @@
+import { expect, test } from 'vitest';
+import { provisionVariables } from '../src/provision-variables.ts';
+import { reconcileResources } from '../src/provision-reconcile.ts';
+
+test('reconciles only declared nonsecret variables and preserves unrelated values', async () => {
+  const variables = new Map([
+    ['UNRELATED', 'keep'],
+    ['CLOUDFLARE_ZONE_ID', 'old-zone'],
+  ]);
+  const writes: { method: string; endpoint: string }[] = [];
+  const resources = provisionVariables(
+    { repository: 'LasVegasForTransit/labs', accountId: 'account', zoneId: 'zone' },
+    () => Promise.resolve({ variables: [...variables].map(([name, value]) => ({ name, value })) }),
+    (method, endpoint, body) => {
+      writes.push({ method, endpoint });
+      variables.set(body.name, body.value);
+      return Promise.resolve();
+    },
+  );
+  expect(
+    (await reconcileResources(resources, false)).operations.map((operation) => operation.status),
+  ).toEqual(['planned', 'planned']);
+  expect(writes).toHaveLength(0);
+  expect((await reconcileResources(resources, true)).ok).toBe(true);
+  expect(writes.map((write) => write.method)).toEqual(['POST', 'PATCH']);
+  expect(variables.get('UNRELATED')).toBe('keep');
+  expect(variables.get('CLOUDFLARE_ACCOUNT_ID')).toBe('account');
+  expect(variables.get('CLOUDFLARE_ZONE_ID')).toBe('zone');
+  expect((await reconcileResources(resources, true)).changed).toBe(false);
+  expect(writes).toHaveLength(2);
+});
