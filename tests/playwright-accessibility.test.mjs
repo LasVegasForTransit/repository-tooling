@@ -6,10 +6,10 @@ test('the Playwright package exposes the organization accessibility assertion', 
   assert.equal(typeof module.expectNoAccessibilityViolations, 'function');
 });
 
-test('the shared Playwright config uses portable project-specific snapshots', async () => {
+test('the shared Playwright config separates project and platform snapshots', async () => {
   const { sharedConfig } = await import('@lvbt/playwright-config');
   assert.equal(
     sharedConfig.snapshotPathTemplate,
-    '{snapshotDir}/{testFileDir}/{testFileName}-snapshots/{arg}{-projectName}{ext}',
+    '{snapshotDir}/{testFileDir}/{testFileName}-snapshots/{arg}{-projectName}{-snapshotSuffix}{ext}',
   );
 });
