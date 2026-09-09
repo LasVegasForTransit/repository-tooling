@@ -24,6 +24,8 @@ export const sharedConfig = {
   testDir: './tests/e2e',
   testMatch: '**/*.spec.ts',
   testIgnore: '**/support/**',
+  snapshotPathTemplate:
+    '{snapshotDir}/{testFileDir}/{testFileName}-snapshots/{arg}{-projectName}{ext}',
   fullyParallel: true,
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 2 : 0,
