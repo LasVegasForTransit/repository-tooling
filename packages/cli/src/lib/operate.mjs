@@ -25,6 +25,33 @@ function satisfies(version, range) {
 
 const WRANGLER_FILES = ['wrangler.jsonc', 'wrangler.json', 'wrangler.toml'];
 
+export function wranglerDeployArguments(commit, dryRun) {
+  if (!/^[a-f0-9]{40}$/.test(commit))
+    throw new CliError('deploy: provenance requires a full Git commit.', 2);
+  return [
+    'exec',
+    'wrangler',
+    'deploy',
+    '--strict',
+    '--message',
+    `Commit ${commit}`,
+    ...(dryRun ? ['--dry-run'] : []),
+  ];
+}
+
+function deploymentCommit(cwd) {
+  const commit = output('git', ['rev-parse', 'HEAD'], cwd);
+  if (commit === undefined || !/^[a-f0-9]{40}$/.test(commit))
+    throw new CliError('deploy: repository HEAD is unavailable.', 2);
+  const expected = process.env.GITHUB_SHA?.trim();
+  if (expected !== undefined && expected !== commit)
+    throw new CliError('deploy: checkout does not match the triggering GitHub commit.', 2);
+  const changed = output('git', ['status', '--porcelain', '--untracked-files=normal'], cwd);
+  if (changed === undefined || changed !== '')
+    throw new CliError('deploy: commit or move local changes before deploying.', 2);
+  return commit;
+}
+
 async function wranglerConfig(directory) {
   for (const file of WRANGLER_FILES) {
     if (await exists(path.join(directory, file))) return file;
@@ -188,12 +215,16 @@ export async function deploy({ cwd, options }) {
     );
   }
 
+  const commit = deploymentCommit(cwd);
+
   process.stdout.write('pnpm build\n');
   const build = spawnSync('pnpm', ['build'], { cwd, stdio: 'inherit' });
   if (build.status !== 0) throw new CliError('deploy: build failed', build.status ?? 1);
 
   for (const target of targets) {
-    const args = ['exec', 'wrangler', 'deploy', ...(options.dryRun ? ['--dry-run'] : [])];
+    if (deploymentCommit(cwd) !== commit)
+      throw new CliError('deploy: repository changed after the production build.', 2);
+    const args = wranglerDeployArguments(commit, options.dryRun);
     process.stdout.write(`${target}: pnpm ${args.join(' ')}\n`);
     const result = spawnSync('pnpm', args, { cwd: path.join(cwd, target), stdio: 'inherit' });
     if (result.status !== 0)
