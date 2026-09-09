@@ -1,6 +1,6 @@
 import { isDeepStrictEqual } from 'node:util';
 import { z } from 'zod';
-import type { ProvisionResource } from './provision-reconcile.ts';
+import type { ProvisionResource } from './provision-reconcile.js';
 
 const policy = z.object({ protected_branches: z.boolean(), custom_branch_policies: z.boolean() });
 const environment = z.object({

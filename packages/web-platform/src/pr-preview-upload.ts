@@ -4,9 +4,9 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { promisify } from 'node:util';
 import { z } from 'zod';
-import { activeVersion, uploadedVersion } from './cloudflare-release.ts';
-import type { CloudflareRead } from './doctor-cloudflare.ts';
-import { previewUploadReceipt, previewConfiguration } from './pr-preview-config.ts';
+import { activeVersion, uploadedVersion } from './cloudflare-release.js';
+import type { CloudflareRead } from './doctor-cloudflare.js';
+import { previewUploadReceipt, previewConfiguration } from './pr-preview-config.js';
 
 interface Target {
   directory: string;

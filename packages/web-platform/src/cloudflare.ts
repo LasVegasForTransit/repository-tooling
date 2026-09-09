@@ -2,8 +2,8 @@ export {
   authenticatedCloudflareReader,
   cloudflareCredential,
   cloudflareReader,
-} from './cloudflare-read.ts';
-export { cloudflareDoctor } from './doctor-cloudflare.ts';
-export type { CloudflareRead, CloudflareTarget } from './doctor-cloudflare.ts';
-export { provisionRoutes } from './provision-routes.ts';
-export { activeVersion, uploadedVersion, verifyArchiveVersion } from './cloudflare-release.ts';
+} from './cloudflare-read.js';
+export { cloudflareDoctor } from './doctor-cloudflare.js';
+export type { CloudflareRead, CloudflareTarget } from './doctor-cloudflare.js';
+export { provisionRoutes } from './provision-routes.js';
+export { activeVersion, uploadedVersion, verifyArchiveVersion } from './cloudflare-release.js';

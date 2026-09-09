@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { ProvisionResource } from './provision-reconcile.ts';
+import type { ProvisionResource } from './provision-reconcile.js';
 
 const targetSchema = z.object({
   hostname: z.string().regex(/^[a-z0-9]+(?:[.-][a-z0-9]+)*$/),
