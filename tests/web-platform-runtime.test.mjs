@@ -12,7 +12,11 @@ import {
   provisionEnvironment,
   provisionRoutes,
   provisionVariables,
+  publishPreviews,
   reconcileResources,
+  sealArtifact,
+  previewConfiguration,
+  activeVersion,
 } from '../packages/web-platform/src/index.ts';
 
 test('publishes the provider-neutral web platform operations', () => {
@@ -27,7 +31,11 @@ test('publishes the provider-neutral web platform operations', () => {
     provisionEnvironment,
     provisionRoutes,
     provisionVariables,
+    publishPreviews,
     reconcileResources,
+    sealArtifact,
+    previewConfiguration,
+    activeVersion,
   ]) {
     assert.equal(typeof operation, 'function');
   }
