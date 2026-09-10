@@ -436,3 +436,13 @@ test('source and generated repositories pin audited transitive fixes', async () 
     assert.match(workspace, /^overrides:\n {2}sharp: 0\.35\.4\n {2}smol-toml: 1\.8\.0$/m);
   }
 });
+
+test('generated repositories exclude the immutable vendored preset from formatting', async () => {
+  for (const directory of ['basic', 'with-astro', 'with-vite-react']) {
+    const ignore = await readFile(
+      path.join(sourceRoot, 'examples', directory, '.prettierignore'),
+      'utf8',
+    );
+    assert.match(ignore, /^\.lvbt\/web-platform\/$/m);
+  }
+});
