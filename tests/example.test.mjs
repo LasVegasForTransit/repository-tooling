@@ -434,7 +434,10 @@ test('source and generated repositories pin audited transitive fixes', async () 
       path.join(sourceRoot, directory, 'pnpm-workspace.yaml'),
       'utf8',
     );
-    assert.match(workspace, /^overrides:\n {2}sharp: 0\.35\.4\n {2}smol-toml: 1\.8\.0$/m);
+    assert.match(
+      workspace,
+      /^overrides:\n {2}sharp: 0\.35\.4\n {2}smol-toml: 1\.8\.0\n {2}svgo: 4\.1\.0$/m,
+    );
   }
 });
 
