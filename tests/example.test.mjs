@@ -407,11 +407,12 @@ test('deploy finds every app with a wrangler config and honors --filter', async 
   assert.match(result.stderr, /worker has no wrangler/);
 });
 
-test('the source repository consumes its own packages and every package shares one version', async () => {
+test('source manifests use one published version rather than a development prerelease', async () => {
   const hook = await readFile(path.join(sourceRoot, '.githooks/commit-msg'), 'utf8');
   assert.match(hook, /packages\/cli\/hooks\/commit-msg\.sh/);
   const packageJson = await json(path.join(sourceRoot, 'package.json'));
   assert.equal(packageJson.version, version);
+  assert.match(version, /^\d+\.\d+\.\d+$/, 'main must not use a development prerelease version');
   for (const name of ['eslint-config', 'prettier-config']) {
     assert.equal(packageJson.devDependencies[`@lvbt/${name}`], 'workspace:*');
   }
