@@ -3,12 +3,13 @@
 # hook gets bypassed with --no-verify, and a bypassed hook enforces nothing.
 # CI is the guarantee; this exists so CI is rarely the thing that tells you.
 set -eu
-cd "$(git rev-parse --show-toplevel)"
+ROOT=$(git rev-parse --show-toplevel)
+cd "$ROOT"
 
 STAGED="$(git diff --cached --name-only --diff-filter=ACMR)"
 [ -z "$STAGED" ] && exit 0
 
-if ! pnpm --silent exec lint-staged; then
+if ! pnpm --silent exec lint-staged --config "$ROOT/package.json"; then
   printf '\n  Commit blocked: lint-staged could not format everything.\n' >&2
   printf '    fix:  pnpm check:fix\n\n' >&2
   exit 1

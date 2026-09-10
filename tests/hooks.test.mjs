@@ -180,3 +180,12 @@ test('the pre-push hook clears repository-local Git variables before checks', as
   assert.equal(result.status, 0, result.stderr);
   assert.equal(await readFile(resultFile, 'utf8'), 'unset|unset');
 });
+
+test('the pre-commit hook uses only the consumer lint-staged configuration', async () => {
+  const hook = await readFile(
+    path.join(repositoryRoot, 'packages/cli/hooks/pre-commit.sh'),
+    'utf8',
+  );
+
+  assert.match(hook, /lint-staged --config "\$ROOT\/package\.json"/);
+});
