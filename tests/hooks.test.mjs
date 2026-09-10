@@ -181,6 +181,26 @@ test('the pre-push hook clears repository-local Git variables before checks', as
   assert.equal(await readFile(resultFile, 'utf8'), 'unset|unset');
 });
 
+test('the shared and source repository hooks pass ShellCheck', (context) => {
+  const available = spawnSync('shellcheck', ['--version'], { encoding: 'utf8' });
+  if (available.error?.code === 'ENOENT') {
+    context.skip('ShellCheck is not installed.');
+    return;
+  }
+
+  const hooks = [
+    ...['commit-msg', 'pre-commit', 'pre-push', 'prepare-commit-msg'].map((name) =>
+      path.join(repositoryRoot, '.githooks', name),
+    ),
+    ...['commit-msg.sh', 'pre-commit.sh', 'pre-push.sh', 'prepare-commit-msg.sh'].map((name) =>
+      path.join(repositoryRoot, 'packages/cli/hooks', name),
+    ),
+  ];
+  const result = spawnSync('shellcheck', hooks, { encoding: 'utf8' });
+
+  assert.equal(result.status, 0, result.stdout || result.stderr);
+});
+
 test('the pre-commit hook uses only the consumer lint-staged configuration', async () => {
   const hook = await readFile(
     path.join(repositoryRoot, 'packages/cli/hooks/pre-commit.sh'),
