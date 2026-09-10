@@ -8,14 +8,19 @@ only ever done with the maintainer's explicit approval.
 ## Before you start
 
 - The change is merged to `main` and CI is green.
-- You have decided the version. Bump the minor version when a package's behavior changes or an
-  example changes shape; bump the patch version for documentation and test-only changes.
+- The standard passes its consumer validation in every repository that it affects.
+- The version still names the latest published release. Development commits do not advance it and do
+  not receive sequential prerelease tags.
 
 ## 1. Set one version everywhere
 
-The root `package.json`, every `packages/*/package.json`, both plugin manifests under
-`packages/cli/plugins/lvbt-contributions/`, and `.claude-plugin/marketplace.json` carry the same
-version. The examples pin the `@lvbt/*` dependencies and the Claude marketplace ref to the tag
+Choose the new version from the published contract. A backward-compatible fix increments the patch
+number. A new backward-compatible consumer capability increments the minor number. A breaking change
+before 1.0 increments the minor number and includes an explicit migration path.
+
+In the release commit, set the root `package.json`, every `packages/*/package.json`, both plugin
+manifests under `packages/cli/plugins/lvbt-contributions/`, and `.claude-plugin/marketplace.json` to
+the same version. Pin the examples' `@lvbt/*` dependencies and Claude marketplace ref to the tag
 `v<version>`. `pnpm check` fails when any of these disagree.
 
 Commit with `chore(tooling): release v0.2.1`.

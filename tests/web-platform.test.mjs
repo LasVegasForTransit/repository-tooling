@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { test } from 'node:test';
 import { mkdtemp, mkdir, readFile, rm, stat, symlink, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 
 import { applyPreset, verifyPreset, fingerprint } from '../standards/web-platform.ts';
-import { readRelease } from '../standards/web-platform-source.ts';
+import { readCommit, readRelease } from '../standards/web-platform-source.ts';
 
 async function fixture(run) {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'lvbt-preset-'));
@@ -41,6 +41,18 @@ test('vendors exact bytes and verifies them without a source repository', () =>
     const metadata = await verifyPreset(root);
     assert.equal(metadata.contentHash, fingerprint(bundle.files));
     assert.equal(metadata.release, 'v1.0.0');
+  }));
+
+test('records an unpublished preset by commit without assigning a release', () =>
+  fixture(async (root) => {
+    await applyPreset(root, {
+      ...preset({ 'catalog.json': '{"node":"24.20.0"}\n' }),
+      release: null,
+    });
+
+    const metadata = await verifyPreset(root);
+    assert.equal(metadata.release, null);
+    assert.equal(metadata.commit, 'a'.repeat(40));
   }));
 
 test('refuses to overwrite locally edited vendor files', () =>
@@ -111,4 +123,59 @@ test('reads only a tagged commit and includes both web profiles', () =>
     assert.ok(bundle.files['examples/with-astro/apps/site/astro.config.ts']);
     assert.ok(bundle.files['examples/with-vite-react/apps/app/vite.config.ts']);
     assert.throws(() => readRelease(repository, 'main'), /explicit version/);
+  }));
+
+test('reads an unpublished preset only from an exact commit', () =>
+  fixture(async (root) => {
+    const repository = path.join(root, 'source.git');
+    execFileSync(
+      'git',
+      ['clone', '--bare', '--shared', new URL('..', import.meta.url).pathname, repository],
+      { stdio: 'pipe' },
+    );
+    const commit = execFileSync('git', ['-C', repository, 'rev-parse', 'HEAD'], {
+      encoding: 'utf8',
+    }).trim();
+
+    const bundle = readCommit(repository, commit);
+    assert.equal(bundle.release, null);
+    assert.equal(bundle.commit, commit);
+    assert.ok(bundle.files['packages/cli/catalog.json']);
+    assert.throws(() => readCommit(repository, 'main'), /full commit/i);
+  }));
+
+test('the updater accepts either a release or an exact commit, never both', () =>
+  fixture(async (root) => {
+    const repository = new URL('..', import.meta.url).pathname;
+    const commit = execFileSync('git', ['-C', repository, 'rev-parse', 'HEAD'], {
+      encoding: 'utf8',
+    }).trim();
+    const cli = path.join(repository, 'standards/web-platform-cli.ts');
+    const development = spawnSync(
+      process.execPath,
+      [cli, 'update', '--root', root, '--source', repository, '--commit', commit, '--json'],
+      { encoding: 'utf8' },
+    );
+    assert.equal(development.status, 0, development.stderr);
+    assert.equal(JSON.parse(development.stdout).release, null);
+
+    const ambiguous = spawnSync(
+      process.execPath,
+      [
+        cli,
+        'update',
+        '--root',
+        root,
+        '--source',
+        repository,
+        '--release',
+        'v0.2.7',
+        '--commit',
+        commit,
+        '--json',
+      ],
+      { encoding: 'utf8' },
+    );
+    assert.notEqual(ambiguous.status, 0);
+    assert.match(JSON.parse(ambiguous.stderr).error, /either --release or --commit/i);
   }));
