@@ -82,6 +82,7 @@ catalogs:
 overrides:
   sharp: 0.35.4
   smol-toml: 1.8.0
+  svgo: 4.1.0
 
 importers:
 

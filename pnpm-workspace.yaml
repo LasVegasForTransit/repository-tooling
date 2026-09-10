@@ -17,6 +17,7 @@ minimumReleaseAge: 1440
 overrides:
   sharp: 0.35.4
   smol-toml: 1.8.0
+  svgo: 4.1.0
 
 # The organization version baseline. Every LVBT repository's pnpm-workspace.yaml
 # carries this same catalog (the generator writes it), so two repositories
