@@ -35,14 +35,17 @@ git push origin main v0.2.1
 Create the GitHub release from the tag with `gh release create v0.2.1 --generate-notes`, then edit
 the notes so the first line says what changes for a repository that updates.
 
-Publishing the release runs the `Publish template` workflow, which copies each example at that tag
-into its template repository (`examples/basic` into
+Publishing the release runs the `Publish template` workflow, which prepares each example at that tag
+in a protected template repository (`examples/basic` for
 [LasVegasForTransit/template-basic](https://github.com/LasVegasForTransit/template-basic),
-`examples/with-astro` into `template-with-astro`, `examples/with-vite-react` into
-`template-with-vite-react`), the repositories behind GitHub's "Use this template" button. It needs,
-once: those repositories created and marked as templates in their settings, and a
-`TEMPLATE_PUBLISH_TOKEN` secret here with write access to them. The workflow can also be run by hand
-from the Actions tab with a tag.
+`examples/with-astro` for `template-with-astro`, and `examples/with-vite-react` for
+`template-with-vite-react`). Each generated update uses a release-specific branch and pull request;
+the organization ruleset still guards `main`. Merge those reviews after their `Validate` checks
+pass. These repositories power GitHub's "Use this template" button.
+
+The workflow requires the repositories to be marked as templates and a `TEMPLATE_PUBLISH_TOKEN`
+secret with contents and pull-request write access to all three. Manual dispatch accepts stable
+release tags only; development commits and prerelease tags do not publish templates.
 
 ## 3. Optional: publish to GitHub Packages
 

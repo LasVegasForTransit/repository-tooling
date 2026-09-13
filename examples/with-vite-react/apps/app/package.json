@@ -23,6 +23,7 @@
     "@lvbt/vitest-config": "github:LasVegasForTransit/repository-tooling#v0.2.7&path:/packages/vitest-config",
     "@playwright/test": "catalog:",
     "@tailwindcss/vite": "catalog:",
+    "@types/node": "catalog:",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
     "@vitejs/plugin-react": "catalog:",

@@ -45,6 +45,9 @@ test('the organization registry contains every active repository', async () => {
     'analytics',
     'labs',
     'repository-tooling',
+    'template-basic',
+    'template-with-astro',
+    'template-with-vite-react',
     'transit-mapper',
     'website',
     'week-without-driving',
@@ -93,6 +96,19 @@ test('continuous integration uses the same pnpm setup contract', async () => {
   assert.match(setup, /pnpm\/action-setup@/);
   assert.match(setup, /cache: pnpm/);
   assert.match(setup, /pnpm install --frozen-lockfile/);
+});
+
+test('template publication commits an installable frozen lockfile', async () => {
+  const workflow = await read('.github/workflows/publish-template.yml');
+
+  assert.match(workflow, /uses: pnpm\/action-setup@/);
+  assert.match(workflow, /node-version-file: source\/package\.json/);
+  assert.match(workflow, /pnpm install --lockfile-only --no-frozen-lockfile/);
+  assert.ok(
+    workflow.indexOf('pnpm install --lockfile-only --no-frozen-lockfile') <
+      workflow.indexOf('git add -A'),
+    'the lockfile must be generated before the template commit',
+  );
 });
 
 test('the source repository installs the shared commit-subject validator', async () => {
