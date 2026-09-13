@@ -47,6 +47,7 @@ test('the organization registry contains every active repository', async () => {
     'repository-tooling',
     'transit-mapper',
     'website',
+    'week-without-driving',
   ]);
   assert.deepEqual(registry.exceptions, []);
 });

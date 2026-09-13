@@ -16,7 +16,7 @@ request titled "LVBT repository standard".
 | `@lvbt/eslint-config`     | `config` arrays from `./base`, `./browser` (base plus browser globals), and `./react-internal`: strict and stylistic type-checked rules, suppression hygiene, shape caps, four SonarJS rules, the Turborepo env rule, Prettier last. Owns its plugins                                                                                                        |
 | `@lvbt/prettier-config`   | The Prettier settings object: 100 columns, single quotes, trailing commas, wrapped prose                                                                                                                                                                                                                                                                     |
 | `@lvbt/vitest-config`     | `sharedConfig`: unit tests under `tests/`, empty suites fail                                                                                                                                                                                                                                                                                                 |
-| `@lvbt/playwright-config` | `sharedConfig`: end-to-end tests under `tests/e2e/*.spec.ts`, desktop and mobile projects, traces on failure, retries in CI                                                                                                                                                                                                                                  |
+| `@lvbt/playwright-config` | `sharedConfig`: end-to-end tests under `tests/e2e/*.spec.ts`, desktop and mobile projects, traces on failure, retries in CI; accessibility and browser-health assertions                                                                                                                                                                                     |
 | `@lvbt/cli`               | The `lvbt` command (`bootstrap`, `preflight`, `check`, `deploy`), the git hooks, the `lvbt-contributions` agent plugin, and the version catalog                                                                                                                                                                                                              |
 
 ## How a package uses them
@@ -48,6 +48,17 @@ export default defineConfig({
   webServer: { command: 'pnpm preview', url: 'http://127.0.0.1:4321' },
   use: { ...sharedConfig.use, baseURL: 'http://127.0.0.1:4321' },
 });
+```
+
+Start browser-health monitoring before navigation and assert after the expected interactions. The
+assertion reports console errors, uncaught page errors, and failed network requests together:
+
+```ts
+import { monitorPageHealth } from '@lvbt/playwright-config/page-health';
+
+const health = monitorPageHealth(page);
+await page.goto('/');
+health.assertNoErrors();
 ```
 
 ```js
