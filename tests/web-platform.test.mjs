@@ -144,6 +144,16 @@ test('reads an unpublished preset only from an exact commit', () =>
     assert.throws(() => readCommit(repository, 'main'), /full commit/i);
   }));
 
+test('web profiles preserve immutable Worker version previews', async () => {
+  for (const file of [
+    'examples/with-astro/apps/site/wrangler.jsonc',
+    'examples/with-vite-react/apps/app/wrangler.jsonc',
+  ]) {
+    const config = await readFile(path.join(new URL('..', import.meta.url).pathname, file), 'utf8');
+    assert.match(config, /"preview_urls": true/);
+  }
+});
+
 test('the updater accepts either a release or an exact commit, never both', () =>
   fixture(async (root) => {
     const repository = new URL('..', import.meta.url).pathname;
