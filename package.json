@@ -9,6 +9,9 @@
     "node": "^24.20.0"
   },
   "scripts": {
+    "bootstrap": "lvbt bootstrap",
+    "preflight": "lvbt preflight",
+    "build": "pnpm check-types",
     "check": "pnpm format:check && markdownlint-cli2 && pnpm lint && pnpm check-types && pnpm test",
     "check-types": "tsc --project standards/tsconfig.json",
     "check:fix": "pnpm format && markdownlint-cli2 --fix && pnpm lint:fix",
