@@ -59,7 +59,7 @@ jobs:
         with:
           node-version-file: source/package.json
 
-      - name: Replace the template contents with the example
+      - name: Materialize the released template
         id: update
         shell: bash
         run: |
@@ -68,9 +68,8 @@ jobs:
             echo "Template publication requires a stable release tag." >&2
             exit 1
           fi
-          find template -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
-          cp -R "source/examples/${EXAMPLE}/." template/
-          # The example is committed with .gitkeep placeholders that GitHub templates keep.
+          node source/standards/template-publication.ts \
+            --source source --target template --example "$EXAMPLE" --release "$TAG"
           cd template
           git switch -C "automation/repository-standard-${TAG}"
           pnpm install --lockfile-only --no-frozen-lockfile

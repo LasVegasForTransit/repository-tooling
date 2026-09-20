@@ -5,6 +5,10 @@ contains the shared packages, dependency catalog, Astro and React templates, and
 Consumer configuration imports these packages through local `file:` dependencies; shared rules
 remain owned by repository-tooling.
 
+Published template repositories receive this snapshot automatically. The publication workflow copies
+the authoritative example, applies the exact release tag, rewrites its `@lvbt/*` dependencies, and
+generates the lockfile. Repeating publication for the same example and tag is idempotent.
+
 `.lvbt/web-platform.json` records the format version, preset name, source commit, and SHA-256
 content hash. A published snapshot also records its release tag. An unpublished snapshot records
 `null` as its release. The hash covers the sorted file paths and exact UTF-8 contents. Integrity

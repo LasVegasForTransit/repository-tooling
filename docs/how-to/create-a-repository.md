@@ -32,9 +32,9 @@ cd <your-repo>
 ```
 
 Each template is published from the matching directory under `examples/` in this repository on every
-release, so it is always the current standard. (Turborepo's own scaffolder works too, from any
-release:
-`npx create-turbo@latest --example https://github.com/LasVegasForTransit/repository-tooling/tree/main/examples/<example>`.)
+release, so it is always the current standard. Use the published template rather than copying an
+example directly: publication is the step that adds the released vendor snapshot and local package
+references.
 
 ## 2. Bootstrap and check
 
@@ -46,8 +46,9 @@ pnpm check
 `bootstrap` installs dependencies (the `prepare` script points git at `.githooks`), then runs
 `preflight`, which confirms Node, pnpm, hooks, GitHub CLI, and Cloudflare access and names the fix
 for anything missing. `check` runs the format check, then lint, typecheck, and tests through
-Turborepo, exactly as CI does. Both pass on a fresh copy. The `@lvbt/*` packages install from a git
-tag of this repository, so no registry login is needed.
+Turborepo, exactly as CI does. Both pass on a fresh copy. The `@lvbt/*` packages install from the
+versioned snapshot under `.lvbt/web-platform`, so no registry login is needed and `check` verifies
+the snapshot before using it.
 
 ## 3. Make it yours
 
@@ -60,8 +61,15 @@ tag of this repository, so no registry login is needed.
   requires it on every pull request. Add steps to the job.
 - `AGENTS.md` carries the paragraphs agents need. Add repository-specific guidance below them.
 
-Renovate keeps the standard current: it opens one grouped pull request titled "LVBT repository
-standard" whenever this repository tags a release.
+Update the standard explicitly and review the resulting vendor, provenance, manifest, and lockfile
+diff together:
+
+```bash
+pnpm standards:update --release <tag> --dry-run --json
+pnpm standards:update --release <tag> --apply
+pnpm install
+pnpm check
+```
 
 ## 4. Commit and register
 
@@ -77,9 +85,10 @@ secrets in a `production` environment before `.github/workflows/deploy.yml` can 
 
 ## Common problems
 
-**`pnpm install` cannot resolve `@lvbt/...`**: the tag in the dependency specifier does not exist
-yet, or GitHub is unreachable. Check the releases page. For work on an unreleased standard, point
-the specifiers at a local checkout with `link:../repository-tooling/packages/<name>`.
+**`pnpm standards:check` reports an integrity failure**: restore `.lvbt/web-platform` and
+`.lvbt/web-platform.json` from the same known-good commit. Do not accept an edited snapshot by
+recalculating its hash. Make the shared change in repository-tooling and apply its reviewed release
+or full commit instead.
 
 **`turbo` cannot find a task**: every package must declare `lint`, `check-types`, and `test` scripts
 (and `build` where it builds). Copy them from `packages/example/package.json`.

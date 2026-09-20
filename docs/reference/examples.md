@@ -34,8 +34,10 @@ its own `check` with the shared packages.
 | `packages/example/`                          | A sample package with `lint`, `check-types`, `test`, `build`                                     |
 | `apps/`                                      | Empty; deployable apps go here                                                                   |
 
-Everything in a copied repository belongs to that repository. The example is not tracked afterwards;
-the packages carry the rules that must stay identical everywhere.
+The example remains the authoritative source for application-owned template files. During
+publication, the workflow copies it, vendors the exact tagged `lvbt-web` preset, adds
+`standards:update` and `standards:check`, and rewrites every `@lvbt/*` dependency to the appropriate
+local `file:` path. Running publication again for the same tag produces the same files.
 
 ## What the deployable examples add
 

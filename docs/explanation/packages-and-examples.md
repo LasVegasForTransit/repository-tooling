@@ -18,31 +18,34 @@ understand every file.
 Anything that must be identical everywhere lives in a package: the ESLint and TypeScript rules, the
 Prettier settings, the Vitest defaults, the git hooks, the agent plugin, and the operational
 commands `bootstrap`, `preflight`, and `deploy`. A repository extends them in one-line configs. A
-change to a rule is a version bump, reviewed once here and delivered by Renovate everywhere. Nothing
-needs to be re-vendored, hashed, or compared.
+change to a rule is a versioned preset update, reviewed once here and then reviewed as one coherent
+vendor diff in each consumer.
 
-The packages install from this repository's git tags. GitHub Packages would require every volunteer
-to hold a token before `pnpm install` works, and the public npm registry is not where
-organization-internal presets belong. A tag needs neither.
+Template publication vendors the exact bytes from a repository-tooling tag under
+`.lvbt/web-platform`, records their commit and content hash, and rewrites `@lvbt/*` dependencies to
+local `file:` paths. GitHub Packages would require every volunteer to hold a token before
+`pnpm install` works, while fetching each package from Git would leave consumers without the preset
+updater or an integrity boundary. The local snapshot needs neither registry credentials nor a
+network connection after it is committed.
 
 ## Structure travels as examples
 
 What cannot be a package is a file the repository owns: the hook stubs git needs on disk, the
 harness files Claude Code and Codex read, the CI workflow, and the one-line configs. Those come from
-the example `create-turbo` copies. After that the repository owns them, the way every repository
-created from a template does. No tool tracks them afterwards, because the rules they point at are in
-the packages, and a package bump is what changes behavior.
+the example copied into the template. Publication then adds the released vendor snapshot without
+changing the authoritative example. Application-owned files remain application-owned; only the
+vendor directory and its provenance record are replaced by `standards:update`.
 
 ## What was rejected, and why
 
-An earlier design vendored the plugin into each repository and recorded per-file digests in a pin
-file that a check compared on every run. A second design added a generator with placeholders and
-`diff` and `apply` commands. Both standardized through mechanisms only LVBT would recognize. The
-package manager and `create-turbo` already do those jobs, so the standard uses them.
+An earlier design vendored only the contribution plugin and recorded per-file digests in a pin file.
+That did not version the package rules, catalog, updater, and templates as one unit. The current
+preset uses ordinary `file:` dependencies while one provenance record verifies the complete shared
+snapshot. It does not generate or overwrite application-owned configuration.
 
 ## What this costs
 
 The organization must keep the packages small and stable, because every repository feels a change to
 them. A repository that needs to diverge does so in its own file, on top of the shared rule, and
-says why in the commit. And a release still needs a tag, release notes, and one dependency bump per
-repository, which Renovate turns into pull requests.
+says why in the commit. A release still needs a tag and release notes, followed by an explicit,
+reviewed preset update in each repository.

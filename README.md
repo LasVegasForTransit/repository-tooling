@@ -32,9 +32,10 @@ pnpm check
 ```
 
 Each template is published from the matching directory under `examples/` here on every release. The
-shared packages install from this repository's git tags, so nobody needs a registry token, and
-Renovate opens one grouped pull request per release to keep every repository current. Inside a
-repository, `turbo gen workspace` scaffolds a new package or app.
+publication workflow vendors the exact tagged `lvbt-web` preset and points the shared package
+dependencies at that local snapshot, so a fresh repository installs without registry credentials.
+Inside a repository, `pnpm standards:update --release <tag> --apply` reviews and applies a newer
+standard, and `turbo gen workspace` scaffolds a new package or app.
 
 ## Every repository answers to the same commands
 
