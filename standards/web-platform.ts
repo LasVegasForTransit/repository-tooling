@@ -151,6 +151,15 @@ export async function applyPreset(root: string, bundle: WebPreset, dryRun = fals
 }
 
 const SKIPPED_DIRECTORIES = new Set(['.git', 'node_modules', 'dist', '.turbo', 'test-results']);
+const LEGACY_PLATFORM_PACKAGES = [
+  'cli',
+  'eslint-config',
+  'playwright-config',
+  'prettier-config',
+  'typescript-config',
+  'vitest-config',
+  'web-platform',
+] as const;
 
 async function consumerFiles(root: string, relative = ''): Promise<string[]> {
   const directory = path.join(root, relative);
@@ -172,9 +181,13 @@ async function migrateLegacyPackageScope(root: string, dryRun: boolean): Promise
   for (const relative of await consumerFiles(root)) {
     const file = path.join(root, relative);
     const source = await readFile(file, 'utf8').catch(() => null);
-    if (source === null || source.includes('\0') || !source.includes('@lvbt/')) continue;
+    if (source === null || source.includes('\0')) continue;
+    let next = source;
+    for (const name of LEGACY_PLATFORM_PACKAGES)
+      next = next.replaceAll(`@lvbt/${name}`, `@lasvegasfortransit/${name}`);
+    if (next === source) continue;
     changed.push(relative.split(path.sep).join('/'));
-    if (!dryRun) await writeFile(file, source.replaceAll('@lvbt/', '@lasvegasfortransit/'));
+    if (!dryRun) await writeFile(file, next);
   }
   return changed.sort();
 }
