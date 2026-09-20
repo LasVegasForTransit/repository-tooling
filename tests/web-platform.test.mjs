@@ -71,7 +71,12 @@ test('dry run leaves files unchanged and reports additions, changes, and removal
       preset({ 'new.txt': 'new', 'shared.txt': 'second' }),
       true,
     );
-    assert.deepEqual(plan, { added: ['new.txt'], changed: ['shared.txt'], removed: ['old.txt'] });
+    assert.deepEqual(plan, {
+      added: ['new.txt'],
+      changed: ['shared.txt'],
+      removed: ['old.txt'],
+      consumerChanged: [],
+    });
     await verifyPreset(root);
     assert.equal(await readFile(path.join(root, '.lvbt/web-platform/shared.txt'), 'utf8'), 'first');
   }));
@@ -105,8 +110,32 @@ test('an applied update replaces removed files and is idempotent', () =>
     const next = { ...preset({ new: 'new' }), release: 'v1.0.1' };
     await applyPreset(root, next);
     assert.equal((await verifyPreset(root)).release, 'v1.0.1');
-    assert.deepEqual(await applyPreset(root, next), { added: [], changed: [], removed: [] });
+    assert.deepEqual(await applyPreset(root, next), {
+      added: [],
+      changed: [],
+      removed: [],
+      consumerChanged: [],
+    });
     await assert.rejects(readFile(path.join(root, '.lvbt/web-platform/old')), { code: 'ENOENT' });
+  }));
+
+test('migrates legacy scoped package references with the preset', () =>
+  fixture(async (root) => {
+    await writeFile(
+      path.join(root, 'package.json'),
+      JSON.stringify({ dependencies: { '@lvbt/cli': 'file:.lvbt/web-platform/packages/cli' } }),
+    );
+    await writeFile(path.join(root, 'prettier.config.mjs'), "import '@lvbt/prettier-config';\n");
+    const plan = await applyPreset(root, preset({ 'catalog.json': '{}' }));
+    assert.deepEqual(plan.consumerChanged, ['package.json', 'prettier.config.mjs']);
+    assert.match(
+      await readFile(path.join(root, 'package.json'), 'utf8'),
+      /@lasvegasfortransit\/cli/,
+    );
+    assert.match(
+      await readFile(path.join(root, 'prettier.config.mjs'), 'utf8'),
+      /@lasvegasfortransit\/prettier-config/,
+    );
   }));
 
 test('reads only a tagged commit and includes both web profiles', () =>
@@ -179,7 +208,7 @@ test('the updater accepts either a release or an exact commit, never both', () =
         '--source',
         repository,
         '--release',
-        'v0.3.0',
+        'v0.3.1',
         '--commit',
         commit,
         '--json',

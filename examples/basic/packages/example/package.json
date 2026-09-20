@@ -16,9 +16,9 @@
     "test": "vitest run"
   },
   "devDependencies": {
-    "@lasvegasfortransit/eslint-config": "0.3.0",
-    "@lasvegasfortransit/typescript-config": "0.3.0",
-    "@lasvegasfortransit/vitest-config": "0.3.0",
+    "@lasvegasfortransit/eslint-config": "0.3.1",
+    "@lasvegasfortransit/typescript-config": "0.3.1",
+    "@lasvegasfortransit/vitest-config": "0.3.1",
     "@types/node": "catalog:",
     "eslint": "catalog:",
     "typescript": "catalog:",
