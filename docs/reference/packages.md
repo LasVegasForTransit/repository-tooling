@@ -1,14 +1,14 @@
 # The shared packages
 
-Every LVBT repository depends on these packages. They install from this repository's git tags, so
-the dependency specifier names the release:
+Every LVBT repository depends on these packages. A released preset vendors them under
+`.lvbt/web-platform`, so each dependency resolves to that immutable local snapshot:
 
 ```json
-"@lvbt/typescript-config": "github:LasVegasForTransit/repository-tooling#v0.2.0&path:/packages/typescript-config"
+"@lvbt/typescript-config": "file:../../.lvbt/web-platform/packages/typescript-config"
 ```
 
-All packages share one version, the tooling version. Renovate groups their bumps into one pull
-request titled "LVBT repository standard".
+All packages share one version, the tooling version. `.lvbt/web-platform.json` records the release,
+commit, and content hash for the complete preset rather than versioning packages independently.
 
 | Package                   | What a repository gets                                                                                                                                                                                                                                                                                                                                       |
 | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
