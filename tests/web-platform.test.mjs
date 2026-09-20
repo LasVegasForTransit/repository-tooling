@@ -119,11 +119,16 @@ test('an applied update replaces removed files and is idempotent', () =>
     await assert.rejects(readFile(path.join(root, '.lvbt/web-platform/old')), { code: 'ENOENT' });
   }));
 
-test('migrates legacy scoped package references with the preset', () =>
+test('migrates only legacy platform package references', () =>
   fixture(async (root) => {
     await writeFile(
       path.join(root, 'package.json'),
-      JSON.stringify({ dependencies: { '@lvbt/cli': 'file:.lvbt/web-platform/packages/cli' } }),
+      JSON.stringify({
+        dependencies: {
+          '@lvbt/brand': 'workspace:*',
+          '@lvbt/cli': 'file:.lvbt/web-platform/packages/cli',
+        },
+      }),
     );
     await writeFile(path.join(root, 'prettier.config.mjs'), "import '@lvbt/prettier-config';\n");
     const plan = await applyPreset(root, preset({ 'catalog.json': '{}' }));
@@ -132,6 +137,7 @@ test('migrates legacy scoped package references with the preset', () =>
       await readFile(path.join(root, 'package.json'), 'utf8'),
       /@lasvegasfortransit\/cli/,
     );
+    assert.match(await readFile(path.join(root, 'package.json'), 'utf8'), /"@lvbt\/brand"/);
     assert.match(
       await readFile(path.join(root, 'prettier.config.mjs'), 'utf8'),
       /@lasvegasfortransit\/prettier-config/,
