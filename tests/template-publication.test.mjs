@@ -44,8 +44,8 @@ function assertVendoredDependencies(target, file, manifest) {
   const fields = ['dependencies', 'devDependencies', 'optionalDependencies', 'peerDependencies'];
   const dependencies = fields.flatMap((field) => Object.entries(manifest[field] ?? {}));
   for (const [name, specifier] of dependencies) {
-    if (!name.startsWith('@lvbt/')) continue;
-    const packageName = name.slice('@lvbt/'.length);
+    if (!name.startsWith('@lasvegasfortransit/')) continue;
+    const packageName = name.slice('@lasvegasfortransit/'.length);
     assert.ok(specifier.startsWith('file:'), `${file}: ${name} must use a file dependency`);
     assert.equal(
       path.resolve(path.dirname(file), specifier.slice('file:'.length)),

@@ -1,13 +1,11 @@
-# Publishes every packages/* to GitHub Packages. Manual only: consumers install
-# from git tags by default, and nothing is published without the maintainer
-# choosing to run this.
+# Publishes every packages/* to the organization GitHub Packages registry.
 name: Publish packages
 
 on:
   workflow_dispatch:
     inputs:
       tag:
-        description: The release tag to publish (for example v0.2.0)
+        description: The release tag to publish (for example v0.3.0)
         required: true
 
 permissions:

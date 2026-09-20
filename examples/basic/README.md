@@ -21,5 +21,5 @@ Then rename the root package and `packages/example`, and replace the scopes in
 - `apps/` for deployable applications and services
 - `packages/` for libraries and tools; `packages/example` shows the shape of one
 
-Lint, format, TypeScript, and test settings extend the `@lvbt/*` packages from
+Lint, format, TypeScript, and test settings extend the `@lasvegasfortransit/*` packages from
 [`LasVegasForTransit/repository-tooling`](https://github.com/LasVegasForTransit/repository-tooling).

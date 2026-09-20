@@ -10,8 +10,8 @@ Turborepo already defines how a JavaScript monorepo shares configuration: `packa
 exporting a `config` per environment, `packages/typescript-config` with JSON files to extend,
 `packages/vitest-config` exporting a shared object, `turbo.json` naming the tasks, and
 `create-turbo --example` copying a runnable example to start a new repository. This repository does
-exactly that under the `@lvbt` scope. A new contributor can read Turborepo's documentation and
-understand every file.
+exactly that under the `@lasvegasfortransit` scope. A new contributor can read Turborepo's
+documentation and understand every file.
 
 ## Rules travel as packages
 
@@ -22,11 +22,10 @@ change to a rule is a versioned preset update, reviewed once here and then revie
 vendor diff in each consumer.
 
 Template publication vendors the exact bytes from a repository-tooling tag under
-`.lvbt/web-platform`, records their commit and content hash, and rewrites `@lvbt/*` dependencies to
-local `file:` paths. GitHub Packages would require every volunteer to hold a token before
-`pnpm install` works, while fetching each package from Git would leave consumers without the preset
-updater or an integrity boundary. The local snapshot needs neither registry credentials nor a
-network connection after it is committed.
+`.lvbt/web-platform`, records their commit and content hash, and rewrites `@lasvegasfortransit/*`
+dependencies to local `file:` paths. The source packages publish through the organization GitHub
+Packages registry. The local snapshot needs neither registry credentials nor a network connection
+after it is committed.
 
 ## Structure travels as examples
 

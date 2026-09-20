@@ -6,8 +6,9 @@ Consumer configuration imports these packages through local `file:` dependencies
 remain owned by repository-tooling.
 
 Published template repositories receive this snapshot automatically. The publication workflow copies
-the authoritative example, applies the exact release tag, rewrites its `@lvbt/*` dependencies, and
-generates the lockfile. Repeating publication for the same example and tag is idempotent.
+the authoritative example, applies the exact release tag, rewrites its `@lasvegasfortransit/*`
+dependencies, and generates the lockfile. Repeating publication for the same example and tag is
+idempotent.
 
 `.lvbt/web-platform.json` records the format version, preset name, source commit, and SHA-256
 content hash. A published snapshot also records its release tag. An unpublished snapshot records
@@ -23,8 +24,8 @@ not identify development snapshots.
 Run the vendored updater through the repository's standard command:
 
 ```sh
-pnpm standards:update --release v0.2.9 --dry-run --json
-pnpm standards:update --release v0.2.9 --apply
+pnpm standards:update --release v0.3.0 --dry-run --json
+pnpm standards:update --release v0.3.0 --apply
 pnpm install
 pnpm check
 ```
@@ -48,7 +49,7 @@ The development snapshot keeps `release: null`. After publication, consumers upd
 release commit and review its new commit and content hash.
 
 For first adoption, run
-`node standards/web-platform-cli.ts update --root /path/to/consumer --release v0.2.9 --apply` from a
+`node standards/web-platform-cli.ts update --root /path/to/consumer --release v0.3.0 --apply` from a
 repository-tooling checkout. A local tagged source is selected with
 `--source /path/to/repository-tooling`. Use `--release <tag>` for a published standard or
 `--commit <full-commit-sha>` for work under review. Both modes read committed files rather than the
