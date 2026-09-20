@@ -7,8 +7,9 @@ except the rules themselves.
 
 It owns four things:
 
-- the shared packages every repository depends on: `@lvbt/eslint-config`, `@lvbt/typescript-config`,
-  `@lvbt/prettier-config`, `@lvbt/vitest-config`, and `@lvbt/cli` (the `lvbt` command for
+- the shared packages every repository depends on: `@lasvegasfortransit/eslint-config`,
+  `@lasvegasfortransit/typescript-config`, `@lasvegasfortransit/prettier-config`,
+  `@lasvegasfortransit/vitest-config`, and `@lasvegasfortransit/cli` (the `lvbt` command for
   `bootstrap`, `preflight`, and `deploy`, the git hooks, and the `lvbt-contributions` agent plugin);
 - the example repositories under `examples/` that `create-turbo` copies to start a new repository;
 - the GitHub issue forms and pull request template published by

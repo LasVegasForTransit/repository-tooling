@@ -4,45 +4,45 @@ Every LVBT repository depends on these packages. A released preset vendors them 
 `.lvbt/web-platform`, so each dependency resolves to that immutable local snapshot:
 
 ```json
-"@lvbt/typescript-config": "file:../../.lvbt/web-platform/packages/typescript-config"
+"@lasvegasfortransit/typescript-config": "file:../../.lvbt/web-platform/packages/typescript-config"
 ```
 
 All packages share one version, the tooling version. `.lvbt/web-platform.json` records the release,
 commit, and content hash for the complete preset rather than versioning packages independently.
 
-| Package                   | What a repository gets                                                                                                                                                                                                                                                                                                                                       |
-| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `@lvbt/typescript-config` | `base.json` (strict, ES2024, bundler resolution, the `development` export condition for workspace packages, unchecked-index and unused checks), `node.json`, `browser.json`, `worker.json`, `react-library.json`, and `astro.json` (the browser target with the options Astro's own strict config sets, inlined so no second copy of Astro is ever resolved) |
-| `@lvbt/eslint-config`     | `config` arrays from `./base`, `./browser` (base plus browser globals), and `./react-internal`: strict and stylistic type-checked rules, suppression hygiene, shape caps, four SonarJS rules, the Turborepo env rule, Prettier last. Owns its plugins                                                                                                        |
-| `@lvbt/prettier-config`   | The Prettier settings object: 100 columns, single quotes, trailing commas, wrapped prose                                                                                                                                                                                                                                                                     |
-| `@lvbt/vitest-config`     | `sharedConfig`: unit tests under `tests/`, empty suites fail                                                                                                                                                                                                                                                                                                 |
-| `@lvbt/playwright-config` | `sharedConfig`: end-to-end tests under `tests/e2e/*.spec.ts`, desktop and mobile projects, traces on failure, retries in CI; accessibility and browser-health assertions                                                                                                                                                                                     |
-| `@lvbt/cli`               | The `lvbt` command (`bootstrap`, `preflight`, `check`, `deploy`), the git hooks, the `lvbt-contributions` agent plugin, and the version catalog                                                                                                                                                                                                              |
+| Package                                 | What a repository gets                                                                                                                                                                                                                                                                                                                                       |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `@lasvegasfortransit/typescript-config` | `base.json` (strict, ES2024, bundler resolution, the `development` export condition for workspace packages, unchecked-index and unused checks), `node.json`, `browser.json`, `worker.json`, `react-library.json`, and `astro.json` (the browser target with the options Astro's own strict config sets, inlined so no second copy of Astro is ever resolved) |
+| `@lasvegasfortransit/eslint-config`     | `config` arrays from `./base`, `./browser` (base plus browser globals), and `./react-internal`: strict and stylistic type-checked rules, suppression hygiene, shape caps, four SonarJS rules, the Turborepo env rule, Prettier last. Owns its plugins                                                                                                        |
+| `@lasvegasfortransit/prettier-config`   | The Prettier settings object: 100 columns, single quotes, trailing commas, wrapped prose                                                                                                                                                                                                                                                                     |
+| `@lasvegasfortransit/vitest-config`     | `sharedConfig`: unit tests under `tests/`, empty suites fail                                                                                                                                                                                                                                                                                                 |
+| `@lasvegasfortransit/playwright-config` | `sharedConfig`: end-to-end tests under `tests/e2e/*.spec.ts`, desktop and mobile projects, traces on failure, retries in CI; accessibility and browser-health assertions                                                                                                                                                                                     |
+| `@lasvegasfortransit/cli`               | The `lvbt` command (`bootstrap`, `preflight`, `check`, `deploy`), the git hooks, the `lvbt-contributions` agent plugin, and the version catalog                                                                                                                                                                                                              |
 
 ## How a package uses them
 
 ```js
 // packages/<name>/eslint.config.js
-import { config } from '@lvbt/eslint-config/base';
+import { config } from '@lasvegasfortransit/eslint-config/base';
 export default config;
 ```
 
 ```json
 // packages/<name>/tsconfig.json
-{ "extends": "@lvbt/typescript-config/node.json", "include": ["src", "tests"] }
+{ "extends": "@lasvegasfortransit/typescript-config/node.json", "include": ["src", "tests"] }
 ```
 
 ```ts
 // packages/<name>/vitest.config.ts
 import { defineConfig } from 'vitest/config';
-import { sharedConfig } from '@lvbt/vitest-config';
+import { sharedConfig } from '@lasvegasfortransit/vitest-config';
 export default defineConfig({ ...sharedConfig });
 ```
 
 ```ts
 // apps/<name>/playwright.config.ts
 import { defineConfig } from '@playwright/test';
-import { sharedConfig } from '@lvbt/playwright-config';
+import { sharedConfig } from '@lasvegasfortransit/playwright-config';
 export default defineConfig({
   ...sharedConfig,
   webServer: { command: 'pnpm preview', url: 'http://127.0.0.1:4321' },
@@ -54,7 +54,7 @@ Start browser-health monitoring before navigation and assert after the expected 
 assertion reports console errors, uncaught page errors, and failed network requests together:
 
 ```ts
-import { monitorPageHealth } from '@lvbt/playwright-config/page-health';
+import { monitorPageHealth } from '@lasvegasfortransit/playwright-config/page-health';
 
 const health = monitorPageHealth(page);
 await page.goto('/');
@@ -63,7 +63,7 @@ health.assertNoErrors();
 
 ```js
 // prettier.config.js (repository root)
-import config from '@lvbt/prettier-config';
+import config from '@lasvegasfortransit/prettier-config';
 export default config;
 ```
 
@@ -86,5 +86,5 @@ does this repository's own. A test fails when any of them disagree.
 
 ## Publishing
 
-The packages carry `publishConfig.registry` for GitHub Packages, but publishing is optional and
-manual. See [Publish a tooling release](../how-to/publish-a-release.md).
+The packages publish to GitHub Packages under the `@lasvegasfortransit` scope. See
+[Publish a tooling release](../how-to/publish-a-release.md).

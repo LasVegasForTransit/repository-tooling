@@ -98,7 +98,10 @@ test('continuous integration uses the same pnpm setup contract', async () => {
   assert.doesNotMatch(workflow, /npm run check/);
   assert.match(setup, /pnpm\/action-setup@/);
   assert.match(setup, /cache: pnpm/);
+  assert.match(setup, /registry-url: https:\/\/npm\.pkg\.github\.com/);
+  assert.match(setup, /scope: '@lasvegasfortransit'/);
   assert.match(setup, /pnpm install --frozen-lockfile/);
+  assert.match(setup, /NODE_AUTH_TOKEN: \$\{\{ github\.token \}\}/);
 });
 
 test('template publication commits an installable frozen lockfile', async () => {

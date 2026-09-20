@@ -1,8 +1,8 @@
 # Command reference
 
-`lvbt` is the binary of `@lvbt/cli`. A repository's standard scripts call it, so you normally run
-`pnpm bootstrap`, `pnpm preflight`, `pnpm check`, and `pnpm run deploy` rather than the binary. It
-needs Node.js 24.20 or newer on the 24 line, and git.
+`lvbt` is the binary of `@lasvegasfortransit/cli`. A repository's standard scripts call it, so you
+normally run `pnpm bootstrap`, `pnpm preflight`, `pnpm check`, and `pnpm run deploy` rather than the
+binary. It needs Node.js 24.20 or newer on the 24 line, and git.
 
 ## Commands
 
@@ -70,7 +70,8 @@ specific checks such as dead-code, duplication, or dependency-boundary scans liv
 ## Git hooks
 
 The hooks under `.githooks/` are stubs that run the shared scripts in
-`node_modules/@lvbt/cli/hooks/`. Repository-specific steps go below the shared call in the stub.
+`node_modules/@lasvegasfortransit/cli/hooks/`. Repository-specific steps go below the shared call in
+the stub.
 
 | Hook                 | Shared behavior                                                                                                                                                                          |
 | -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

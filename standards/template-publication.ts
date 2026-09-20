@@ -41,8 +41,8 @@ async function rewriteManifest(root: string, file: string): Promise<void> {
     const dependencies = manifest[field];
     if (!dependencies) continue;
     for (const name of Object.keys(dependencies)) {
-      if (!name.startsWith('@lvbt/')) continue;
-      const packageName = name.slice('@lvbt/'.length);
+      if (!name.startsWith('@lasvegasfortransit/')) continue;
+      const packageName = name.slice('@lasvegasfortransit/'.length);
       const target = path.join(root, '.lvbt/web-platform/packages', packageName);
       const relative = path.relative(path.dirname(file), target).split(path.sep).join('/');
       dependencies[name] = `file:${relative}`;

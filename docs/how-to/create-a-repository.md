@@ -46,9 +46,9 @@ pnpm check
 `bootstrap` installs dependencies (the `prepare` script points git at `.githooks`), then runs
 `preflight`, which confirms Node, pnpm, hooks, GitHub CLI, and Cloudflare access and names the fix
 for anything missing. `check` runs the format check, then lint, typecheck, and tests through
-Turborepo, exactly as CI does. Both pass on a fresh copy. The `@lvbt/*` packages install from the
-versioned snapshot under `.lvbt/web-platform`, so no registry login is needed and `check` verifies
-the snapshot before using it.
+Turborepo, exactly as CI does. Both pass on a fresh copy. The `@lasvegasfortransit/*` packages
+install from the versioned snapshot under `.lvbt/web-platform`, so no registry login is needed and
+`check` verifies the snapshot before using it.
 
 ## 3. Make it yours
 

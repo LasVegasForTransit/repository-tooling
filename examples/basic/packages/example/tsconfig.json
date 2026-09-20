@@ -1,4 +1,4 @@
 {
-  "extends": "@lvbt/typescript-config/node.json",
+  "extends": "@lasvegasfortransit/typescript-config/node.json",
   "include": ["src", "tests", "vitest.config.ts"]
 }

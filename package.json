@@ -1,9 +1,9 @@
 {
   "name": "lvbt-repository-tooling",
   "private": true,
-  "version": "0.2.9",
+  "version": "0.3.0",
   "type": "module",
-  "description": "Source of truth for the LVBT repository standard: the shared @lvbt packages and the example repositories create-turbo copies.",
+  "description": "Source of truth for the LVBT repository standard: the shared @lasvegasfortransit packages and the example repositories create-turbo copies.",
   "packageManager": "pnpm@11.25.0",
   "engines": {
     "node": "^24.20.0"
@@ -19,18 +19,18 @@
     "format:check": "prettier --check .",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "test": "node --import tsx --test --test-concurrency=1 'tests/**/*.test.mjs' && pnpm --filter @lvbt/web-platform test",
+    "test": "node --import tsx --test --test-concurrency=1 'tests/**/*.test.mjs' && pnpm --filter @lasvegasfortransit/web-platform test",
     "prepare": "git config --local core.hooksPath .githooks 2>/dev/null || true"
   },
   "devDependencies": {
     "@astrojs/check": "catalog:",
     "@astrojs/sitemap": "catalog:",
-    "@lvbt/cli": "workspace:*",
-    "@lvbt/eslint-config": "workspace:*",
-    "@lvbt/playwright-config": "workspace:*",
-    "@lvbt/prettier-config": "workspace:*",
-    "@lvbt/typescript-config": "workspace:*",
-    "@lvbt/vitest-config": "workspace:*",
+    "@lasvegasfortransit/cli": "workspace:*",
+    "@lasvegasfortransit/eslint-config": "workspace:*",
+    "@lasvegasfortransit/playwright-config": "workspace:*",
+    "@lasvegasfortransit/prettier-config": "workspace:*",
+    "@lasvegasfortransit/typescript-config": "workspace:*",
+    "@lasvegasfortransit/vitest-config": "workspace:*",
     "@playwright/test": "catalog:",
     "@tailwindcss/vite": "catalog:",
     "@types/node": "catalog:",

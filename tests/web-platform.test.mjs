@@ -179,7 +179,7 @@ test('the updater accepts either a release or an exact commit, never both', () =
         '--source',
         repository,
         '--release',
-        'v0.2.9',
+        'v0.3.0',
         '--commit',
         commit,
         '--json',

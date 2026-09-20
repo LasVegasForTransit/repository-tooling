@@ -1,4 +1,4 @@
-import { config } from '@lvbt/eslint-config/base';
+import { config } from '@lasvegasfortransit/eslint-config/base';
 
 // The source of the standard lints itself with the standard. The examples are
 // linted by their own configs inside the example test, not from here; the

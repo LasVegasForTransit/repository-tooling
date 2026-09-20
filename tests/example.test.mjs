@@ -28,14 +28,8 @@ const cli = path.join(sourceRoot, 'packages/cli/src/cli.mjs');
 const version = JSON.parse(
   await readFile(path.join(sourceRoot, 'packages/cli/package.json'), 'utf8'),
 ).version;
-const sharedPackages = [
-  'cli',
-  'eslint-config',
-  'playwright-config',
-  'prettier-config',
-  'typescript-config',
-  'vitest-config',
-];
+const sharedPackages =
+  'cli eslint-config playwright-config prettier-config typescript-config vitest-config'.split(' ');
 
 /** Every example, with the shared packages a copy of it must pin and whether it deploys. */
 const examples = {
@@ -89,16 +83,18 @@ export async function installedCopy(name) {
   copies.push(repository);
   await cp(exampleDirectory(name), repository, { recursive: true });
   git(repository, 'init', '-q', '-b', 'main');
-
   const modules = path.join(repository, 'node_modules');
-  await mkdir(path.join(modules, '@lvbt'), { recursive: true });
+  await mkdir(path.join(modules, '@lasvegasfortransit'), { recursive: true });
   for (const shared of sharedPackages) {
-    await symlink(path.join(sourceRoot, 'packages', shared), path.join(modules, '@lvbt', shared));
+    await symlink(
+      path.join(sourceRoot, 'packages', shared),
+      path.join(modules, '@lasvegasfortransit', shared),
+    );
   }
   const sourceModules = path.join(sourceRoot, 'node_modules');
   await symlink(path.join(sourceModules, '.bin'), path.join(modules, '.bin'));
   for (const entry of await readdir(sourceModules)) {
-    if (entry.startsWith('.') || entry === '@lvbt') continue;
+    if (entry.startsWith('.') || entry === '@lasvegasfortransit') continue;
     if (entry.startsWith('@')) {
       await mkdir(path.join(modules, entry), { recursive: true });
       for (const scoped of await readdir(path.join(sourceModules, entry))) {
@@ -110,7 +106,6 @@ export async function installedCopy(name) {
   }
   return repository;
 }
-
 /** Run one of a package's own scripts, as `turbo run` would, and assert it passes. */
 async function runScript(repository, directory, script) {
   const cwd = path.join(repository, directory);
@@ -135,23 +130,22 @@ const bin = (tool, file) => path.join(sourceRoot, 'node_modules', tool, file);
 for (const [name, { uses, deploys }] of Object.entries(examples)) {
   const example = exampleDirectory(name);
 
-  test(`${name}: pins every shared package it uses to the current release tag`, async () => {
+  test(`${name}: pins every shared package it uses to the current release`, async () => {
     const specifiers = {};
     for (const directory of ['.', ...(await workspacePackages(example))]) {
       const manifest = await json(path.join(example, directory, 'package.json'));
       Object.assign(specifiers, manifest.dependencies, manifest.devDependencies);
     }
     for (const [dependency, range] of Object.entries(specifiers)) {
-      if (dependency.startsWith('@lvbt/')) {
-        assert.equal(
-          range,
-          `github:LasVegasForTransit/repository-tooling#v${version}&path:/packages/${dependency.slice('@lvbt/'.length)}`,
-          `${dependency} must be pinned to v${version}`,
-        );
+      if (dependency.startsWith('@lasvegasfortransit/')) {
+        assert.equal(range, version, `${dependency} must be pinned to ${version}`);
       }
     }
     for (const shared of uses) {
-      assert.ok(specifiers[`@lvbt/${shared}`], `@lvbt/${shared} must be a dependency`);
+      assert.ok(
+        specifiers[`@lasvegasfortransit/${shared}`],
+        `@lasvegasfortransit/${shared} must be a dependency`,
+      );
     }
     const settings = await json(path.join(example, '.claude/settings.json'));
     assert.equal(settings.extraKnownMarketplaces.lvbt.source.ref, `v${version}`);
@@ -414,7 +408,7 @@ test('source manifests use one published version rather than a development prere
   assert.equal(packageJson.version, version);
   assert.match(version, /^\d+\.\d+\.\d+$/, 'main must not use a development prerelease version');
   for (const name of ['eslint-config', 'prettier-config']) {
-    assert.equal(packageJson.devDependencies[`@lvbt/${name}`], 'workspace:*');
+    assert.equal(packageJson.devDependencies[`@lasvegasfortransit/${name}`], 'workspace:*');
   }
   for (const name of sharedPackages) {
     const manifest = await json(path.join(sourceRoot, 'packages', name, 'package.json'));

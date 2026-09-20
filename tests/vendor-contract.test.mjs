@@ -14,16 +14,18 @@ async function fixture(run) {
     await mkdir(path.join(root, '.lvbt/web-platform/packages/cli'), { recursive: true });
     await writeFile(
       path.join(root, '.lvbt/web-platform/packages/cli/package.json'),
-      JSON.stringify({ name: '@lvbt/cli' }),
+      JSON.stringify({ name: '@lasvegasfortransit/cli' }),
     );
     await writeFile(
       path.join(root, 'package.json'),
-      JSON.stringify({ dependencies: { '@lvbt/cli': 'file:.lvbt/web-platform/packages/cli' } }),
+      JSON.stringify({
+        dependencies: { '@lasvegasfortransit/cli': 'file:.lvbt/web-platform/packages/cli' },
+      }),
     );
     await writeFile(
       path.join(root, 'apps/app/package.json'),
       JSON.stringify({
-        dependencies: { '@lvbt/cli': 'file:../../.lvbt/web-platform/packages/cli' },
+        dependencies: { '@lasvegasfortransit/cli': 'file:../../.lvbt/web-platform/packages/cli' },
       }),
     );
     await run(root);
@@ -41,7 +43,7 @@ test('rejects arbitrary file dependencies and mismatched vendor package names', 
   fixture(async (root) => {
     await writeFile(
       path.join(root, 'apps/app/package.json'),
-      JSON.stringify({ dependencies: { '@lvbt/cli': 'file:../../somewhere/cli' } }),
+      JSON.stringify({ dependencies: { '@lasvegasfortransit/cli': 'file:../../somewhere/cli' } }),
     );
     assert.equal(checkContract({ cwd: root }).ok, false);
     await writeFile(
