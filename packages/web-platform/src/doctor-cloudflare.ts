@@ -87,6 +87,7 @@ function validAnalytics(input: unknown, hostname: string) {
   const sites = z
     .array(
       z.object({
+        host: z.string().optional(),
         site_token: z.string().optional(),
         rules: z
           .array(
@@ -104,9 +105,10 @@ function validAnalytics(input: unknown, hostname: string) {
     sites.filter(
       (site) =>
         site.site_token &&
-        site.rules?.some(
-          (rule) => rule.host === hostname && rule.inclusive === true && rule.is_paused !== true,
-        ),
+        (site.host === hostname ||
+          site.rules?.some(
+            (rule) => rule.host === hostname && rule.inclusive === true && rule.is_paused !== true,
+          )),
     ).length === 1
   );
 }

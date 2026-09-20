@@ -54,6 +54,34 @@ test('checks declared Worker names, exact routes, domain, DNS, and analytics', a
   expect(JSON.stringify(result)).not.toContain('public-id');
 });
 
+test('accepts one hostname-created analytics site when rules are omitted', async () => {
+  const reader = (endpoint: string) => {
+    if (endpoint.includes('/rum/'))
+      return Promise.resolve([{ host: target.hostname, site_token: 'public-id' }]);
+    return read(endpoint);
+  };
+
+  const result = await cloudflareDoctor(target, { get: reader, list: reader });
+  expect(result.find((check) => check.id === 'cloudflare.analytics')?.status).toBe('pass');
+});
+
+test('rejects multiple active analytics sites for the hostname', async () => {
+  const reader = (endpoint: string) => {
+    if (endpoint.includes('/rum/'))
+      return Promise.resolve([
+        { host: target.hostname, site_token: 'hostname-site' },
+        {
+          site_token: 'rules-site',
+          rules: [{ host: target.hostname, inclusive: true, is_paused: false }],
+        },
+      ]);
+    return read(endpoint);
+  };
+
+  const result = await cloudflareDoctor(target, { get: reader, list: reader });
+  expect(result.find((check) => check.id === 'cloudflare.analytics')?.status).toBe('fail');
+});
+
 test('flags route collisions while preserving an unknown analytics result', async () => {
   const reader = (endpoint: string) => {
     if (endpoint.includes('/rum/')) return Promise.reject(new Error('No analytics permission'));
