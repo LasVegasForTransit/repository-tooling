@@ -10,7 +10,8 @@ It owns four things:
 - the shared packages every repository depends on: `@lasvegasfortransit/eslint-config`,
   `@lasvegasfortransit/typescript-config`, `@lasvegasfortransit/prettier-config`,
   `@lasvegasfortransit/vitest-config`, and `@lasvegasfortransit/cli` (the `lvbt` command for
-  `bootstrap`, `preflight`, and `deploy`, the git hooks, and the `lvbt-contributions` agent plugin);
+  `bootstrap`, `preflight`, and `deploy`, the production platform setup, the git hooks, and the
+  `lvbt-contributions` agent plugin);
 - the example repositories under `examples/` that `create-turbo` copies to start a new repository;
 - the GitHub issue forms and pull request template published by
   [`LasVegasForTransit/.github`](https://github.com/LasVegasForTransit/.github);
@@ -40,15 +41,17 @@ standard, and `turbo gen workspace` scaffolds a new package or app.
 
 ## Every repository answers to the same commands
 
-| Command           | What it does                                                    |
-| ----------------- | --------------------------------------------------------------- |
-| `pnpm bootstrap`  | Install dependencies, wire git hooks, and run preflight         |
-| `pnpm preflight`  | Confirm the machine can build and deploy this repository        |
-| `pnpm check`      | Format check, then lint, typecheck, and tests through Turborepo |
-| `pnpm check:fix`  | Apply formatting and lint fixes                                 |
-| `pnpm build`      | Build every package                                             |
-| `pnpm run deploy` | Build, then `wrangler deploy` (deployable repositories)         |
-| `pnpm test`       | Run every package's tests                                       |
+| Command                       | What it does                                                        |
+| ----------------------------- | ------------------------------------------------------------------- |
+| `pnpm bootstrap`              | Install dependencies, wire git hooks, and run preflight             |
+| `pnpm preflight`              | Confirm the machine can build and deploy this repository            |
+| `pnpm preflight --production` | Report whether production has everything `platform.json` declares   |
+| `pnpm bootstrap --production` | Set up whatever production is missing, asking for values as it goes |
+| `pnpm check`                  | Format check, then lint, typecheck, and tests through Turborepo     |
+| `pnpm check:fix`              | Apply formatting and lint fixes                                     |
+| `pnpm build`                  | Build every package                                                 |
+| `pnpm run deploy`             | Build, then `wrangler deploy` (deployable repositories)             |
+| `pnpm test`                   | Run every package's tests                                           |
 
 Guides, the command reference, and the package reference are in [`docs/`](docs/README.md).
 
