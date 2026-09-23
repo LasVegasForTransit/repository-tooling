@@ -56,6 +56,12 @@ The Astro example also adds `prettier-plugin-astro` to its Prettier config and e
 `@lasvegasfortransit/typescript-config/astro.json`; the React example extends `react-library.json`
 and lints with `@lasvegasfortransit/eslint-config/react-internal`.
 
+The Astro site has a `sync` script that runs `astro sync`, and the Astro example's `turbo.json` has
+a `sync` task that `lint` depends on. Astro generates the types for `astro:content` and its
+environment only when it syncs or builds, so on a clean checkout, as in CI, type-aware lint rules
+would otherwise reject every module that imports them. Turbo caches the generated `.astro/`
+directory, so the extra task costs nothing when the content hasn't changed.
+
 ## Adding an example
 
 Copy `examples/basic`, change what the profile needs, and add it to the table above, to the

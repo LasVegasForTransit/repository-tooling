@@ -3,6 +3,8 @@ import { existsSync } from 'node:fs';
 import { mkdir, readFile, readdir, rename, rm, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
+import { syncAstroTypesBeforeLint } from './astro-sync.ts';
+
 export interface WebPreset {
   formatVersion: number;
   preset: string;
@@ -149,6 +151,7 @@ export async function applyPreset(root: string, bundle: WebPreset, dryRun = fals
     ...new Set([
       ...(await migrateLegacyPackageScope(root, dryRun)),
       ...(await ignorePlaywrightOutput(root, dryRun)),
+      ...(await syncAstroTypesBeforeLint(root, dryRun)),
     ]),
   ].sort();
   if (!dryRun) await install(root, bundle);

@@ -107,7 +107,7 @@ export async function installedCopy(name) {
   return repository;
 }
 /** Run one of a package's own scripts, as `turbo run` would, and assert it passes. */
-async function runScript(repository, directory, script) {
+export async function runScript(repository, directory, script) {
   const cwd = path.join(repository, directory);
   const manifest = await json(path.join(cwd, 'package.json'));
   const command = manifest.scripts[script];
@@ -224,7 +224,8 @@ for (const [name, { uses, deploys }] of Object.entries(examples)) {
 
     for (const directory of await workspacePackages(repository)) {
       const manifest = await json(path.join(repository, directory, 'package.json'));
-      for (const script of ['lint', 'check-types', 'build', 'test']) {
+      // In turbo.json's order: an Astro package's sync writes the types its lint reads.
+      for (const script of ['sync', 'lint', 'check-types', 'build', 'test']) {
         if (manifest.scripts[script]) await runScript(repository, directory, script);
       }
       if (manifest.scripts.build) {

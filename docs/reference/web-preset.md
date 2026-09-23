@@ -37,12 +37,14 @@ the vendor diff, provenance, and regenerated lockfile together after reviewing t
 templates.
 
 The update runs with the updater carried by the preset it installs, so a release's own changes apply
-in the same update. It also makes two small migrations in the consumer's own files and lists every
+in the same update. It also makes three small migrations in the consumer's own files and lists every
 file they touch under `consumerChanged`, in the dry run as well. It rewrites legacy `@lvbt/*`
 references to the platform packages as `@lasvegasfortransit/*`. It adds any of Playwright's output
 rules (`test-results/`, `playwright-report/`, `blob-report/`, and `**/playwright/.cache/`) that the
-root `.gitignore` lacks, below the lines already there. Nothing else in application configuration or
-product files changes.
+root `.gitignore` lacks, below the lines already there. In a repository with an Astro package, it
+gives each Astro package a `sync` script (`astro sync`) and adds a `sync` task to `turbo.json` that
+`lint` depends on, so lint reads Astro's generated types on a clean checkout. Nothing else in
+application configuration or product files changes.
 
 Consumer validation against an unpublished standard uses the reviewed commit directly:
 
