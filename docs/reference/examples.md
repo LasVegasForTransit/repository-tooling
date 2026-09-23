@@ -60,7 +60,9 @@ The Astro site has a `sync` script that runs `astro sync`, and the Astro example
 a `sync` task that `lint` depends on. Astro generates the types for `astro:content` and its
 environment only when it syncs or builds, so on a clean checkout, as in CI, type-aware lint rules
 would otherwise reject every module that imports them. Turbo caches the generated `.astro/`
-directory, so the extra task costs nothing when the content hasn't changed.
+directory, so the extra task costs nothing when the content hasn't changed. The React example's
+`turbo.json` has no `sync` task, because nothing in it runs `astro sync`; `pnpm standards:update`
+adds the task to any repository that gains an Astro package.
 
 ## Adding an example
 
