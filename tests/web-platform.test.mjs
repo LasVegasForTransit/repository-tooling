@@ -144,6 +144,38 @@ test('migrates only legacy platform package references', () =>
     );
   }));
 
+test('adds missing Playwright output rules to the consumer .gitignore once', () =>
+  fixture(async (root) => {
+    const own = 'node_modules/\n# The site keeps its own test results.\ntest-results/';
+    await writeFile(path.join(root, '.gitignore'), own);
+    execFileSync('git', ['init', '--quiet', root]);
+    const ignored = (file) =>
+      spawnSync('git', ['-C', root, 'check-ignore', '--quiet', file]).status === 0;
+
+    const planned = await applyPreset(root, preset({ 'catalog.json': '{}' }), true);
+    assert.deepEqual(planned.consumerChanged, ['.gitignore']);
+    assert.equal(await readFile(path.join(root, '.gitignore'), 'utf8'), own);
+
+    const applied = await applyPreset(root, preset({ 'catalog.json': '{}' }));
+    assert.deepEqual(applied.consumerChanged, ['.gitignore']);
+    const updated = await readFile(path.join(root, '.gitignore'), 'utf8');
+    assert.ok(updated.startsWith(`${own}\n`), 'the consumer keeps its own lines');
+    assert.equal(updated.split('\n').filter((line) => line === 'test-results/').length, 1);
+    for (const file of [
+      'apps/site/test-results/home-desktop/trace.zip',
+      'apps/site/playwright-report/index.html',
+      'apps/site/blob-report/report.zip',
+      'apps/site/playwright/.cache/index.js',
+    ]) {
+      assert.ok(ignored(file), `${file} must be ignored`);
+    }
+    assert.ok(!ignored('apps/site/tests/e2e/home.spec.ts'), 'tests stay tracked');
+
+    const repeated = await applyPreset(root, preset({ 'catalog.json': '{}' }));
+    assert.deepEqual(repeated.consumerChanged, []);
+    assert.equal(await readFile(path.join(root, '.gitignore'), 'utf8'), updated);
+  }));
+
 test('reads only a tagged commit and includes both web profiles', () =>
   fixture(async (root) => {
     const repository = path.join(root, 'source.git');
