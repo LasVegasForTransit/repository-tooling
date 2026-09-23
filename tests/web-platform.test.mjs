@@ -256,3 +256,46 @@ test('the updater accepts either a release or an exact commit, never both', () =
     assert.notEqual(ambiguous.status, 0);
     assert.match(JSON.parse(ambiguous.stderr).error, /either --release or --commit/i);
   }));
+
+/** Commits `files` as the only commit of a new repository and returns its SHA. */
+async function sourceCommit(directory, files) {
+  const git = (...args) =>
+    execFileSync('git', ['-C', directory, ...args], { encoding: 'utf8' }).trim();
+  execFileSync('git', ['init', '--quiet', directory]);
+  for (const [name, content] of Object.entries(files)) {
+    await mkdir(path.dirname(path.join(directory, name)), { recursive: true });
+    await writeFile(path.join(directory, name), content);
+  }
+  git('add', '.');
+  git('-c', 'user.name=Test', '-c', 'user.email=test@example.com', 'commit', '--quiet', '-m', 'x');
+  return git('rev-parse', 'HEAD');
+}
+
+function runUpdate(root, source, commit, ...flags) {
+  const cli = new URL('../standards/web-platform-cli.ts', import.meta.url).pathname;
+  const args = ['update', '--root', root, '--source', source, '--commit', commit, '--json'];
+  const result = spawnSync(process.execPath, [cli, ...args, ...flags], { encoding: 'utf8' });
+  assert.equal(result.status, 0, result.stderr);
+  return JSON.parse(result.stdout).plan;
+}
+
+test('an update runs the updater carried by the preset it installs', () =>
+  fixture((root) =>
+    fixture(async (source) => {
+      const commit = await sourceCommit(source, {
+        'packages/cli/catalog.json': '{}\n',
+        'standards/web-platform.ts':
+          "export async function applyPreset() {\n  return { consumerChanged: ['incoming'] };\n}\n",
+      });
+      assert.deepEqual(runUpdate(root, source, commit).consumerChanged, ['incoming']);
+    }),
+  ));
+
+test('a preset without an updater is applied by the running one', () =>
+  fixture((root) =>
+    fixture(async (source) => {
+      const commit = await sourceCommit(source, { 'packages/cli/catalog.json': '{}\n' });
+      runUpdate(root, source, commit, '--apply');
+      assert.equal((await verifyPreset(root)).commit, commit);
+    }),
+  ));

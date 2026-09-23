@@ -36,11 +36,12 @@ its provenance record. Locally edited vendor files stop the update rather than b
 the vendor diff, provenance, and regenerated lockfile together after reviewing the catalog and
 templates.
 
-The update also makes two small migrations in the consumer's own files and lists every file they
-touch under `consumerChanged`, in the dry run as well. It rewrites legacy `@lvbt/*` references to
-the platform packages as `@lasvegasfortransit/*`. It also adds any of Playwright's output rules
-(`test-results/`, `playwright-report/`, `blob-report/`, and `**/playwright/.cache/`) that the root
-`.gitignore` lacks, below the lines already there. Nothing else in application configuration or
+The update runs with the updater carried by the preset it installs, so a release's own changes apply
+in the same update. It also makes two small migrations in the consumer's own files and lists every
+file they touch under `consumerChanged`, in the dry run as well. It rewrites legacy `@lvbt/*`
+references to the platform packages as `@lasvegasfortransit/*`. It adds any of Playwright's output
+rules (`test-results/`, `playwright-report/`, `blob-report/`, and `**/playwright/.cache/`) that the
+root `.gitignore` lacks, below the lines already there. Nothing else in application configuration or
 product files changes.
 
 Consumer validation against an unpublished standard uses the reviewed commit directly:
