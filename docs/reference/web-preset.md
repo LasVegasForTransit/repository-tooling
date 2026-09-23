@@ -34,7 +34,14 @@ The updater fetches one explicit tag from `LasVegasForTransit/repository-tooling
 added, changed, and removed files without changing the consumer. Apply replaces the vendor tree and
 its provenance record. Locally edited vendor files stop the update rather than being erased. Commit
 the vendor diff, provenance, and regenerated lockfile together after reviewing the catalog and
-templates. Application-specific configuration and product files are not overwritten.
+templates.
+
+The update also makes two small migrations in the consumer's own files and lists every file they
+touch under `consumerChanged`, in the dry run as well. It rewrites legacy `@lvbt/*` references to
+the platform packages as `@lasvegasfortransit/*`. It also adds any of Playwright's output rules
+(`test-results/`, `playwright-report/`, `blob-report/`, and `**/playwright/.cache/`) that the root
+`.gitignore` lacks, below the lines already there. Nothing else in application configuration or
+product files changes.
 
 Consumer validation against an unpublished standard uses the reviewed commit directly:
 

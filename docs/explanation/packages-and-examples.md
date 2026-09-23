@@ -33,7 +33,10 @@ What cannot be a package is a file the repository owns: the hook stubs git needs
 harness files Claude Code and Codex read, the CI workflow, and the one-line configs. Those come from
 the example copied into the template. Publication then adds the released vendor snapshot without
 changing the authoritative example. Application-owned files remain application-owned; only the
-vendor directory and its provenance record are replaced by `standards:update`.
+vendor directory and its provenance record are replaced by `standards:update`. When a release
+changes what those files must contain, such as a new generated folder that git must ignore, the
+updater adds exactly that and reports the file, so every repository gets the fix from one reviewed
+update.
 
 ## What was rejected, and why
 

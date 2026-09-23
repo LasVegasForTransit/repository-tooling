@@ -145,12 +145,48 @@ export async function applyPreset(root: string, bundle: WebPreset, dryRun = fals
       .sort()
       .filter((name) => !(name in bundle.files)),
   };
-  const consumerChanged = await migrateLegacyPackageScope(root, dryRun);
+  const consumerChanged = [
+    ...new Set([
+      ...(await migrateLegacyPackageScope(root, dryRun)),
+      ...(await ignorePlaywrightOutput(root, dryRun)),
+    ]),
+  ].sort();
   if (!dryRun) await install(root, bundle);
   return { ...plan, consumerChanged };
 }
 
-const SKIPPED_DIRECTORIES = new Set(['.git', 'node_modules', 'dist', '.turbo', 'test-results']);
+// Playwright writes these beside each app's configuration, such as apps/site/test-results/.
+// Every example's .gitignore carries the same rules. A slash inside a pattern anchors it to the
+// .gitignore's own directory, so the cache rule needs its leading **/ to reach every app.
+export const PLAYWRIGHT_OUTPUT_IGNORES = [
+  'test-results/',
+  'playwright-report/',
+  'blob-report/',
+  '**/playwright/.cache/',
+];
+
+/** Appends the rules a consumer's root .gitignore lacks, leaving its own lines untouched. */
+async function ignorePlaywrightOutput(root: string, dryRun: boolean): Promise<string[]> {
+  const file = path.join(root, '.gitignore');
+  const source = await readFile(file, 'utf8').catch(() => null);
+  if (source === null) return [];
+  const present = new Set(source.split(/\r?\n/).map((line) => line.trim()));
+  const missing = PLAYWRIGHT_OUTPUT_IGNORES.filter((rule) => !present.has(rule));
+  if (missing.length === 0) return [];
+  const separator = source === '' || source.endsWith('\n') ? '' : '\n';
+  if (!dryRun) await writeFile(file, `${source}${separator}${missing.join('\n')}\n`);
+  return ['.gitignore'];
+}
+
+const SKIPPED_DIRECTORIES = new Set([
+  '.git',
+  'node_modules',
+  'dist',
+  '.turbo',
+  'test-results',
+  'playwright-report',
+  'blob-report',
+]);
 const LEGACY_PLATFORM_PACKAGES = [
   'cli',
   'eslint-config',
