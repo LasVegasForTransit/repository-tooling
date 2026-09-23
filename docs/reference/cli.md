@@ -115,6 +115,27 @@ Workspace packages carry `lint`, `check-types`, `test`, and `build` where they b
 | `prepare`                 | `git config --local core.hooksPath .githooks`                                                      |
 | `deploy` (deployable)     | `lvbt deploy`                                                                                      |
 
+Each workspace package script runs one command. When a task needs more than one step, give each step
+its own script and let Turbo order them, so it can cache and run each step separately. An Astro
+site's `lint` depends on its `sync` task in the root `turbo.json`. A package with a second type
+program, such as a Worker, declares `check-types:worker` beside `check-types`. Its own `turbo.json`
+wires the two together, so `turbo run check-types` runs both:
+
+```json
+{
+  "$schema": "https://turborepo.dev/schema.json",
+  "extends": ["//"],
+  "tasks": {
+    "check-types": { "dependsOn": ["^check-types", "check-types:worker"] },
+    "check-types:worker": {}
+  }
+}
+```
+
+The root `check` and `check:fix` scripts are the exception. They run the repository-wide tools that
+are not workspace tasks (Prettier, markdownlint, and `lvbt check`) and then hand over to Turbo, and
+their commands stay exactly as the table shows.
+
 ## Repository-owned checks
 
 The `validate` task is the extension point: a package (or the root, as `//#validate`) that declares
