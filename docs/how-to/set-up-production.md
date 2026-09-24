@@ -200,58 +200,62 @@ a Cloudflare user who can administer the LVBT account.
    click "Create". If Google shows a Free Trial banner, dismiss it; none of this needs billing.
 2. Open <https://console.cloud.google.com/apis/library/admin.googleapis.com?project=lvbt-core> and
    click "Enable" on "Admin SDK API". Access uses it to read which Google Groups a person is in.
-3. Open <https://console.cloud.google.com/auth/overview?project=lvbt-core>. If Google says the app
-   is not configured, click "Get started". Enter the app name `LVBT volunteer sign-in` and your
-   @lasvegasfortransit.org address as the support email, choose the audience "Internal", enter your
-   address as the contact email, agree to the policy, and click "Create".
-4. Open <https://admin.google.com/ac/owl> (Security, then Access and data control, then API
+3. Open <https://admin.google.com/ac/owl> (Security, then Access and data control, then API
    controls), click "Settings", turn on "Trust internal apps", and save. It is off by default, and
    Access needs it.
-5. In a new browser tab, open Cloudflare One, go to Integrations, then Identity providers, and click
-   "Add new identity provider", then "Google Workspace". Keep this tab open; steps 9 and 10 fill it
+4. In a new browser tab, open Cloudflare One, go to Integrations, then Identity providers, and click
+   "Add new identity provider", then "Google Workspace". Keep this tab open; steps 8 and 9 fill it
    in, one value at a time.
-6. Back in Google Cloud, open <https://console.cloud.google.com/auth/clients?project=lvbt-core>. If
-   a client named "Cloudflare Access" is listed, open it, check that it has the two addresses below,
-   and under "Client secrets" click "Add secret", because Google shows a secret only when it is
-   made. Otherwise click "Create client", choose the application type "Web application", and name it
+5. Back in Google Cloud, open <https://console.cloud.google.com/auth/clients?project=lvbt-core>. If
+   it says "Google Auth Platform not configured yet", click "Get started" and complete its four
+   steps. App Information: App name "Las Vegans for Better Transit", User support email
+   `tech@lasvegasfortransit.org` (a shared LVBT address, never a person's), then "Next". Audience:
+   "Internal", then "Next". Contact Information: `tech@lasvegasfortransit.org`, then "Next". Finish:
+   tick the box agreeing to the Google API Services: User Data Policy, click "Continue", then
+   "Create". Optionally, under "Branding", upload the square LVBT logo from the "Marketing &
+   Communications" shared drive as the App logo. Then open "Clients" again. If a client named
+   "Cloudflare Access" is listed, open it, check that it has the two addresses below, and under
+   "Client secrets" click "Add secret", because Google shows a secret only when it is made.
+   Otherwise click "Create client", choose the application type "Web application", and name it
    `Cloudflare Access`.
-7. Under "Authorized JavaScript origins", click "Add URI" and enter exactly
+6. Under "Authorized JavaScript origins", click "Add URI" and enter exactly
    `https://lvbt.cloudflareaccess.com`.
-8. Under "Authorized redirect URIs", click "Add URI" and enter exactly
+7. Under "Authorized redirect URIs", click "Add URI" and enter exactly
    `https://lvbt.cloudflareaccess.com/cdn-cgi/access/callback`. Click "Create" (or "Save").
-9. Google shows the Client ID and the Client secret. Copy the Client ID, which ends in
+8. Google shows the Client ID and the Client secret. Copy the Client ID, which ends in
    `.apps.googleusercontent.com`, and paste it into "App ID" in the Cloudflare tab.
-10. Copy the Client secret and paste it into "Client secret" in the Cloudflare tab. Neither value is
-    stored in GitHub or on a Worker.
-11. In the Cloudflare tab, type `lasvegasfortransit.org` as the Google Workspace domain and click
+9. Copy the Client secret and paste it into "Client secret" in the Cloudflare tab. Neither value is
+   stored in GitHub or on a Worker.
+10. In the Cloudflare tab, type `lasvegasfortransit.org` as the Google Workspace domain and click
     "Save".
-12. Cloudflare shows a link. Open it signed in as the Google Workspace super admin and approve it,
+11. Cloudflare shows a link. Open it signed in as the Google Workspace super admin and approve it,
     so Access can read group membership.
-13. Back in Identity providers, click "Test" next to Google Workspace. It should show your name and
+12. Back in Identity providers, click "Test" next to Google Workspace. It should show your name and
     your groups. Add yourself to the Access group first (see the next section), or the test cannot
     show it.
 
 ### A Google Group for sign-in
 
-An Access application that admits a Google Group, such as lvwwd.org's
-`wwd-admin@lasvegasfortransit.org`, needs that group to exist first. Setup cannot read Google
-Groups, so it shows these steps and then asks whether the group exists. After a yes, it does not ask
-again on that computer; it keeps the note in `~/.config/lvbt/confirmations.json`, which holds no
-secret.
+An Access application that admits a Google Group needs that group to exist first. LVBT's Access
+applications admit the existing group `staff@lasvegasfortransit.org`; lvwwd.org's volunteer admin
+pages admit `wwd-admin@lasvegasfortransit.org`. Setup cannot read Google Groups, so it shows these
+steps and then asks whether the group exists. After a yes, it does not ask again on that computer;
+it keeps the note in `~/.config/lvbt/confirmations.json`, which holds no secret.
 
 You need a Google Workspace admin account with the Groups administrator privilege.
 
 1. Open the Google Admin console at <https://admin.google.com> and go to Menu, then Directory, then
    Groups. If the group is already listed, skip to step 6.
-2. Click "Create group". Type a group name that says what it grants, such as
-   `lvwwd.org volunteer admin`. For the group email, type the part before the @, such as
-   `wwd-admin`, and keep the domain lasvegasfortransit.org. In Description, say who the group lets
-   in. Under Group owner(s), add yourself and anyone who will add or remove people later.
+2. Only if it does not exist, click "Create group". Type a group name that says what it grants, such
+   as `Staff`. For the group email, type the part before the @, such as `staff`, and keep the domain
+   lasvegasfortransit.org. In Description, say who the group lets in. Under Group owner(s), add
+   yourself and anyone who will add or remove people later.
 3. Click "Next". Tick "Security", because the group controls access, and click "Next".
 4. Set Access type to "Restricted" and "Who can join the group" to "Only invited users". Leave
    "Allow external members in the group" off. Click "Create Group".
 5. Open the group, click "Members", then "Add members". Type each person's @lasvegasfortransit.org
-   address, including your own so you can test the sign-in, and click "Add To Group".
+   address, and add yourself before you click "Test" in Cloudflare One, so the test can show the
+   group. Click "Add To Group".
 6. Only accounts in the lasvegasfortransit.org Workspace can sign in through Access, so a personal
    Gmail address does not work, even in the group.
 
