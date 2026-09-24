@@ -123,9 +123,11 @@ since any older one belongs to another application. It stores the team domain on
 `teamDomainSecret` is not set yet. The check fails when the application does not protect a declared
 path, has another session length, offers another identity provider, lacks an allow policy for the
 declared people, or has an allow policy that lets everyone in; fixing that last one detaches the
-policy that lets everyone in. Turning on Cloudflare One (Zero Trust) and connecting Google Workspace
-have no API, so setup shows the dashboard steps for them. When Cloudflare One is already on, the
-report shows its team domain, such as `lvbt.cloudflareaccess.com`, and its team name, and skips
+policy that lets everyone in. Turning on Cloudflare One (Zero Trust), connecting Google Workspace,
+and creating a `googleGroup` have no API, so setup shows the dashboard steps for them. Setup cannot
+read Google Groups either, so it asks the person to confirm the group exists and remembers a yes on
+that computer; until then, the group is reported as a warning. When Cloudflare One is already on,
+the report shows its team domain, such as `lvbt.cloudflareaccess.com`, and its team name, and skips
 those steps.
 
 ## `email`

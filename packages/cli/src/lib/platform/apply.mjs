@@ -71,7 +71,12 @@ async function showSteps(context, action, entry) {
   const guide = created
     ? varGuide(action.variable, context.configPath, created.sitekey, action.widget)
     : action.guide;
-  await manualStep(context, action.key, `${entry.label} ${entry.detail}`, guide);
+  await manualStep(context, {
+    key: action.key,
+    title: `${entry.label} ${entry.detail}`,
+    guide,
+    confirm: action.confirm,
+  });
 }
 
 const HANDLERS = {

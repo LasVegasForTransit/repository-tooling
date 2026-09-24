@@ -6,7 +6,14 @@ import { findManifests, loadManifest, MANIFEST_FILE } from './manifest.mjs';
 import { observePlatform } from './observe.mjs';
 import { planPlatform, readiness, SETUP } from './plan.mjs';
 import { formatReport } from './report.mjs';
-import { cloudflareApi, dnsResolver, runCommand, wranglerToken } from './services.mjs';
+import {
+  cloudflareApi,
+  confirmationStore,
+  dnsResolver,
+  memoryConfirmations,
+  runCommand,
+  wranglerToken,
+} from './services.mjs';
 import { paint, terminalIo } from './terminal.mjs';
 
 /**
@@ -18,7 +25,12 @@ import { paint, terminalIo } from './terminal.mjs';
 export const SETUP_TOKEN_VARIABLE = 'LVBT_CLOUDFLARE_SETUP_TOKEN';
 
 export function defaultServices() {
-  return { run: runCommand, request: fetch, env: process.env };
+  return {
+    run: runCommand,
+    request: fetch,
+    env: process.env,
+    confirmations: confirmationStore(),
+  };
 }
 
 /** The manifests `--filter` selects: `apps/site`, `site`, or `.` for the root. */
@@ -96,7 +108,16 @@ async function inspect({ cwd, file, services, io, interactive, askForToken }) {
     setup: services.env[SETUP_TOKEN_VARIABLE] ? await setupApi() : undefined,
   };
   const resolve = dnsResolver(services.request);
-  const observe = () => observePlatform({ manifest, directory, apis, run: services.run, resolve });
+  const confirmations = services.confirmations ?? memoryConfirmations();
+  const observe = () =>
+    observePlatform({
+      manifest,
+      directory,
+      apis,
+      run: services.run,
+      resolve,
+      confirmed: confirmations.read(),
+    });
   let state = await observe();
   const needsToken = [state.turnstile, state.access].some(
     (part) => !part.ok && part.kind === 'unauthorized',
@@ -113,6 +134,7 @@ async function inspect({ cwd, file, services, io, interactive, askForToken }) {
     title: `${manifest.name} production (${file})`,
     items: plan(),
     setupApi,
+    confirmations,
     refresh: async () => {
       state = await observe();
       return { state, items: plan() };
@@ -207,6 +229,7 @@ export async function platformBootstrap({
       run: services.run,
       io,
       setupApi: view.setupApi,
+      confirmations: view.confirmations,
       values: new Map(),
       handled: new Set(),
       shown: new Set(),

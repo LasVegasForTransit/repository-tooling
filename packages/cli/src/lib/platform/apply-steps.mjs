@@ -40,7 +40,12 @@ export function printGuide(io, guide) {
   guide.steps.forEach((step, index) => io.write(`  ${index + 1}. ${step}\n`));
 }
 
-export async function manualStep(context, key, title, guide) {
+/**
+ * Show dashboard steps and wait. With `confirm`, ask whether the step is
+ * done instead, and remember a yes on this computer, for what setup cannot
+ * read for itself.
+ */
+export async function manualStep(context, { key, title, guide, confirm }) {
   if (context.handled.has(key)) return;
   context.handled.add(key);
   context.shown.add(key);
@@ -48,7 +53,16 @@ export async function manualStep(context, key, title, guide) {
   io.write(`\n${paint('bold', title)}\n`);
   printGuide(io, guide);
   if (guide.url && (await io.confirm('Open that page in your browser?', true))) io.open(guide.url);
-  await io.ask('Press Enter when you have finished (or to leave it for later): ');
+  if (!confirm) {
+    await io.ask('Press Enter when you have finished (or to leave it for later): ');
+    return;
+  }
+  if (await io.confirm(confirm.question, false)) {
+    context.confirmations.add(confirm.key);
+    io.write(
+      `Noted. Setup will not ask about it again on this computer; the note is in ${context.confirmations.where} and holds no secret.\n`,
+    );
+  } else io.write('It stays open, and setup asks again next time.\n');
 }
 
 export function targetName(context, target) {

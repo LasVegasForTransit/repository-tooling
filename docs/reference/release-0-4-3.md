@@ -32,3 +32,12 @@ Each value setup asks for now says whether it is fine to skip. The
 [set-up guide](../how-to/set-up-production.md#what-to-enter-in-each-dashboard) has the same steps
 for every service, including the deploy token, the Resend API key, and the Cloudflare Web Analytics
 token, so a manifest can copy them into its own `steps`.
+
+An Access application that admits a Google Group now gets a guided step to create the group first,
+with how to add and remove people later. Setup cannot read Google Groups, so it asks whether the
+group exists and remembers a yes on that computer, in `~/.config/lvbt/confirmations.json`; until
+then, the group is reported as a warning, so an unattended check still passes. The Access steps now
+follow the "Create new self-hosted application" page from top to bottom and use exactly the names in
+`platform.json`, so setup recognizes an application or widget someone made by hand. The check also
+reports an application that accepts every identity provider rather than only the declared one, and
+setup fixes it.
