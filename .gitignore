@@ -1,2 +1,4 @@
 node_modules/
 .astro/
+# Agent worktrees are other checkouts of this repository.
+.claude/worktrees/

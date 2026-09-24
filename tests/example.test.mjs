@@ -210,6 +210,11 @@ for (const [name, { uses, deploys }] of Object.entries(examples)) {
   test(`${name}: passes its own check with the shared packages`, async () => {
     const repository = await installedCopy(name);
     const exec = (cwd, args) => spawnSync(process.execPath, args, { cwd, encoding: 'utf8' });
+    // Another session's agent worktree, whose Markdown breaks the rules, is not this checkout's.
+    const worktree = path.join(repository, '.claude/worktrees/other');
+    await mkdir(worktree, { recursive: true });
+    await writeFile(path.join(worktree, '.git'), 'gitdir: /elsewhere/.git/worktrees/other\n');
+    await writeFile(path.join(worktree, 'README.md'), '# One\n# Two\n');
 
     const format = exec(repository, [bin('prettier', 'bin/prettier.cjs'), '--check', '.']);
     assert.equal(format.status, 0, `${format.stdout}\n${format.stderr}`);

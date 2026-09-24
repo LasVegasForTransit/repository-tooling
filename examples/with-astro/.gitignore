@@ -13,4 +13,6 @@ blob-report/
 .dev.vars
 .dev.vars.*
 .DS_Store
+# Agent worktrees are other checkouts of this repository.
+.claude/worktrees/
 .astro/
