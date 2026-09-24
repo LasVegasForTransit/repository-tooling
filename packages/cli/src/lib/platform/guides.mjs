@@ -168,7 +168,7 @@ export function googleWorkspaceGuide(teamDomain, workspaceDomain, group) {
       `Under "Authorized redirect URIs", click "Add URI" and enter exactly https://${team}/cdn-cgi/access/callback, then click "Create" (or "Save").`,
       'Google shows the Client ID and the Client secret. Copy the Client ID (it ends in .apps.googleusercontent.com) and paste it into "App ID" in the Cloudflare tab.',
       'Copy the Client secret and paste it into "Client secret" in the Cloudflare tab. Neither value is stored in GitHub or on the Worker.',
-      `In the Cloudflare tab, type ${domain} as the Google Workspace domain, and click "Save".`,
+      `In the Cloudflare tab, type ${domain} as the Google Workspace domain. Leave "Proof Key for Code Exchange (PKCE)" on. Leave "Enable SCIM" off, along with "Enable user deprovisioning" and "Remove user seat on deprovision", and leave the SCIM identity update behavior as "No action": Google Workspace only sends SCIM to a handful of apps in its own catalog, and Cloudflare does not document SCIM support for Google Workspace at all; Access re-checks group membership every sign-in instead. Leave the email claim and OIDC Claims fields empty. Click "Save".`,
       'Cloudflare then shows a link. Open it signed in as the Google Workspace super admin and approve it, so Access can read group membership.',
       `Back in Integrations → Identity providers, click "Test" next to Google Workspace. It should show your name and your groups${group ? `, including ${group}; add yourself to that group first (the Google Group step shows how), or the test cannot show it` : ''}. Then run this command again.`,
     ],
@@ -204,7 +204,7 @@ function sessionLabel(duration) {
 function includeRule(app) {
   if (app.allow.googleGroup) {
     const domain = app.allow.googleGroup.split('@')[1];
-    return `In the policy, add one Include rule: choose the selector "Google Workspace groups" and enter ${app.allow.googleGroup}. That selector is offered only once Google Workspace is a login method; if it is missing, the Google Workspace step was not done. Until it is, choose "Emails" instead and enter the @${domain} address of each person who needs in now; this command replaces that rule with the group once Google Workspace is connected.`;
+    return `In the policy, add one Include rule: choose the selector "Google Groups" (an older Cloudflare UI calls this "Google Workspace groups") and enter ${app.allow.googleGroup}. That selector is offered only once Google Workspace is a login method; if it is missing, the Google Workspace step was not done. Until it is, choose "Emails" instead and enter the @${domain} address of each person who needs in now; this command replaces that rule with the group once Google Workspace is connected. Then click "+ Add require (AND)" and add a second condition, selector "Emails ending in", value @${domain}, as defence in depth.`;
   }
   if (app.allow.emailDomain)
     return `In the policy, add one Include rule: choose the selector "Emails ending in" and enter @${app.allow.emailDomain}.`;
@@ -239,7 +239,8 @@ export function accessAppGuide(app, zone) {
   const policy = `${app.name} allow`;
   const audienceSteps = [
     `In Cloudflare One, go to Access controls → Applications and click "Configure" on "${app.name}".`,
-    `Open the "Additional settings" tab, copy "Application Audience (AUD) Tag", and paste it at this command's prompt. It is 64 lowercase letters and digits, and it is the value ${app.audienceSecret} holds.`,
+    'On the "Additional settings" tab, under "Cookie settings", turn on "Enable Binding Cookie" if it is off. Leave "HTTP Only" on and "SameSite" set to "Lax".',
+    `Still on "Additional settings", copy "Application Audience (AUD) Tag", and paste it at this command's prompt. It is 64 lowercase letters and digits, and it is the value ${app.audienceSecret} holds.`,
   ];
   const createSteps = [
     `Open Cloudflare One and choose the LVBT account (${LVBT_CLOUDFLARE_ACCOUNT}). Go to Access controls → Applications. If "${app.name}" is already listed, it exists: skip the steps that create it.`,
@@ -248,8 +249,9 @@ export function accessAppGuide(app, zone) {
     'Under "Destinations" there should be public hostname rows. If you see a "Private IPs" row with "Private IP address" and "Port" instead, "Private destinations" was chosen: click "+ Add public hostname", then remove the empty private row, or go back and choose "Public DNS".',
     `Add one public hostname row per address with "+ Add public hostname", leaving any other box empty: ${hostnames.join('; ')}. A path does not cover the paths under it, and a wildcard does not cover its parent, so every row is needed; with one missing, that part of the site would be open to anyone.`,
     'Leave "Allow access through browser-based RDP, SSH, or VNC sessions" off.',
-    `Under "Access policies", which says "No policy associated", open "Add current policies". If a policy named ${policy} is listed, choose it and go on to "Authentication". Otherwise click "Create new policy", name it exactly ${policy}, and set the action to "Allow".`,
+    `Under "Access policies", which says "No policy associated", open "Add current policies". If a policy named ${policy} is listed, choose it and go on to "Authentication". Otherwise click "Create new policy", name it exactly ${policy}, set the action to "Allow", and leave "Policy session duration" at its default, "Same as application session duration".`,
     includeRule(app),
+    'Leave "Override global multi-factor authentication settings (MFA)" and "Just-in-time access" off. MFA belongs in Google, not a Cloudflare Access rule: a Workspace admin enforces 2-Step Verification in the Google Admin console instead.',
     `Save the policy. If it opened in another tab, come back to this page and choose ${policy} in "Add current policies".`,
     'Skip "Policy tester".',
     ...identitySteps(app),

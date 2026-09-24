@@ -227,8 +227,13 @@ a Cloudflare user who can administer the LVBT account.
    `.apps.googleusercontent.com`, and paste it into "App ID" in the Cloudflare tab.
 9. Copy the Client secret and paste it into "Client secret" in the Cloudflare tab. Neither value is
    stored in GitHub or on a Worker.
-10. In the Cloudflare tab, type `lasvegasfortransit.org` as the Google Workspace domain and click
-    "Save".
+10. In the Cloudflare tab, type `lasvegasfortransit.org` as the Google Workspace domain. Leave
+    "Proof Key for Code Exchange (PKCE)" on. Leave "Enable SCIM" off, along with "Enable user
+    deprovisioning" and "Remove user seat on deprovision", and leave the SCIM identity update
+    behavior as "No action": Google Workspace only sends SCIM to a handful of apps in its own
+    catalog, and Cloudflare does not document SCIM support for Google Workspace at all; Access
+    re-checks group membership every sign-in instead. Leave the email claim and OIDC Claims fields
+    empty. Click "Save".
 11. Cloudflare shows a link. Open it signed in as the Google Workspace super admin and approve it,
     so Access can read group membership.
 12. Back in Identity providers, click "Test" next to Google Workspace. It should show your name and
@@ -291,13 +296,19 @@ below use lvwwd.org's volunteer admin pages, and follow the page from top to bot
 6. Leave "Allow access through browser-based RDP, SSH, or VNC sessions" off.
 7. "Access policies" says "No policy associated". If "Add current policies" lists
    `lvwwd.org volunteer admin allow`, choose it and go to step 9. Otherwise click "Create new
-   policy", name it exactly `lvwwd.org volunteer admin allow`, and set the action to "Allow".
-8. In the policy, add one Include rule: the selector "Google Workspace groups" with
-   `wwd-admin@lasvegasfortransit.org`. That selector is offered only once Google Workspace is a
-   login method; if it is missing, the Google Workspace step was not done. Until it is, use the
-   selector "Emails" with the @lasvegasfortransit.org address of each volunteer who needs in now;
-   setup replaces that rule with the group once Google Workspace is connected. Save the policy. If
-   it opened in another tab, come back and choose it in "Add current policies".
+   policy", name it exactly `lvwwd.org volunteer admin allow`, set the action to "Allow", and leave
+   "Policy session duration" at its default, "Same as application session duration".
+8. In the policy, add one Include rule: the selector "Google Groups" (an older Cloudflare UI calls
+   this "Google Workspace groups") with `wwd-admin@lasvegasfortransit.org`. That selector is offered
+   only once Google Workspace is a login method; if it is missing, the Google Workspace step was not
+   done. Until it is, use the selector "Emails" with the @lasvegasfortransit.org address of each
+   volunteer who needs in now; setup replaces that rule with the group once Google Workspace is
+   connected. Then click "+ Add require (AND)" and add a second condition, selector "Emails ending
+   in", value `@lasvegasfortransit.org`, as defence in depth. Leave "Override global multi-factor
+   authentication settings (MFA)" and "Just-in-time access" off: MFA belongs in Google, not a
+   Cloudflare Access rule; a Workspace admin enforces 2-Step Verification in the Google Admin
+   console instead. Save the policy. If it opened in another tab, come back and choose it in "Add
+   current policies".
 9. Skip "Policy tester".
 10. Under "Authentication", on the "Identity" tab, turn off "Accept all available identity
     providers" (it is on by default). In "Choose available identity providers", choose only "Google
@@ -306,9 +317,10 @@ below use lvwwd.org's volunteer admin pages, and follow the page from top to bot
 11. Skip "Preview". Under "Details", type the name exactly: `lvwwd.org volunteer admin`. Keep
     "Session Duration" at "24 hours".
 12. Click "Create".
-13. When setup asks for `ACCESS_AUD`, click "Configure" on the application, open the "Additional
-    settings" tab, copy "Application Audience (AUD) Tag" (64 lowercase letters and digits), and
-    paste it at the prompt.
+13. When setup asks for `ACCESS_AUD`, click "Configure" on the application. On the "Additional
+    settings" tab, under "Cookie settings", turn on "Enable Binding Cookie" if it is off, and leave
+    "HTTP Only" on and "SameSite" set to "Lax". Still on that tab, copy "Application Audience (AUD)
+    Tag" (64 lowercase letters and digits), and paste it at the prompt.
 
 ### A Turnstile widget
 
