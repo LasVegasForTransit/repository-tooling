@@ -7,7 +7,7 @@
     {
       "name": "lvbt-contributions",
       "description": "Create readable LVBT GitHub issues and pull requests.",
-      "version": "0.4.2",
+      "version": "0.4.3",
       "source": "./packages/cli/plugins/lvbt-contributions"
     }
   ]
