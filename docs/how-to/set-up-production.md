@@ -11,7 +11,9 @@ nothing and say so.
 - `pnpm bootstrap` passes on your machine. That means Node.js, pnpm, the GitHub CLI (signed in with
   `gh auth login`), and Wrangler (signed in with `pnpm exec wrangler login`) all work.
 - Your Cloudflare user can administer the LVBT account (ID `2557b5c2e166292ded0f8425b73075e9`),
-  including Cloudflare One, which Cloudflare used to call Zero Trust.
+  including Cloudflare One, which Cloudflare used to call Zero Trust. The account should be named
+  "Las Vegans for Better Transit"; if the switcher still shows "Las Vegas for Better…", open Manage
+  Account and rename it first.
 - Your GitHub user is an admin of the repository, so it can create environments and their secrets.
 - For email, you can sign in to the LVBT Resend account.
 - For admin sign-in through Google Workspace the first time in an account, a Google Workspace super
@@ -223,20 +225,22 @@ a Cloudflare user who can administer the LVBT account.
    `https://lvbt.cloudflareaccess.com`.
 7. Under "Authorized redirect URIs", click "Add URI" and enter exactly
    `https://lvbt.cloudflareaccess.com/cdn-cgi/access/callback`. Click "Create" (or "Save").
-8. Google shows the Client ID and the Client secret. Copy the Client ID, which ends in
+8. Skip service account keys and domain-wide delegation: nothing here uses one, and GitHub Actions
+   authenticates without one. Leave "Disable service account key creation" on if the project asks.
+9. Google shows the Client ID and the Client secret. Copy the Client ID, which ends in
    `.apps.googleusercontent.com`, and paste it into "App ID" in the Cloudflare tab.
-9. Copy the Client secret and paste it into "Client secret" in the Cloudflare tab. Neither value is
-   stored in GitHub or on a Worker.
-10. In the Cloudflare tab, type `lasvegasfortransit.org` as the Google Workspace domain. Leave
-    "Proof Key for Code Exchange (PKCE)" on. Leave "Enable SCIM" off, along with "Enable user
-    deprovisioning" and "Remove user seat on deprovision", and leave the SCIM identity update
-    behavior as "No action": Google Workspace only sends SCIM to a handful of apps in its own
-    catalog, and Cloudflare does not document SCIM support for Google Workspace at all; Access
-    re-checks group membership every sign-in instead. Leave the email claim and OIDC Claims fields
-    empty. Click "Save".
-11. Cloudflare shows a link. Open it signed in as the Google Workspace super admin and approve it,
+10. Copy the Client secret and paste it into "Client secret" in the Cloudflare tab. Neither value is
+    stored in GitHub or on a Worker.
+11. In the Cloudflare tab, type `lasvegasfortransit.org` as the Google Workspace domain. Leave
+    "Proof Key for Code Exchange (PKCE)" on; only turn it off if step 13's "Test" fails with a
+    code-verifier error. Leave "Enable SCIM" off, along with "Enable user deprovisioning" and
+    "Remove user seat on deprovision", and leave the SCIM identity update behavior as "No action":
+    Google Workspace only sends SCIM to a handful of apps in its own catalog, and Cloudflare does
+    not document SCIM support for Google Workspace at all; Access re-checks group membership every
+    sign-in instead. Leave the email claim and OIDC Claims fields empty. Click "Save".
+12. Cloudflare shows a link. Open it signed in as the Google Workspace super admin and approve it,
     so Access can read group membership.
-12. Back in Identity providers, click "Test" next to Google Workspace. It should show your name and
+13. Back in Identity providers, click "Test" next to Google Workspace. It should show your name and
     your groups. Add yourself to the Access group first (see the next section), or the test cannot
     show it.
 
@@ -251,7 +255,9 @@ it keeps the note in `~/.config/lvbt/confirmations.json`, which holds no secret.
 You need a Google Workspace admin account with the Groups administrator privilege.
 
 1. Open the Google Admin console at <https://admin.google.com> and go to Menu, then Directory, then
-   Groups. If the group is already listed, skip to step 6.
+   Groups. If the group is already listed, open it, click "Access settings", and check it before
+   relying on it: "Who can join the group" is "Only invited users" and "Allow external members in
+   the group" is off. Fix either if not, then skip to step 6.
 2. Only if it does not exist, click "Create group". Type a group name that says what it grants, such
    as `Staff`. For the group email, type the part before the @, such as `staff`, and keep the domain
    lasvegasfortransit.org. In Description, say who the group lets in. Under Group owner(s), add
@@ -266,8 +272,11 @@ You need a Google Workspace admin account with the Groups administrator privileg
    Gmail address does not work, even in the group.
 
 To let someone in later, open Directory, then Groups, then the group, then Members, and click "Add
-members". To take someone out, point to them in the Members list and click "Remove". A removal takes
-effect at their next sign-in, within the application's session length, usually 24 hours.
+members". To take someone out, remove them from the group or suspend their Google account: point to
+them in the Members list and click "Remove", or Menu, then Directory, then Users, then their name,
+then "Suspend user". Either takes effect at their next sign-in, within the application's session
+length, usually 24 hours. To end their access immediately instead of waiting, also go to Cloudflare
+One, then Team & Resources, then Users, find them, and revoke their session.
 
 ### An Access application
 
@@ -307,11 +316,12 @@ below use lvwwd.org's volunteer admin pages, and follow the page from top to bot
    done. Until it is, use the selector "Emails" with the @lasvegasfortransit.org address of each
    volunteer who needs in now; setup replaces that rule with the group once Google Workspace is
    connected. Then click "+ Add require (AND)" and add a second condition, selector "Emails ending
-   in", value `@lasvegasfortransit.org`, as defence in depth. Leave "Override global multi-factor
-   authentication settings (MFA)" and "Just-in-time access" off: MFA belongs in Google, not a
-   Cloudflare Access rule; a Workspace admin enforces 2-Step Verification in the Google Admin
-   console instead. Save the policy. If it opened in another tab, come back and choose it in "Add
-   current policies".
+   in", value `@lasvegasfortransit.org`, as defence in depth. Do not add a Country rule: it would
+   lock out anyone signing in while travelling, for little real protection, since the rules above
+   already limit who gets in. Leave "Override global multi-factor authentication settings (MFA)" and
+   "Just-in-time access" off: MFA belongs in Google, not a Cloudflare Access rule; a Workspace admin
+   enforces 2-Step Verification in the Google Admin console instead. Save the policy. If it opened
+   in another tab, come back and choose it in "Add current policies".
 9. Skip "Policy tester".
 10. Under "Authentication", on the "Identity" tab, turn off "Accept all available identity
     providers" (it is on by default). In "Choose available identity providers", choose only "Google
