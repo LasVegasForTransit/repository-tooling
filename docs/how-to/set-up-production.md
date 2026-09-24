@@ -203,9 +203,10 @@ a Cloudflare user who can administer the LVBT account.
 3. Open <https://admin.google.com/ac/owl> (Security, then Access and data control, then API
    controls), click "Settings", turn on "Trust internal apps", and save. It is off by default, and
    Access needs it.
-4. In a new browser tab, open Cloudflare One, go to Integrations, then Identity providers, and click
-   "Add new identity provider", then "Google Workspace". Keep this tab open; steps 8 and 9 fill it
-   in, one value at a time.
+4. In a new browser tab, open Cloudflare One, go to Integrations, then Identity providers (not
+   "Cloud & SaaS" just above it: that is a different feature that asks for a service account; leave
+   it alone), and click "Add new identity provider", then "Google Workspace". Keep this tab open;
+   steps 8 and 9 fill it in, one value at a time.
 5. Back in Google Cloud, open <https://console.cloud.google.com/auth/clients?project=lvbt-core>. If
    it says "Google Auth Platform not configured yet", click "Get started" and complete its four
    steps. App Information: App name "Las Vegans for Better Transit", User support email
