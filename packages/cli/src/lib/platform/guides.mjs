@@ -37,6 +37,12 @@ export const LVBT_GOOGLE_PROJECT_ID = 'lvbt-core';
 export const LVBT_SHARED_EMAIL = 'tech@lasvegasfortransit.org';
 /** The LVBT Cloudflare account's name. */
 export const LVBT_CLOUDFLARE_ACCOUNT = 'Las Vegans for Better Transit';
+/**
+ * The account still carries an old, misspelled name in the dashboard. Every
+ * guide that opens Cloudflare and chooses the account repeats this check, so
+ * whoever notices it fixes it once instead of copying the wrong name onward.
+ */
+const ACCOUNT_NAME_CHECK = `If the account switcher still shows "Las Vegas for Better…" instead of "${LVBT_CLOUDFLARE_ACCOUNT}", open Manage Account and rename it to "${LVBT_CLOUDFLARE_ACCOUNT}" first.`;
 
 const REGIONS = {
   'us-east-1': 'North Virginia (us-east-1)',
@@ -128,7 +134,7 @@ export function zeroTrustGuide(manifest) {
   return {
     url: ZERO_TRUST,
     steps: [
-      `Open Cloudflare One and choose the LVBT account (${LVBT_CLOUDFLARE_ACCOUNT}). These steps appear only the first time Zero Trust is used in an account.`,
+      `Open Cloudflare One and choose the LVBT account (${LVBT_CLOUDFLARE_ACCOUNT}). These steps appear only the first time Zero Trust is used in an account. ${ACCOUNT_NAME_CHECK}`,
       `Cloudflare asks you to choose the team domain (its documentation calls this the team name). Type ${LVBT_TEAM_SUBDOMAIN}, so the team domain becomes ${LVBT_TEAM_DOMAIN}. That is the address of the sign-in page, the value ${holds} holds, and the start of the Google sign-in addresses.`,
       `If it also asks for a team name, type ${LVBT_TEAM_NAME}. The team name is only a label people see; it changes nothing in any configuration.`,
       'Choose the Zero Trust Free plan. Cloudflare asks for payment details even for the Free plan, but does not charge for it.',
@@ -143,7 +149,7 @@ export function teamDomainGuide(secretName) {
   return {
     url: ZERO_TRUST,
     steps: [
-      `Open Cloudflare One and choose the LVBT account (${LVBT_CLOUDFLARE_ACCOUNT}). If it shows its first-time setup instead, Zero Trust was never turned on for this account: press Enter to skip, and run this command with the Cloudflare token it asks for, so it can show those steps.`,
+      `Open Cloudflare One and choose the LVBT account (${LVBT_CLOUDFLARE_ACCOUNT}). If it shows its first-time setup instead, Zero Trust was never turned on for this account: press Enter to skip, and run this command with the Cloudflare token it asks for, so it can show those steps. ${ACCOUNT_NAME_CHECK}`,
       `On Overview, find Account details. It shows the Team domain (for LVBT, ${LVBT_TEAM_DOMAIN}) and the Team name ("${LVBT_TEAM_NAME}"), which is only a label. ${secretName} needs the domain.`,
       "Copy the Team domain, without https://, and paste it at this command's prompt.",
     ],
@@ -166,9 +172,10 @@ export function googleWorkspaceGuide(teamDomain, workspaceDomain, group) {
       `On the Clients page, if a client named "Cloudflare Access" is listed, click it, check that it has the two addresses below, and under "Client secrets" click "Add secret", because Google shows a secret only when it is made. Otherwise click "Create client", choose the application type "Web application", and name it Cloudflare Access.`,
       `Under "Authorized JavaScript origins", click "Add URI" and enter exactly https://${team}`,
       `Under "Authorized redirect URIs", click "Add URI" and enter exactly https://${team}/cdn-cgi/access/callback, then click "Create" (or "Save").`,
+      'Skip "Credentials" → "Service Accounts" and domain-wide delegation: nothing here uses a service account key, and GitHub Actions authenticates without one. Leave "Disable service account key creation" on if the project asks.',
       'Google shows the Client ID and the Client secret. Copy the Client ID (it ends in .apps.googleusercontent.com) and paste it into "App ID" in the Cloudflare tab.',
       'Copy the Client secret and paste it into "Client secret" in the Cloudflare tab. Neither value is stored in GitHub or on the Worker.',
-      `In the Cloudflare tab, type ${domain} as the Google Workspace domain. Leave "Proof Key for Code Exchange (PKCE)" on. Leave "Enable SCIM" off, along with "Enable user deprovisioning" and "Remove user seat on deprovision", and leave the SCIM identity update behavior as "No action": Google Workspace only sends SCIM to a handful of apps in its own catalog, and Cloudflare does not document SCIM support for Google Workspace at all; Access re-checks group membership every sign-in instead. Leave the email claim and OIDC Claims fields empty. Click "Save".`,
+      `In the Cloudflare tab, type ${domain} as the Google Workspace domain. Leave "Proof Key for Code Exchange (PKCE)" on; only turn it off if "Test" (a later step) fails with a code-verifier error. Leave "Enable SCIM" off, along with "Enable user deprovisioning" and "Remove user seat on deprovision", and leave the SCIM identity update behavior as "No action": Google Workspace only sends SCIM to a handful of apps in its own catalog, and Cloudflare does not document SCIM support for Google Workspace at all; Access re-checks group membership every sign-in instead. Leave the email claim and OIDC Claims fields empty. Click "Save".`,
       'Cloudflare then shows a link. Open it signed in as the Google Workspace super admin and approve it, so Access can read group membership.',
       `Back in Integrations → Identity providers, click "Test" next to Google Workspace. It should show your name and your groups${group ? `, including ${group}; add yourself to that group first (the Google Group step shows how), or the test cannot show it` : ''}. Then run this command again.`,
     ],
@@ -243,7 +250,7 @@ export function accessAppGuide(app, zone) {
     `Still on "Additional settings", copy "Application Audience (AUD) Tag", and paste it at this command's prompt. It is 64 lowercase letters and digits, and it is the value ${app.audienceSecret} holds.`,
   ];
   const createSteps = [
-    `Open Cloudflare One and choose the LVBT account (${LVBT_CLOUDFLARE_ACCOUNT}). Go to Access controls → Applications. If "${app.name}" is already listed, it exists: skip the steps that create it.`,
+    `Open Cloudflare One and choose the LVBT account (${LVBT_CLOUDFLARE_ACCOUNT}). Go to Access controls → Applications. If "${app.name}" is already listed, it exists: skip the steps that create it. ${ACCOUNT_NAME_CHECK}`,
     'Click "Create new application" at the top right (some screens say "Add an application"). An account with no applications yet shows only a list of prerequisites; the button is still at the top right.',
     'In the "Add an application" dialog, under "Self-hosted and private", choose the "Public DNS" tab. Do not choose "Private destinations", "Workers", or "Service auth". Click "Continue with Self-hosted and private". The page is now "Create new self-hosted application"; work down it from the top.',
     'Under "Destinations" there should be public hostname rows. If you see a "Private IPs" row with "Private IP address" and "Port" instead, "Private destinations" was chosen: click "+ Add public hostname", then remove the empty private row, or go back and choose "Public DNS".',
@@ -251,6 +258,7 @@ export function accessAppGuide(app, zone) {
     'Leave "Allow access through browser-based RDP, SSH, or VNC sessions" off.',
     `Under "Access policies", which says "No policy associated", open "Add current policies". If a policy named ${policy} is listed, choose it and go on to "Authentication". Otherwise click "Create new policy", name it exactly ${policy}, set the action to "Allow", and leave "Policy session duration" at its default, "Same as application session duration".`,
     includeRule(app),
+    'Do not add a Country rule: it would lock out anyone who signs in while travelling, for little real protection, since the email or group rule above already limits who gets in.',
     'Leave "Override global multi-factor authentication settings (MFA)" and "Just-in-time access" off. MFA belongs in Google, not a Cloudflare Access rule: a Workspace admin enforces 2-Step Verification in the Google Admin console instead.',
     `Save the policy. If it opened in another tab, come back to this page and choose ${policy} in "Add current policies".`,
     'Skip "Policy tester".',
@@ -284,13 +292,13 @@ export function googleGroupGuide(group, apps) {
     url: 'https://admin.google.com/ac/groups',
     steps: [
       `Do this as a Google Workspace admin with the Groups administrator privilege. The group decides who can sign in to ${names}.`,
-      `Open the Google Admin console at https://admin.google.com and go to Menu → Directory → Groups. If ${group} is already listed, skip to the step that adds members.`,
+      `Open the Google Admin console at https://admin.google.com and go to Menu → Directory → Groups. If ${group} is already listed, click it, then "Access settings", and check it before relying on it: "Who can join the group" is "Only invited users", and "Allow external members in the group" is off. Fix either if not, then skip to the step that adds members.`,
       'Click "Create group".',
       `Group name: ${names}. Group email: type ${local} and keep the domain ${domain}. Description: People who can sign in to ${names}. Group owner(s): add yourself and anyone who will add and remove people later.`,
       'Click "Next". Tick "Security", because the group controls access, and click "Next".',
       'Set Access type to "Restricted" and "Who can join the group" to "Only invited users". Leave "Allow external members in the group" off. Click "Create Group".',
       `Open the group, click "Members", then "Add members". Type each person's @${domain} address, including your own so you can test the sign-in, and click "Add To Group". Only accounts in the ${domain} Workspace can sign in through Access, so a personal Gmail address does not work, even in the group.`,
-      `Later, to let someone in, open Directory → Groups → ${group} → Members and click "Add members". To take someone out, point to them in the Members list and click "Remove". A removal takes effect at their next sign-in, within ${session}.`,
+      `Later, to let someone in, open Directory → Groups → ${group} → Members and click "Add members". To take someone out, remove them from ${group} or suspend their Google account: point to them in the Members list and click "Remove", or Menu → Directory → Users → their name → "Suspend user". Either takes effect at their next sign-in, within ${session}. To end their access immediately instead of waiting, also go to Cloudflare One → Team & Resources → Users, find them, and revoke their session.`,
     ],
   };
 }
@@ -299,7 +307,7 @@ export function turnstileGuide(widget, cloudflare, configPath) {
   const config = configPath ?? 'the production wrangler config';
   const mode = { managed: 'Managed', 'non-interactive': 'Non-interactive', invisible: 'Invisible' };
   const createSteps = [
-    `Open Turnstile in the Cloudflare dashboard with the LVBT account (${LVBT_CLOUDFLARE_ACCOUNT}). If a widget named "${widget.name}" is already listed, click it and go to the step for the Site Key.`,
+    `Open Turnstile in the Cloudflare dashboard with the LVBT account (${LVBT_CLOUDFLARE_ACCOUNT}). If a widget named "${widget.name}" is already listed, click it and go to the step for the Site Key. ${ACCOUNT_NAME_CHECK}`,
     `Click "Add widget". Widget name: ${widget.name}.`,
     `Under "Hostname management", add ${widget.domains.join(', ')}.`,
     `Widget Mode: "${mode[widget.mode ?? 'managed']}". Leave pre-clearance off, and click "Create".`,
