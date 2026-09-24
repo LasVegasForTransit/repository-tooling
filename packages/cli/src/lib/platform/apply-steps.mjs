@@ -90,7 +90,11 @@ export async function storeSecret(context, name, target, value) {
     );
   }
   context.handled.add(`secret:${name}:${target}`);
-  context.io.write(`${paint('green', 'Stored')} ${name} on ${targetName(context, target)}.\n`);
+  const secret = context.manifest.secrets?.find((candidate) => candidate.name === name);
+  const shown = secret?.sensitive === false ? ` = ${value}` : '';
+  context.io.write(
+    `${paint('green', 'Stored')} ${name}${shown} on ${targetName(context, target)}.\n`,
+  );
 }
 
 /** Store a value a new resource produced, straight away, so it cannot be lost or left stale. */

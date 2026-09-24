@@ -145,19 +145,20 @@ it needs no credential.
 
 ## `secrets`
 
-| Field         | Required | Meaning                                                                                                                              |
-| ------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| `name`        | yes      | The name in capitals, such as `RESEND_API_KEY`.                                                                                      |
-| `purpose`     | yes      | What production uses it for, in one sentence.                                                                                        |
-| `use`         | no       | `live` (the default): production is not ready without it. `future`: only a feature that is not built yet needs it, so it only warns. |
-| `neededFor`   | no       | The feature that does not work without it, as a phrase that follows "needed for".                                                    |
-| `targets`     | no       | Where it is stored: `worker`, or `github:<environment>`. Defaults to `worker`.                                                       |
-| `url`         | no       | The page to open first. Setup offers to open it.                                                                                     |
-| `steps`       | no       | Numbered, click-by-click steps to find or create the value, each one complete sentence. See the rules below.                         |
-| `generate`    | no       | `true` when setup should mint a random value (32 random bytes) instead of asking.                                                    |
-| `from`        | no       | `cloudflare.accountId` to copy the manifest's account ID.                                                                            |
-| `pattern`     | no       | A regular expression a pasted value must match.                                                                                      |
-| `patternHint` | no       | What a valid value looks like, shown when a pasted value does not match.                                                             |
+| Field         | Required | Meaning                                                                                                                                                                    |
+| ------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `name`        | yes      | The name in capitals, such as `RESEND_API_KEY`.                                                                                                                            |
+| `purpose`     | yes      | What production uses it for, in one sentence.                                                                                                                              |
+| `use`         | no       | `live` (the default): production is not ready without it. `future`: only a feature that is not built yet needs it, so it only warns.                                       |
+| `neededFor`   | no       | The feature that does not work without it, as a phrase that follows "needed for".                                                                                          |
+| `targets`     | no       | Where it is stored: `worker`, or `github:<environment>`. Defaults to `worker`.                                                                                             |
+| `url`         | no       | The page to open first. Setup offers to open it.                                                                                                                           |
+| `steps`       | no       | Numbered, click-by-click steps to find or create the value, each one complete sentence. See the rules below.                                                               |
+| `generate`    | no       | `true` when setup should mint a random value (32 random bytes) instead of asking.                                                                                          |
+| `sensitive`   | no       | `false` for a value that is not a credential, such as an account ID, a team domain, or an Access audience tag. Setup asks for it visibly and shows it. Defaults to `true`. |
+| `from`        | no       | `cloudflare.accountId` to copy the manifest's account ID.                                                                                                                  |
+| `pattern`     | no       | A regular expression a pasted value must match.                                                                                                                            |
+| `patternHint` | no       | What a valid value looks like, shown when a pasted value does not match.                                                                                                   |
 
 Write `steps` for someone who has never used the service. Say exactly what to type or choose in each
 field, and use the same names the manifest uses, so setup recognizes what the person makes. Never
@@ -173,6 +174,12 @@ is never left guessing where the value comes from; the
 for the common ones to copy. A value a Turnstile widget or Access application feeds is asked for
 only when setup cannot read it, and then with the standard's own steps, which walk through creating
 the resource.
+
+Setup hides only credentials. A secret marked `"sensitive": false` is typed with visible input, and
+its value is printed when setup stores it and shown in the report beside "is set", as the value that
+should be there, whenever setup can work it out (the account ID, the team domain, or an
+application's audience tag). A generated secret is always a credential. Every other secret is typed
+hidden and never printed.
 
 Setup can see only whether a secret exists, never its value. So it never replaces a secret that is
 set: it does not ask for it, generate it, or copy it again. A resource created during a run always

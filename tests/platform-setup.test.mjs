@@ -287,3 +287,33 @@ test('bootstrap --production refuses to run without a terminal to ask in', async
     (error) => error.exitCode === 2,
   );
 });
+
+test('a value that is not a credential is typed visibly; a credential is typed hidden', async () => {
+  const state = readyState();
+  state.worker.value.secrets = WORKER_SECRETS.filter(
+    (name) => !['RESEND_API_KEY', 'ACCESS_TEAM_DOMAIN'].includes(name),
+  );
+  state.access = { ok: false, reason: 'no token', kind: 'unauthorized' };
+  const context = setupContext({
+    state,
+    run: recordingRun().run,
+    io: scriptedIo([
+      [/Paste RESEND_API_KEY/, 're_goodkey'],
+      [/Paste ACCESS_TEAM_DOMAIN/, 'team.cloudflareaccess.com'],
+    ]),
+  });
+  context.manifest.secrets.find((secret) => secret.name === 'ACCESS_TEAM_DOMAIN').sensitive = false;
+  const hidden = [];
+  const askHidden = context.io.askHidden;
+  context.io.askHidden = async (question) => {
+    hidden.push(question);
+    return askHidden(question);
+  };
+  await setUp(context);
+
+  assert.ok(hidden.some((question) => /RESEND_API_KEY/.test(question)));
+  assert.ok(!hidden.some((question) => /ACCESS_TEAM_DOMAIN/.test(question)));
+  assert.ok(context.io.asked.some((question) => /Paste ACCESS_TEAM_DOMAIN/.test(question)));
+  assert.match(context.io.output(), /ACCESS_TEAM_DOMAIN = team\.cloudflareaccess\.com/);
+  assert.ok(!context.io.output().includes('re_goodkey'));
+});
