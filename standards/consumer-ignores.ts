@@ -24,6 +24,25 @@ const LINE_RULES: Record<string, string[]> = {
 };
 
 const MARKDOWNLINT_CONFIG = '.markdownlint-cli2.jsonc';
+// markdownlint-cli2's other configuration formats, which the updater doesn't edit.
+const OTHER_MARKDOWNLINT_CONFIGS = [
+  '.markdownlint-cli2.yaml',
+  '.markdownlint-cli2.cjs',
+  '.markdownlint-cli2.mjs',
+];
+
+/** What the consumer must change by hand: a markdownlint configuration the updater can't edit. */
+export async function consumerIgnoreWarnings(root: string): Promise<string[]> {
+  const warnings: string[] = [];
+  for (const name of OTHER_MARKDOWNLINT_CONFIGS) {
+    const source = await readFile(path.join(root, name), 'utf8').catch(() => null);
+    if (source !== null && !source.includes(AGENT_WORKTREES))
+      warnings.push(
+        `Add "${AGENT_WORKTREES}" to the ignores in ${name}. ${AGENT_WORKTREES_REASON}`,
+      );
+  }
+  return warnings;
+}
 
 /**
  * Adds the standard's ignore rules that a consumer's root ignore files lack, leaving their own
@@ -49,12 +68,30 @@ export async function syncConsumerIgnores(root: string, dryRun: boolean): Promis
 async function appendMissingLines(file: string, rules: string[], dryRun: boolean) {
   const source = await readFile(file, 'utf8').catch(() => null);
   if (source === null) return false;
-  const present = new Set(source.split(/\r?\n/).map((line) => line.trim()));
-  const missing = rules.filter((rule) => !present.has(rule));
+  const present = new Set(source.split(/\r?\n/).map(patternKey));
+  const missing = rules.filter((rule) => !present.has(patternKey(rule)));
   if (missing.length === 0) return false;
-  const separator = source === '' || source.endsWith('\n') ? '' : '\n';
-  if (!dryRun) await writeFile(file, `${source}${separator}${missing.join('\n')}\n`);
+  const eol = lineEnding(source);
+  const separator = source === '' || source.endsWith('\n') ? '' : eol;
+  if (!dryRun) await writeFile(file, `${source}${separator}${missing.join(eol)}${eol}`);
   return true;
+}
+
+/** The line ending a file already uses, so added lines match it. */
+function lineEnding(source: string): string {
+  return source.includes('\r\n') ? '\r\n' : '\n';
+}
+
+/**
+ * An ignore pattern without the spellings that don't change what it covers here: a trailing `/` or
+ * `/**`, a leading `./`, and a leading `/` when another slash anchors the pattern anyway.
+ */
+function patternKey(pattern: string): string {
+  const bare = pattern
+    .trim()
+    .replace(/^\.\//, '')
+    .replace(/\/(?:\*\*)?$/, '');
+  return bare.startsWith('/') && bare.slice(1).includes('/') ? bare.slice(1) : bare;
 }
 
 interface Token {
@@ -136,7 +173,8 @@ function arrayHolds(rest: Token[], value: string): boolean {
   for (const token of rest) {
     depth += NESTING.get(token.text) ?? 0;
     if (depth < 0) return false;
-    if (depth === 0 && token.value === value) return true;
+    if (depth === 0 && token.value !== undefined && patternKey(token.value) === patternKey(value))
+      return true;
   }
   return false;
 }
@@ -175,5 +213,6 @@ function insertAfter(source: string, offset: number, comment: string, entry: str
   if (!/^[ \t]*\r?\n/.test(after)) return `${before}${entry} ${after.trimStart()}`;
   const { indentation, closes } = nextIndentation(source, offset);
   const indent = closes ? `${indentation}  ` : indentation;
-  return `${before}\n${indent}${comment}\n${indent}${entry}${after}`;
+  const eol = lineEnding(source);
+  return `${before}${eol}${indent}${comment}${eol}${indent}${entry}${after}`;
 }

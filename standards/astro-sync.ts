@@ -94,6 +94,18 @@ export function formatJson(value: unknown, indent = '', lead = 0): string {
   return JSON.stringify(value);
 }
 
+// Astro loads its configuration from the first of these it finds in the project's root.
+const ASTRO_CONFIGS = ['mjs', 'js', 'ts', 'mts', 'cjs', 'cts'].map((ext) => `astro.config.${ext}`);
+
+/**
+ * An Astro project depends on astro and has its own configuration. A library that only imports
+ * Astro's types, such as an integration or components, has nothing for `astro sync` to generate.
+ */
+function isAstroProject(root: string, directory: string, manifest: Manifest): boolean {
+  if (!manifest.dependencies?.astro && !manifest.devDependencies?.astro) return false;
+  return ASTRO_CONFIGS.some((name) => existsSync(path.join(root, directory, name)));
+}
+
 /** Gives each Astro package a `sync` script; reports whether any exist and which files change. */
 async function addSyncScripts(root: string, dryRun: boolean) {
   const changed: string[] = [];
@@ -101,7 +113,7 @@ async function addSyncScripts(root: string, dryRun: boolean) {
   for (const directory of await workspacePackages(root)) {
     const file = path.join(root, directory, 'package.json');
     const manifest = JSON.parse(await readFile(file, 'utf8')) as Manifest;
-    if (!manifest.dependencies?.astro && !manifest.devDependencies?.astro) continue;
+    if (!isAstroProject(root, directory, manifest)) continue;
     astro = true;
     if (manifest.scripts?.sync) continue;
     manifest.scripts = withEntry(manifest.scripts ?? {}, 'sync', SYNC_SCRIPT, { after: 'lint' });

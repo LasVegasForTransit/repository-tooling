@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, unlink, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
@@ -8,7 +8,7 @@ import test from 'node:test';
 import { main as markdownlint } from 'markdownlint-cli2';
 import prettier from 'prettier';
 
-import { addMarkdownlintIgnore } from '../standards/consumer-ignores.ts';
+import { addMarkdownlintIgnore, consumerIgnoreWarnings } from '../standards/consumer-ignores.ts';
 import { applyPreset } from '../standards/web-platform.ts';
 
 const reason = 'Agent worktrees are other checkouts of this repository.';
@@ -140,3 +140,77 @@ test('refuses a configuration it cannot read rather than guessing', () => {
   assert.throws(() => addMarkdownlintIgnore('{ "ignores": ["dist }', 'x', reason), /unclosed/);
   assert.throws(() => addMarkdownlintIgnore('[]', 'x', reason), /one object/);
 });
+
+test('a configuration the update cannot read stops it before any file changes', () =>
+  fixture(async (root) => {
+    await writeFile(path.join(root, '.gitignore'), 'node_modules/\n');
+    await writeFile(
+      path.join(root, 'package.json'),
+      '{ "devDependencies": { "@lvbt/cli": "1" } }\n',
+    );
+    await writeFile(path.join(root, '.markdownlint-cli2.jsonc'), '{ "ignores": ["dist }');
+    await assert.rejects(applyPreset(root, preset()), /unclosed string/);
+    assert.equal(await readFile(path.join(root, '.gitignore'), 'utf8'), 'node_modules/\n');
+    assert.match(await readFile(path.join(root, 'package.json'), 'utf8'), /@lvbt\/cli/);
+  }));
+
+test('an equivalent spelling of a rule counts as present', () =>
+  fixture(async (root) => {
+    const gitignore = [
+      '/.claude/worktrees',
+      'test-results',
+      'playwright-report/',
+      'blob-report/**',
+      '**/playwright/.cache/',
+      '',
+    ].join('\n');
+    await writeFile(path.join(root, '.gitignore'), gitignore);
+    await writeFile(path.join(root, '.prettierignore'), '.claude/worktrees/**\n');
+    const config = '{\n  "ignores": [\n    "./.claude/worktrees/**",\n  ],\n}\n';
+    await writeFile(path.join(root, '.markdownlint-cli2.jsonc'), config);
+    assert.deepEqual((await applyPreset(root, preset())).consumerChanged, []);
+    assert.equal(await readFile(path.join(root, '.gitignore'), 'utf8'), gitignore);
+  }));
+
+test('a rule anchored to the root does not stand in for one that reaches every app', () =>
+  fixture(async (root) => {
+    await writeFile(path.join(root, '.gitignore'), '/test-results/\n');
+    await applyPreset(root, preset());
+    const lines = (await readFile(path.join(root, '.gitignore'), 'utf8')).split('\n');
+    assert.ok(lines.includes('test-results/'));
+  }));
+
+test('added lines keep the line endings the file already uses', () =>
+  fixture(async (root) => {
+    await writeFile(path.join(root, '.gitignore'), 'node_modules/\r\n');
+    const config = '{\r\n  "ignores": [\r\n    "dist",\r\n  ],\r\n}\r\n';
+    await writeFile(path.join(root, '.markdownlint-cli2.jsonc'), config);
+    await applyPreset(root, preset());
+    for (const name of ['.gitignore', '.markdownlint-cli2.jsonc']) {
+      const text = await readFile(path.join(root, name), 'utf8');
+      assert.ok(text.includes('.claude/worktrees'), name);
+      assert.doesNotMatch(text, /[^\r]\n/, `${name} has only CRLF line endings`);
+    }
+  }));
+
+test('an agent worktree folder whose checkout is gone is still left alone', () =>
+  fixture(async (root) => {
+    const worktree = await agentWorktree(root);
+    await unlink(path.join(worktree, '.git'));
+    const plan = await applyPreset(root, preset());
+    assert.ok(!plan.consumerChanged.some((file) => file.startsWith('.claude/')));
+    assert.match(await readFile(path.join(worktree, 'package.json'), 'utf8'), /@lvbt\/cli/);
+  }));
+
+test('names a markdownlint configuration the update cannot edit', () =>
+  fixture(async (root) => {
+    await writeFile(path.join(root, '.markdownlint-cli2.yaml'), 'ignores:\n  - dist\n');
+    assert.deepEqual(await consumerIgnoreWarnings(root), [
+      `Add ".claude/worktrees" to the ignores in .markdownlint-cli2.yaml. ${reason}`,
+    ]);
+    await writeFile(
+      path.join(root, '.markdownlint-cli2.yaml'),
+      'ignores:\n  - .claude/worktrees\n',
+    );
+    assert.deepEqual(await consumerIgnoreWarnings(root), []);
+  }));
