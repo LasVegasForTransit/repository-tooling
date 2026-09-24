@@ -3,11 +3,14 @@ import test from 'node:test';
 
 import {
   accessAppGuide,
+  googleGroupGuide,
   googleWorkspaceGuide,
   hostnameParts,
   relativeName,
   resendDomainGuide,
+  setupTokenGuide,
   teamDomainGuide,
+  turnstileGuide,
   zeroTrustGuide,
 } from '../packages/cli/src/lib/platform/guides.mjs';
 import { sampleManifest } from './support/platform.mjs';
@@ -70,4 +73,45 @@ test('email records are named relative to the zone, including for a sending subd
   assert.ok(steps.includes('name send.notify'));
   assert.ok(steps.includes('name resend._domainkey.notify'));
   assert.ok(steps.includes('us-east-1'));
+});
+
+/** Each "copy" and "paste" in the order a person reads them, skipping "do not copy". */
+function clipboardUses(steps) {
+  return steps
+    .join('\n')
+    .replace(/\bdo not copy\b/gi, '')
+    .matchAll(/\b(copy|paste)\b/gi)
+    .map(([word]) => word.toLowerCase())
+    .toArray();
+}
+
+test('no guide asks for a second copy before the first one is pasted', () => {
+  const manifest = sampleManifest();
+  const [app] = manifest.access;
+  const [widget] = manifest.turnstile;
+  const access = accessAppGuide(app, 'example.org');
+  const turnstile = turnstileGuide(widget, manifest.cloudflare, 'apps/site/wrangler.jsonc');
+  const guides = {
+    access: access.steps,
+    'access, made by hand': access.manualSteps,
+    'access, tag only': access.audienceSteps,
+    turnstile: turnstile.steps,
+    'turnstile, made by hand': turnstile.manualSteps,
+    'turnstile, secret only': turnstile.secretSteps,
+    'google workspace': googleWorkspaceGuide('team.cloudflareaccess.com', 'example.org').steps,
+    'team domain': teamDomainGuide('ACCESS_TEAM_DOMAIN').steps,
+    'setup token': setupTokenGuide(manifest).steps,
+    'google group': googleGroupGuide(app.allow.googleGroup, [app]).steps,
+    resend: resendDomainGuide(manifest.email[0], manifest.cloudflare).steps,
+    'zero trust': zeroTrustGuide(manifest).steps,
+  };
+  for (const [name, steps] of Object.entries(guides)) {
+    const uses = clipboardUses(steps);
+    uses.forEach((use, index) => {
+      if (use === 'copy' && index > 0)
+        assert.equal(uses[index - 1], 'paste', `${name}: a copy follows an unpasted copy`);
+    });
+    if (uses.length > 0)
+      assert.equal(uses.at(-1), 'paste', `${name}: the last copy is never pasted`);
+  }
 });

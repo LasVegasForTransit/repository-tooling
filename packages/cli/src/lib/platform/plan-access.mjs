@@ -5,7 +5,7 @@ import {
   ZERO_TRUST,
   zeroTrustGuide,
 } from './guides.mjs';
-import { item, SETUP, TOKEN_HINT, unknownItem } from './plan-items.mjs';
+import { item, manualGuide, SETUP, TOKEN_HINT, unknownItem } from './plan-items.mjs';
 
 /**
  * Cloudflare Access: Zero Trust itself, the identity provider people sign in
@@ -120,7 +120,7 @@ function applicationItem(manifest, access, app) {
     app,
     provider,
     rule: allowRule(app.allow, provider),
-    guide: accessAppGuide(app, manifest.cloudflare.zone.name),
+    guide: manualGuide(accessAppGuide(app, manifest.cloudflare.zone.name)),
   };
   if (!found && !provider)
     return item({

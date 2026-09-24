@@ -164,7 +164,8 @@ new value everywhere.
 ## What to enter in each dashboard
 
 The command prints these steps when it needs them. They are here too, so you can read them ahead or
-follow them without the command. Each one assumes you have never used the service before.
+follow them without the command. Each one assumes you have never used the service before, and none
+asks you to copy a second value before you have pasted the first.
 
 ### Cloudflare One (Zero Trust), the first time
 
@@ -203,25 +204,30 @@ a Cloudflare user who can administer the LVBT account.
    is not configured, click "Get started". Enter the app name `LVBT volunteer sign-in` and your
    @lasvegasfortransit.org address as the support email, choose the audience "Internal", enter your
    address as the contact email, agree to the policy, and click "Create".
-4. Open <https://console.cloud.google.com/auth/clients?project=lvbt-core>. If a client named
-   "Cloudflare Access" is listed, open it and check the two addresses below instead of creating
-   another. Otherwise click "Create client". Choose the application type "Web application" and name
-   it `Cloudflare Access`.
-5. Under "Authorized JavaScript origins", click "Add URI" and enter exactly
-   `https://lvbt.cloudflareaccess.com`.
-6. Under "Authorized redirect URIs", click "Add URI" and enter exactly
-   `https://lvbt.cloudflareaccess.com/cdn-cgi/access/callback`. Click "Create".
-7. Copy the Client ID, which ends in `.apps.googleusercontent.com`, and the Client secret. They go
-   into Cloudflare One in step 9, not into GitHub or a Worker.
-8. Open <https://admin.google.com/ac/owl> (Security, then Access and data control, then API
+4. Open <https://admin.google.com/ac/owl> (Security, then Access and data control, then API
    controls), click "Settings", turn on "Trust internal apps", and save. It is off by default, and
    Access needs it.
-9. In Cloudflare One, go to Integrations, then Identity providers, and click "Add new identity
-   provider", then "Google Workspace". Paste the Client ID into "App ID" and the Client secret into
-   "Client secret", type `lasvegasfortransit.org` as the Google Workspace domain, and click "Save".
-10. Cloudflare shows a link. Open it signed in as the Google Workspace super admin and approve it,
+5. In a new browser tab, open Cloudflare One, go to Integrations, then Identity providers, and click
+   "Add new identity provider", then "Google Workspace". Keep this tab open; steps 9 and 10 fill it
+   in, one value at a time.
+6. Back in Google Cloud, open <https://console.cloud.google.com/auth/clients?project=lvbt-core>. If
+   a client named "Cloudflare Access" is listed, open it, check that it has the two addresses below,
+   and under "Client secrets" click "Add secret", because Google shows a secret only when it is
+   made. Otherwise click "Create client", choose the application type "Web application", and name it
+   `Cloudflare Access`.
+7. Under "Authorized JavaScript origins", click "Add URI" and enter exactly
+   `https://lvbt.cloudflareaccess.com`.
+8. Under "Authorized redirect URIs", click "Add URI" and enter exactly
+   `https://lvbt.cloudflareaccess.com/cdn-cgi/access/callback`. Click "Create" (or "Save").
+9. Google shows the Client ID and the Client secret. Copy the Client ID, which ends in
+   `.apps.googleusercontent.com`, and paste it into "App ID" in the Cloudflare tab.
+10. Copy the Client secret and paste it into "Client secret" in the Cloudflare tab. Neither value is
+    stored in GitHub or on a Worker.
+11. In the Cloudflare tab, type `lasvegasfortransit.org` as the Google Workspace domain and click
+    "Save".
+12. Cloudflare shows a link. Open it signed in as the Google Workspace super admin and approve it,
     so Access can read group membership.
-11. Back in Identity providers, click "Test" next to Google Workspace. It should show your name and
+13. Back in Identity providers, click "Test" next to Google Workspace. It should show your name and
     your groups.
 
 ### A Google Group for sign-in
@@ -292,9 +298,9 @@ below use lvwwd.org's volunteer admin pages, and follow the page from top to bot
 11. Skip "Preview". Under "Details", type the name exactly: `lvwwd.org volunteer admin`. Keep
     "Session Duration" at "24 hours".
 12. Click "Create".
-13. To copy the audience tag, click "Configure" on the application, open the "Additional settings"
-    tab, and copy "Application Audience (AUD) Tag". It is 64 lowercase letters and digits, and it is
-    the value of `ACCESS_AUD`.
+13. When setup asks for `ACCESS_AUD`, click "Configure" on the application, open the "Additional
+    settings" tab, copy "Application Audience (AUD) Tag" (64 lowercase letters and digits), and
+    paste it at the prompt.
 
 ### A Turnstile widget
 
@@ -303,10 +309,11 @@ below use lvwwd.org's volunteer admin pages, and follow the page from top to bot
 2. Click "Add widget" and type the widget name, which is the site, such as `lvwwd.org`.
 3. Under "Hostname management", add the site's hostname.
 4. Choose the widget mode "Managed", leave pre-clearance off, and click "Create".
-5. Copy the Site Key. It is public and starts with `0x`. It goes into `"vars"` in the production
-   wrangler config as `TURNSTILE_SITE_KEY`, through a pull request.
-6. Copy the Secret Key. It is private and also starts with `0x`. It is the Worker secret
-   `TURNSTILE_SECRET`, which setup stores.
+5. Copy the Site Key, which is public and starts with `0x`, and paste it into `"vars"` in the
+   production wrangler config as `TURNSTILE_SITE_KEY`. Save the file; it goes in through a pull
+   request. Skip this step if the config already has this widget's Site Key.
+6. When setup asks for `TURNSTILE_SECRET`, copy the Secret Key, which is private and also starts
+   with `0x`, and paste it at the prompt.
 
 ### The Cloudflare API tokens
 
@@ -378,7 +385,7 @@ manage Turnstile.
 7. Open <https://resend.com/api-keys> and click "Create API Key". Name it after the Worker, such as
    `lvwwd.org Worker`, choose the permission "Sending access", choose the verified domain, and click
    "Add".
-8. Copy the key. It starts with `re_`, and Resend shows it only once. It is the secret
+8. Copy the key, which starts with `re_` and is shown only once, and paste it when setup asks for
    `RESEND_API_KEY`.
 
 ### Cloudflare Web Analytics
