@@ -6,7 +6,7 @@ export class CliError extends Error {
 }
 
 const flags = new Set(['--dry-run', '--staged', '--production', '--help']);
-const valued = new Set(['--filter']);
+const valued = new Set(['--filter', '--rotate']);
 
 /** `<command> [positional...] [--flag] [--option value]`. Unknown options are an error. */
 export function parseArguments(argv) {

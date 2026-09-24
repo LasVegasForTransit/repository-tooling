@@ -83,20 +83,47 @@ export function cloudflareApi(token, request = fetch) {
     get: async (endpoint) => (await call('GET', endpoint)).result,
     post: async (endpoint, body) => (await call('POST', endpoint, body)).result,
     put: async (endpoint, body) => (await call('PUT', endpoint, body)).result,
-    /** Every page of a list endpoint. */
+    /**
+     * Every page of a list endpoint. A resource missed on a later page would
+     * look absent and be created a second time, so a list that cannot be read
+     * to the end fails instead of returning what it has.
+     */
     list: async (endpoint) => {
       const items = [];
-      for (let page = 1; page <= 50; page += 1) {
+      for (let page = 1; page <= MAX_PAGES; page += 1) {
         const separator = endpoint.includes('?') ? '&' : '?';
-        const payload = await call('GET', `${endpoint}${separator}page=${page}&per_page=50`);
-        items.push(...(Array.isArray(payload.result) ? payload.result : []));
-        const pages = payload.result_info?.total_pages ?? 1;
-        if (page >= pages || !Array.isArray(payload.result) || payload.result.length === 0)
-          return items;
+        const payload = await call(
+          'GET',
+          `${endpoint}${separator}page=${page}&per_page=${PER_PAGE}`,
+        );
+        const result = Array.isArray(payload.result) ? payload.result : [];
+        if (payload.result_info?.page !== undefined && payload.result_info.page !== page)
+          throw new CloudflareError('error', 0, [
+            { message: `${endpoint} did not return page ${page}` },
+          ]);
+        items.push(...result);
+        if (!morePages(payload.result_info, page, items.length, result.length)) return items;
       }
-      return items;
+      throw new CloudflareError('error', 0, [
+        { message: `${endpoint} has more than ${MAX_PAGES * PER_PAGE} entries` },
+      ]);
     },
   };
+}
+
+const PER_PAGE = 50;
+const MAX_PAGES = 100;
+
+/**
+ * Whether a list has another page. Cloudflare's list endpoints report their
+ * size differently: some give total_pages, some only total_count, and some
+ * nothing, in which case a full page means there may be more.
+ */
+export function morePages(info, page, seen, received) {
+  if (received === 0) return false;
+  if (info?.total_pages !== undefined) return page < info.total_pages;
+  if (info?.total_count !== undefined) return seen < info.total_count;
+  return received >= (info?.per_page ?? PER_PAGE);
 }
 
 /**

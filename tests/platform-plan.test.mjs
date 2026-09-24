@@ -26,11 +26,25 @@ test('when everything exists, every item is ok and production is ready', () => {
   assert.equal(plan.ready, true);
 });
 
-test('a missing database is created and then migrated', () => {
+test('a missing database is created, and its migrations follow once the config names it', () => {
   const plan = planAfter((state) => (state.d1 = known({})));
   assert.equal(plan.byId('d1:example').action.type, 'd1.create');
-  assert.equal(plan.byId('d1:example:migrations').action.type, 'd1.migrate');
+  const migrations = plan.byId('d1:example:migrations');
+  assert.equal(migrations.status, 'missing');
+  assert.equal(migrations.action.type, 'd1.migrate');
+  assert.equal(migrations.action.afterCreate, true);
   assert.equal(plan.ready, false);
+});
+
+test('migrations are not applied through a config that names another database', () => {
+  const plan = planAfter((state) => {
+    state.config.value.d1[0].id = 'db-old';
+    state.d1.value.example.applied = known(['0001_first.sql']);
+  });
+  const migrations = plan.byId('d1:example:migrations');
+  assert.equal(migrations.status, 'missing');
+  assert.equal(migrations.action, undefined);
+  assert.match(migrations.next, /db-1/);
 });
 
 test('unapplied migrations are named and applied', () => {

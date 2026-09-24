@@ -196,6 +196,11 @@ async function machineFindings(cwd) {
  * read-only readiness report for every platform manifest.
  */
 export async function preflight({ cwd, options = {} }) {
+  if (options.rotate !== undefined)
+    throw new CliError(
+      'preflight never changes anything; use --rotate with pnpm bootstrap --production.',
+      2,
+    );
   const machine = await machineFindings(cwd);
   if (options.production) {
     try {
@@ -214,6 +219,8 @@ export async function preflight({ cwd, options = {} }) {
  * then set up everything the platform manifests declare.
  */
 export async function bootstrap({ cwd, options = {} }) {
+  if (options.rotate !== undefined && !options.production)
+    throw new CliError('--rotate replaces production secrets, so it needs --production.', 2);
   process.stdout.write('pnpm install\n');
   const install = spawnSync('pnpm', ['install'], { cwd, stdio: 'inherit' });
   if (install.status !== 0)
