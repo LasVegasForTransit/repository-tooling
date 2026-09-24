@@ -131,6 +131,7 @@ export function readyState() {
       environments: ['production'],
       secrets: { production: ['CLOUDFLARE_ACCOUNT_ID'] },
     }),
+    confirmed: new Set([`google-group:${'a'.repeat(32)}:admins@example.org`]),
   };
 }
 

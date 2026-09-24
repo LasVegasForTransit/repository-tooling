@@ -17,6 +17,12 @@ nothing and say so.
 - For admin sign-in through Google Workspace the first time in an account, a Google Workspace super
   admin for lasvegasfortransit.org is at hand. After that, every repository reuses the same
   connection. LVBT's is already connected.
+- For an Access application that admits a Google Group, a Google Workspace admin who can create
+  groups is at hand, unless the group already exists.
+- Everything LVBT owns belongs to an LVBT organization, team, or account, never to a personal one:
+  the Cloudflare account "Las Vegas for Better Transit", the lasvegasfortransit.org Google Workspace
+  and its Google Cloud organization, the LasVegasForTransit GitHub organization, and the LVBT team
+  in Resend.
 
 ## 1. Declare what production needs
 
@@ -88,10 +94,11 @@ once before it starts. Answer the questions as they come:
   the page. Paste the value when asked; it does not appear on screen. A value that does not look
   right is asked for again. Press Enter to skip one for now.
 - **Dashboard steps.** A few things have no API: turning on Cloudflare One the first time,
-  connecting Google Workspace as the sign-in, and verifying the email domain in Resend. For those,
-  the command prints the steps, offers to open the page, and waits for you to press Enter. When
-  Cloudflare One is already on, as it is for LVBT, the command only confirms the team domain
-  (`lvbt.cloudflareaccess.com`) and moves on.
+  connecting Google Workspace as the sign-in, creating a Google Group, and verifying the email
+  domain in Resend. For those, the command prints the steps, offers to open the page, and waits for
+  you to press Enter. For a Google Group, which setup cannot read, it asks instead whether the group
+  exists, and remembers a yes on your computer. When Cloudflare One is already on, as it is for
+  LVBT, the command only confirms the team domain (`lvbt.cloudflareaccess.com`) and moves on.
 - **Features not built yet.** Before it starts, the command asks whether to also set the values that
   only such features need. The default is to leave them for later.
 
@@ -214,32 +221,77 @@ a Cloudflare user who can administer the LVBT account.
 11. Back in Identity providers, click "Test" next to Google Workspace. It should show your name and
     your groups.
 
+### A Google Group for sign-in
+
+An Access application that admits a Google Group, such as lvwwd.org's
+`wwd-admin@lasvegasfortransit.org`, needs that group to exist first. Setup cannot read Google
+Groups, so it shows these steps and then asks whether the group exists. After a yes, it does not ask
+again on that computer; it keeps the note in `~/.config/lvbt/confirmations.json`, which holds no
+secret.
+
+You need a Google Workspace admin account with the Groups administrator privilege.
+
+1. Open the Google Admin console at <https://admin.google.com> and go to Menu, then Directory, then
+   Groups. If the group is already listed, skip to step 6.
+2. Click "Create group". Type a group name that says what it grants, such as
+   `lvwwd.org volunteer admin`. For the group email, type the part before the @, such as
+   `wwd-admin`, and keep the domain lasvegasfortransit.org. In Description, say who the group lets
+   in. Under Group owner(s), add yourself and anyone who will add or remove people later.
+3. Click "Next". Tick "Security", because the group controls access, and click "Next".
+4. Set Access type to "Restricted" and "Who can join the group" to "Only invited users". Leave
+   "Allow external members in the group" off. Click "Create Group".
+5. Open the group, click "Members", then "Add members". Type each person's @lasvegasfortransit.org
+   address and click "Add To Group".
+6. Only accounts in the lasvegasfortransit.org Workspace can sign in through Access, so a personal
+   Gmail address does not work, even in the group.
+
+To let someone in later, open Directory, then Groups, then the group, then Members, and click "Add
+members". To take someone out, point to them in the Members list and click "Remove". A removal takes
+effect at their next sign-in, within the application's session length, usually 24 hours.
+
 ### An Access application
 
 `pnpm bootstrap --production` creates the application when it has the Cloudflare token. To create it
-by hand instead, for example for lvwwd.org's volunteer admin pages:
+by hand instead, use exactly the names in `platform.json`, so setup recognizes what you made rather
+than creating a second one. It finds an application by its name, or else by its paths. The steps
+below use lvwwd.org's volunteer admin pages, and follow the page from top to bottom.
 
-1. Open <https://one.dash.cloudflare.com/> with the LVBT account and go to Access controls, then
-   Applications. If the application is already listed, skip to step 9.
+1. Open <https://one.dash.cloudflare.com/> with the LVBT account ("Las Vegas for Better Transit")
+   and go to Access controls, then Applications. If the application is already listed, skip to
+   step 13.
 2. Click "Create new application" (some screens say "Add an application").
-3. In the "Add an application" dialog, on the "Self-hosted and private" tab, choose "Public DNS",
-   then click "Continue with Self-hosted and private".
-4. Name the application, for example `lvwwd.org volunteer admin`.
-5. Click "Add public hostname" once for each address. For lvwwd.org, leave Subdomain empty, choose
-   `lvwwd.org` in the Domain dropdown, and type the path `admin`. Add two more the same way with the
-   paths `admin/*` and `api/admin/*`. A path does not cover the paths under it, and a wildcard does
-   not cover its parent, so all three are needed.
-6. Under "Access policies", create a new policy named after the application with `allow` at the end,
-   with the action "Allow".
-7. Add one Include rule. Open Integrations, then Identity providers, in Cloudflare One: if it lists
-   Google Workspace (it does for LVBT), choose the selector "Google Workspace groups" and enter the
-   group, `wwd-admin@lasvegasfortransit.org` for lvwwd.org. If it does not, choose "Emails ending
-   in" and enter `@lasvegasfortransit.org`.
-8. Under login methods, select only "Google Workspace" (or "One-time PIN" without it) and turn on
-   "Apply instant authentication". Set "Session Duration" to 24 hours and click "Create".
-9. To copy the audience tag, click "Configure" on the application, open "Additional settings", and
-   copy "Application Audience (AUD) Tag". It is 64 lowercase letters and digits, and it is the value
-   of `ACCESS_AUD`.
+3. In the "Add an application" dialog, under "Self-hosted and private", choose the "Public DNS" tab,
+   not "Private destinations", "Workers", or "Service auth". Click "Continue with Self-hosted and
+   private". The page is now "Create new self-hosted application".
+4. Under "Destinations", there should be public hostname rows. If you see a "Private IPs" row with
+   "Private IP address" and "Port" instead, "Private destinations" was chosen: click "+ Add public
+   hostname", then remove the empty private row, or go back and choose "Public DNS".
+5. Fill in one public hostname row per address, with "+ Add public hostname" for each extra row. For
+   lvwwd.org there are three rows, each with Subdomain empty and `lvwwd.org` chosen in the Domain
+   dropdown, and the paths `admin`, `admin/*`, and `api/admin/*`. A path does not cover the paths
+   under it, and a wildcard does not cover its parent, so all three are needed; with one missing,
+   that part of the site would be open to anyone.
+6. Leave "Allow access through browser-based RDP, SSH, or VNC sessions" off.
+7. "Access policies" says "No policy associated". If "Add current policies" lists
+   `lvwwd.org volunteer admin allow`, choose it and go to step 9. Otherwise click "Create new
+   policy", name it exactly `lvwwd.org volunteer admin allow`, and set the action to "Allow".
+8. In the policy, add one Include rule: the selector "Google Workspace groups" with
+   `wwd-admin@lasvegasfortransit.org`. That selector is offered only once Google Workspace is a
+   login method; if it is missing, the Google Workspace step was not done. Until it is, use the
+   selector "Emails" with the @lasvegasfortransit.org address of each volunteer who needs in now;
+   setup replaces that rule with the group once Google Workspace is connected. Save the policy. If
+   it opened in another tab, come back and choose it in "Add current policies".
+9. Skip "Policy tester".
+10. Under "Authentication", on the "Identity" tab, turn off "Accept all available identity
+    providers" (it is on by default). In "Choose available identity providers", choose only "Google
+    Workspace". Turn on "Apply instant authentication". Leave "Authenticate with Cloudflare One
+    Client" off. If "Google Workspace" is not in the list, the Google Workspace step was not done.
+11. Skip "Preview". Under "Details", type the name exactly: `lvwwd.org volunteer admin`. Keep
+    "Session Duration" at "24 hours".
+12. Click "Create".
+13. To copy the audience tag, click "Configure" on the application, open the "Additional settings"
+    tab, and copy "Application Audience (AUD) Tag". It is 64 lowercase letters and digits, and it is
+    the value of `ACCESS_AUD`.
 
 ### A Turnstile widget
 

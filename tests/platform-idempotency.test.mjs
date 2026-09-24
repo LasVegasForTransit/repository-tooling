@@ -215,6 +215,77 @@ test('resources on later pages of a long list are found, not created again', asy
   });
 });
 
+test('the Google Group step is shown until the person confirms it, then never again', async () => {
+  await withRepository(undefined, async (repository) => {
+    const world = freshWorld();
+    const notYet = await bootstrapOnce(world, repository, {
+      rules: [RESEND, [/Does the Google Group/, false]],
+    });
+    assert.match(notYet.output, /Create group/);
+    assert.equal(notYet.ready, true, 'an unconfirmed group only warns');
+
+    const confirmed = await bootstrapOnce(world, repository, { rules: [RESEND] });
+    assert.match(confirmed.output, /Create group/);
+
+    const after = await bootstrapOnce(world, repository, { rules: [RESEND] });
+    assert.doesNotMatch(after.output, /Create group/);
+    assert.ok(!after.asked.some((question) => /Google Group/.test(question)));
+  });
+});
+
+test('resources made by hand in the dashboard with the manifest names are used, not duplicated', async () => {
+  await withRepository(undefined, async (repository) => {
+    const world = freshWorld();
+    // As the dashboard guide creates them: the manifest's names, an inline policy.
+    world.widgets.push({
+      name: 'example.org',
+      sitekey: '0xSITEKEY',
+      secret: '0xHANDMADE',
+      domains: ['example.org'],
+      mode: 'managed',
+    });
+    world.apps.push({
+      id: 'hand-app',
+      name: 'example admin',
+      aud: 'e'.repeat(64),
+      domain: 'example.org/admin',
+      self_hosted_domains: ['example.org/admin', 'example.org/admin/*'],
+      destinations: [
+        { type: 'public', uri: 'example.org/admin' },
+        { type: 'public', uri: 'example.org/admin/*' },
+      ],
+      session_duration: '24h',
+      allowed_idps: ['idp-1'],
+      policies: [
+        {
+          id: 'hand-policy',
+          name: 'example admin allow',
+          decision: 'allow',
+          include: [{ gsuite: { email: 'admins@example.org', identity_provider_id: 'idp-1' } }],
+        },
+      ],
+    });
+
+    const run = await bootstrapOnce(world, repository, { rules: [RESEND] });
+    assert.equal(run.ready, true, run.error?.message);
+    assert.ok(!run.writes.some((write) => /widget|app |policy/.test(write)), run.writes.join());
+    assert.equal(world.worker.secrets.get('ACCESS_AUD'), 'e'.repeat(64));
+    assert.equal(world.worker.secrets.get('TURNSTILE_SECRET'), '0xHANDMADE');
+  });
+});
+
+test('an application made by hand under another name is found by its paths', async () => {
+  await withRepository(undefined, async (repository) => {
+    const world = freshWorld();
+    await bootstrapOnce(world, repository, { rules: [RESEND] });
+    world.apps[0].name = 'Admin pages (made by hand)';
+
+    const run = await bootstrapOnce(world, repository, { rules: [RESEND] });
+    assert.ok(!run.writes.includes('create app example admin'));
+    assert.equal(world.apps.length, 1);
+  });
+});
+
 /** SIGNING_SECRET shared by the Worker and a GitHub environment. */
 function sharedSecretManifest() {
   const manifest = sampleManifest();

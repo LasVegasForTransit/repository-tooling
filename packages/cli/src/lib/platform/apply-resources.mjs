@@ -11,12 +11,11 @@ import { account, manualStep, storeFed, succeeded, targetName, wrangler } from '
 export async function createWidget(context, action) {
   const api = await context.setupApi();
   if (!api)
-    return manualStep(
-      context,
-      `turnstile:${action.widget.name}`,
-      `Create the Turnstile widget ${action.widget.name}`,
-      action.guide,
-    );
+    return manualStep(context, {
+      key: `turnstile:${action.widget.name}`,
+      title: `Create the Turnstile widget ${action.widget.name}`,
+      guide: action.guide,
+    });
   const { widget } = action;
   const created = await api.post(`${account(context)}/challenges/widgets`, {
     name: widget.name,
@@ -36,12 +35,11 @@ const WIDGET_SETTINGS = ['bot_fight_mode', 'clearance_level', 'ephemeral_id', 'o
 export async function updateWidget(context, action) {
   const api = await context.setupApi();
   if (!api)
-    return manualStep(
-      context,
-      `turnstile:${action.widget.name}`,
-      `Update the Turnstile widget ${action.widget.name}`,
-      action.guide,
-    );
+    return manualStep(context, {
+      key: `turnstile:${action.widget.name}`,
+      title: `Update the Turnstile widget ${action.widget.name}`,
+      guide: action.guide,
+    });
   const current = await api.get(`${account(context)}/challenges/widgets/${action.sitekey}`);
   // A PUT replaces the whole widget, so carry every setting this does not manage.
   const kept = Object.fromEntries(
@@ -118,7 +116,8 @@ async function allowPolicy(context, api, action) {
 export async function createOrUpdateApp(context, action) {
   const api = await context.setupApi();
   const title = `${action.found ? 'Fix' : 'Create'} the Access application ${action.app.name}`;
-  if (!api) return manualStep(context, `access:${action.app.name}`, title, action.guide);
+  if (!api)
+    return manualStep(context, { key: `access:${action.app.name}`, title, guide: action.guide });
   const policyId = await allowPolicy(context, api, action);
   const reusable = context.state.access.ok ? context.state.access.value.policies : [];
   const result = action.found

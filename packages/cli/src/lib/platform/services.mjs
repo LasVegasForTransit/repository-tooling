@@ -1,4 +1,7 @@
 import { spawnSync } from 'node:child_process';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
 
 /**
  * The outside world the platform command talks to, behind small interfaces
@@ -168,4 +171,41 @@ export function dnsResolver(request = fetch) {
       .filter((answer) => code === undefined || answer.type === code)
       .map((answer) => answer.data);
   };
+}
+
+/**
+ * Things only a person can confirm, such as that a Google Group exists,
+ * remembered on this computer so setup asks once. The file holds names and
+ * dates, never a secret.
+ */
+export function confirmationFile(env = process.env) {
+  const base = env.XDG_CONFIG_HOME || path.join(os.homedir(), '.config');
+  return path.join(base, 'lvbt', 'confirmations.json');
+}
+
+export function confirmationStore(file = confirmationFile()) {
+  const load = () => {
+    try {
+      return JSON.parse(readFileSync(file, 'utf8'));
+    } catch {
+      return {};
+    }
+  };
+  return {
+    where: file,
+    read: () => new Set(Object.keys(load())),
+    add: (key) => {
+      const current = load();
+      if (key in current) return;
+      current[key] = new Date().toISOString().slice(0, 10);
+      mkdirSync(path.dirname(file), { recursive: true });
+      writeFileSync(file, `${JSON.stringify(current, null, 2)}\n`);
+    },
+  };
+}
+
+/** A confirmation store that lives only for this process, for callers that pass none. */
+export function memoryConfirmations() {
+  const keys = new Set();
+  return { where: 'memory', read: () => new Set(keys), add: (key) => keys.add(key) };
 }

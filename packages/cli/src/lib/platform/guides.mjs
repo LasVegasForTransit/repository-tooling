@@ -26,6 +26,8 @@ export const ZERO_TRUST = 'https://one.dash.cloudflare.com/';
 export const LVBT_TEAM_SUBDOMAIN = 'lvbt';
 export const LVBT_TEAM_DOMAIN = `${LVBT_TEAM_SUBDOMAIN}.cloudflareaccess.com`;
 export const LVBT_TEAM_NAME = 'Las Vegans for Better Transit';
+/** The LVBT Cloudflare account's name, as the dashboard's account pickers show it. */
+export const LVBT_CLOUDFLARE_ACCOUNT = 'Las Vegas for Better Transit';
 
 const REGIONS = {
   'us-east-1': 'North Virginia (us-east-1)',
@@ -101,7 +103,7 @@ export function resendDomainGuide(email, cloudflare) {
   return {
     url: 'https://resend.com/domains',
     steps: [
-      'Sign in to Resend at https://resend.com/login. If you have no account, sign up at https://resend.com/signup with your @lasvegasfortransit.org address, then ask a maintainer to invite you to the LVBT team.',
+      'Sign in to Resend at https://resend.com/login. If you have no account, sign up at https://resend.com/signup with your @lasvegasfortransit.org address, then ask a maintainer to invite you to the LVBT team. Everything below belongs in that team, never in a personal one.',
       `On the Domains page, if ${email.domain} is listed, click it and go to the next step. Otherwise click "Add Domain", type ${email.domain}, choose the region ${REGIONS[region] ?? region}, and click "Add". Keep that region: platform.json and the DNS records both name it.`,
       `The easiest way to add the DNS records is the "Sign in to Cloudflare" button on the domain's page in Resend. Approve the request in the Cloudflare window, and it adds every record for you.`,
       `To add them by hand instead, open https://dash.cloudflare.com/${cloudflare.accountId}/${zone}/dns/records and add these three, each with TTL "Auto" and Proxy status "DNS only": type MX, name ${mx.short}, mail server feedback-smtp.${region}.amazonses.com, priority 10; type TXT, name ${spf.short}, content v=spf1 include:amazonses.com ~all; type TXT, name ${dkim.short}, content the long p=… value Resend shows for it.`,
@@ -117,7 +119,7 @@ export function zeroTrustGuide(manifest) {
   return {
     url: ZERO_TRUST,
     steps: [
-      'Open Cloudflare One and choose the LVBT account. These steps appear only the first time Zero Trust is used in an account.',
+      `Open Cloudflare One and choose the LVBT account (${LVBT_CLOUDFLARE_ACCOUNT}). These steps appear only the first time Zero Trust is used in an account.`,
       `Cloudflare asks you to choose the team domain (its documentation calls this the team name). Type ${LVBT_TEAM_SUBDOMAIN}, so the team domain becomes ${LVBT_TEAM_DOMAIN}. That is the address of the sign-in page, the value ${holds} holds, and the start of the Google sign-in addresses.`,
       `If it also asks for a team name, type ${LVBT_TEAM_NAME}. The team name is only a label people see; it changes nothing in any configuration.`,
       'Choose the Zero Trust Free plan. Cloudflare asks for payment details even for the Free plan, but does not charge for it.',
@@ -132,7 +134,7 @@ export function teamDomainGuide(secretName) {
   return {
     url: ZERO_TRUST,
     steps: [
-      'Open Cloudflare One and choose the LVBT account.',
+      `Open Cloudflare One and choose the LVBT account (${LVBT_CLOUDFLARE_ACCOUNT}).`,
       `On Overview, find Account details and copy the Team domain. For LVBT it is ${LVBT_TEAM_DOMAIN}. Copy only the domain, without https://.`,
       `Do not copy the Team name ("${LVBT_TEAM_NAME}") shown beside it. It is only a label, and ${secretName} needs the domain.`,
       'If Cloudflare One shows its first-time setup instead, Zero Trust was never turned on for this account. Press Enter to skip, and run this command with the Cloudflare token it asks for, so it can show those steps.',
@@ -147,9 +149,9 @@ export function googleWorkspaceGuide(teamDomain, workspaceDomain, group) {
     url: 'https://console.cloud.google.com/',
     steps: [
       `Do the Google steps signed in as a Google Workspace super admin for ${domain}: turning on "Trust internal apps" and approving group access both need one. The Cloudflare steps need a Cloudflare user who can administer the LVBT account.`,
-      'In Google Cloud (https://console.cloud.google.com/), open the project picker at the top. Choose the project named "LVBT Access". If there is none, click "New project", name it LVBT Access, keep the organization, and click "Create".',
+      `In Google Cloud (https://console.cloud.google.com/), open the project picker at the top. Choose the project named "LVBT Access". If there is none, click "New project", name it LVBT Access, and make sure "Organization" is ${domain}, so the project belongs to LVBT rather than to your own account. Click "Create".`,
       'Open https://console.cloud.google.com/apis/library/admin.googleapis.com and click "Enable" on "Admin SDK API". Access uses it to read which Google Groups a person is in.',
-      `Open https://console.cloud.google.com/auth/overview. If Google says the app is not configured yet, click "Get started": App name LVBT volunteer sign-in, User support email your @${domain} address, Audience "Internal", contact email your address, agree to the policy, and click "Create".`,
+      `Open https://console.cloud.google.com/auth/overview. If Google says the app is not configured yet, click "Get started": App name LVBT volunteer sign-in, User support email your @${domain} address, Audience "Internal", contact email your address, agree to the policy, and click "Create". If you can reach the "Marketing & Communications" shared drive in Google Drive, upload the square LVBT logo as the app logo on the "Branding" page, so people recognize the sign-in screen.`,
       'Open https://console.cloud.google.com/auth/clients and click "Create client". Application type: "Web application". Name: Cloudflare Access.',
       `Under "Authorized JavaScript origins", click "Add URI" and enter exactly https://${team}`,
       `Under "Authorized redirect URIs", click "Add URI" and enter exactly https://${team}/cdn-cgi/access/callback, then click "Create".`,
@@ -192,45 +194,86 @@ function sessionLabel(duration) {
 function includeRule(app) {
   if (app.allow.googleGroup) {
     const domain = app.allow.googleGroup.split('@')[1];
-    return `Add one Include rule. If Integrations → Identity providers in Cloudflare One lists Google Workspace (it does for LVBT), choose the selector "Google Workspace groups" and enter ${app.allow.googleGroup}. If it does not list Google Workspace yet, choose "Emails ending in" and enter @${domain} for now; this command changes the rule to the group once Google Workspace is connected.`;
+    return `In the policy, add one Include rule: choose the selector "Google Workspace groups" and enter ${app.allow.googleGroup}. That selector is offered only once Google Workspace is a login method; if it is missing, the Google Workspace step was not done. Until it is, choose "Emails" instead and enter the @${domain} address of each person who needs in now; this command replaces that rule with the group once Google Workspace is connected.`;
   }
   if (app.allow.emailDomain)
-    return `Add one Include rule: choose the selector "Emails ending in" and enter @${app.allow.emailDomain}.`;
-  return `Add one Include rule: choose the selector "Emails" and enter ${app.allow.emails.join(', ')}.`;
+    return `In the policy, add one Include rule: choose the selector "Emails ending in" and enter @${app.allow.emailDomain}.`;
+  return `In the policy, add one Include rule: choose the selector "Emails" and enter ${app.allow.emails.join(', ')}.`;
+}
+
+function identitySteps(app) {
+  if (app.identityProvider !== 'google-apps')
+    return [
+      'Under "Authentication", on the "Identity" tab, turn off "Accept all available identity providers", choose only "One-time PIN" in "Choose available identity providers", and turn on "Apply instant authentication". Leave "Authenticate with Cloudflare One Client" off.',
+    ];
+  return [
+    'Under "Authentication", on the "Identity" tab, turn off "Accept all available identity providers" (it is on by default). In "Choose available identity providers", choose only "Google Workspace". Turn on "Apply instant authentication". Leave "Authenticate with Cloudflare One Client" off.',
+    'If "Google Workspace" is not in that list, the Google Workspace sign-in step was not done. Choose "One-time PIN" for now; this command switches it to Google Workspace once it is connected.',
+  ];
 }
 
 /**
  * Creating an Access application by hand, from a dashboard that has never
- * had one, then copying its audience tag. `audienceSteps` alone say where the
- * tag is, for when the application already exists.
+ * had one, then copying its audience tag. The steps follow the "Create new
+ * self-hosted application" page from top to bottom. `audienceSteps` alone
+ * say where the tag is, for when the application already exists. The exact
+ * name matters: setup recognizes an application by its name, or else by its
+ * paths, and would otherwise create a second one.
  */
 export function accessAppGuide(app, zone) {
   const zoneName = zone ?? app.destinations[0].split('/')[0];
-  const hostnames = app.destinations.map((destination) =>
-    describeHostname(hostnameParts(destination, zoneName)),
+  const hostnames = app.destinations.map(
+    (destination, index) =>
+      `row ${index + 1}: ${describeHostname(hostnameParts(destination, zoneName))}`,
   );
-  const loginMethod =
-    app.identityProvider === 'google-apps'
-      ? 'Under login methods, select only "Google Workspace" (or only "One-time PIN" if Google Workspace is not listed yet) and turn on "Apply instant authentication".'
-      : 'Under login methods, select only "One-time PIN" and turn on "Apply instant authentication".';
+  const policy = `${app.name} allow`;
   const audienceSteps = [
     `In Cloudflare One, go to Access controls → Applications and click "Configure" on "${app.name}".`,
-    `Open "Additional settings" and copy "Application Audience (AUD) Tag". It is 64 lowercase letters and digits, and it is the value ${app.audienceSecret} holds.`,
+    `Open the "Additional settings" tab and copy "Application Audience (AUD) Tag". It is 64 lowercase letters and digits, and it is the value ${app.audienceSecret} holds.`,
   ];
   return {
     url: ZERO_TRUST,
     audienceSteps,
     steps: [
-      `Open Cloudflare One and choose the LVBT account. Go to Access controls → Applications. If "${app.name}" is already listed, skip to the last two steps.`,
+      `Open Cloudflare One and choose the LVBT account (${LVBT_CLOUDFLARE_ACCOUNT}). Go to Access controls → Applications. If "${app.name}" is already listed, skip to the last two steps.`,
       'Click "Create new application" (some screens say "Add an application").',
-      'In the "Add an application" dialog, on the "Self-hosted and private" tab, choose "Public DNS" (not Private destinations, Workers, or Service auth), then click "Continue with Self-hosted and private".',
-      `Application name: ${app.name}.`,
-      `Click "Add public hostname" once for each address and fill it in: ${hostnames.join('; ')}. A path does not cover the paths under it, and a wildcard does not cover its parent, so every one is needed.`,
-      `Under "Access policies", create a new policy named ${app.name} allow, with Action "Allow".`,
+      'In the "Add an application" dialog, under "Self-hosted and private", choose the "Public DNS" tab. Do not choose "Private destinations", "Workers", or "Service auth". Click "Continue with Self-hosted and private". The page is now "Create new self-hosted application"; work down it from the top.',
+      'Under "Destinations" there should be public hostname rows. If you see a "Private IPs" row with "Private IP address" and "Port" instead, "Private destinations" was chosen: click "+ Add public hostname", then remove the empty private row, or go back and choose "Public DNS".',
+      `Add one public hostname row per address with "+ Add public hostname", leaving any other box empty: ${hostnames.join('; ')}. A path does not cover the paths under it, and a wildcard does not cover its parent, so every row is needed; with one missing, that part of the site would be open to anyone.`,
+      'Leave "Allow access through browser-based RDP, SSH, or VNC sessions" off.',
+      `Under "Access policies", which says "No policy associated", open "Add current policies". If a policy named ${policy} is listed, choose it and go on to "Authentication". Otherwise click "Create new policy", name it exactly ${policy}, and set the action to "Allow".`,
       includeRule(app),
-      loginMethod,
-      `Set "Session Duration" to ${sessionLabel(app.sessionDuration ?? '24h')}, then click "Create".`,
+      `Save the policy. If it opened in another tab, come back to this page and choose ${policy} in "Add current policies".`,
+      'Skip "Policy tester".',
+      ...identitySteps(app),
+      'Skip "Preview".',
+      `Under "Details", type the name exactly: ${app.name}. Set "Session Duration" to ${sessionLabel(app.sessionDuration ?? '24h')}, which is the default.`,
+      'Click "Create".',
       ...audienceSteps,
+    ],
+  };
+}
+
+/**
+ * Creating the Google Group an Access application admits. Setup cannot read
+ * Google Groups, so it asks the person to confirm the group exists and
+ * remembers the answer on this computer.
+ */
+export function googleGroupGuide(group, apps) {
+  const [local, domain] = group.split('@');
+  const names = apps.map((app) => app.name).join(' and ');
+  const session = sessionLabel(apps[0]?.sessionDuration ?? '24h');
+  return {
+    url: 'https://admin.google.com/ac/groups',
+    steps: [
+      `Do this as a Google Workspace admin with the Groups administrator privilege. The group decides who can sign in to ${names}.`,
+      `Open the Google Admin console at https://admin.google.com and go to Menu → Directory → Groups. If ${group} is already listed, skip to the step that adds members.`,
+      'Click "Create group".',
+      `Group name: ${names}. Group email: type ${local} and keep the domain ${domain}. Description: People who can sign in to ${names}. Group owner(s): add yourself and anyone who will add and remove people later.`,
+      'Click "Next". Tick "Security", because the group controls access, and click "Next".',
+      'Set Access type to "Restricted" and "Who can join the group" to "Only invited users". Leave "Allow external members in the group" off. Click "Create Group".',
+      `Open the group, click "Members", then "Add members". Type each person's @${domain} address and click "Add To Group". Only accounts in the ${domain} Workspace can sign in through Access, so a personal Gmail address does not work, even in the group.`,
+      `Later, to let someone in, open Directory → Groups → ${group} → Members and click "Add members". To take someone out, point to them in the Members list and click "Remove". A removal takes effect at their next sign-in, within ${session}.`,
     ],
   };
 }
@@ -240,7 +283,7 @@ export function turnstileGuide(widget, cloudflare, configPath) {
   return {
     url: `https://dash.cloudflare.com/${cloudflare.accountId}/turnstile`,
     steps: [
-      `Open Turnstile in the Cloudflare dashboard with the LVBT account. If a widget named "${widget.name}" is already listed, click it and skip to the last two steps.`,
+      `Open Turnstile in the Cloudflare dashboard with the LVBT account (${LVBT_CLOUDFLARE_ACCOUNT}). If a widget named "${widget.name}" is already listed, click it and skip to the last two steps.`,
       `Click "Add widget". Widget name: ${widget.name}.`,
       `Under "Hostname management", add ${widget.domains.join(', ')}.`,
       `Widget Mode: "${{ managed: 'Managed', 'non-interactive': 'Non-interactive', invisible: 'Invisible' }[widget.mode ?? 'managed']}". Leave pre-clearance off, and click "Create".`,
@@ -280,7 +323,7 @@ export function setupTokenGuide(manifest) {
       'The link opens Cloudflare\'s "Create Custom Token" page with the permissions filled in. Sign in with your LVBT Cloudflare account if it asks.',
       `Token name: lvbt setup ${manifest.name}.`,
       `Under "Permissions", check that there are exactly these rows, each set to "Account", and add any that is missing with "+ Add more": ${needed.join('; ')}.`,
-      `Under "Account Resources", choose "Include" and the LVBT account (ID ${manifest.cloudflare.accountId}), not "All accounts".`,
+      `Under "Account Resources", choose "Include" and the LVBT account, "${LVBT_CLOUDFLARE_ACCOUNT}" (ID ${manifest.cloudflare.accountId}), not "All accounts".`,
       'Under "TTL", set the End Date to tomorrow, so the token stops working by itself.',
       'Click "Continue to summary", then "Create Token". Click "Copy": Cloudflare shows the token only once.',
       "Paste it here. It stays in this terminal's memory and is never saved. When you finish, delete it at https://dash.cloudflare.com/profile/api-tokens.",

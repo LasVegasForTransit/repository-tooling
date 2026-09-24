@@ -46,6 +46,8 @@ export function freshWorld() {
       'resend._domainkey.example.org TXT': ['"p=MIGfMA0GCSqGSIb3"'],
       '_dmarc.example.org TXT': ['"v=DMARC1; p=none;"'],
     },
+    /** What a person confirmed on this computer, such as a Google Group existing. */
+    confirmed: new Set(),
     /** The id `wrangler d1 create` gives the next database. */
     nextDatabaseId: 'db-1',
     /** Commands that fail once, by a pattern of their command line. */
@@ -355,7 +357,8 @@ export async function worldRepository(manifest = sampleManifest()) {
  * the questions as scriptedIo does. Returns what the run changed and asked.
  */
 export async function bootstrapOnce(world, repository, { rules = [], options = {} } = {}) {
-  const io = scriptedIo(rules);
+  // Unless a test says otherwise, the person has created the Google Group.
+  const io = scriptedIo([...rules, [/Does the Google Group/, true]]);
   const before = world.writes.length;
   let error;
   try {
@@ -366,6 +369,11 @@ export async function bootstrapOnce(world, repository, { rules = [], options = {
         run: worldRun(world),
         request: worldRequest(world),
         env: { LVBT_CLOUDFLARE_SETUP_TOKEN: 'setup-token' },
+        confirmations: {
+          where: 'the test world',
+          read: () => new Set(world.confirmed),
+          add: (key) => world.confirmed.add(key),
+        },
       },
       io,
     });

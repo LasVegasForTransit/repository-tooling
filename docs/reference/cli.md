@@ -82,8 +82,10 @@ and asks once before starting. Then it:
 - creates missing GitHub environments;
 - offers to delete forbidden secrets it finds;
 - shows numbered dashboard steps, and offers to open the page, for the things no API does: turning
-  on Zero Trust, connecting Google Workspace, verifying an email domain in Resend, and editing
-  `vars` in the wrangler config.
+  on Zero Trust, connecting Google Workspace, creating a Google Group an Access application admits,
+  verifying an email domain in Resend, and editing `vars` in the wrangler config. For a Google
+  Group, which it cannot read, it asks whether the group exists and remembers a yes in
+  `~/.config/lvbt/confirmations.json` (or under `XDG_CONFIG_HOME`), a file that holds no secret.
 
 Items that only a feature not built yet needs are offered after asking. Pressing Enter at any value
 skips it. The run ends with a fresh report and exits 1 while anything required is still open;

@@ -189,8 +189,9 @@ async function observeDns(resolve, manifest) {
  * @param {{ wrangler?: object, setup?: object }} input.apis Cloudflare clients
  * @param {Function} input.run the command runner
  * @param {Function} input.resolve the DNS resolver
+ * @param {Set<string>} [input.confirmed] what a person has confirmed on this computer
  */
-export async function observePlatform({ manifest, directory, apis, run, resolve }) {
+export async function observePlatform({ manifest, directory, apis, run, resolve, confirmed }) {
   const account = `accounts/${manifest.cloudflare.accountId}`;
   const configFile = path.join(directory, manifest.cloudflare.wranglerConfig ?? 'wrangler.jsonc');
   const config = await attempt(() => readWranglerConfig(configFile));
@@ -221,6 +222,7 @@ export async function observePlatform({ manifest, directory, apis, run, resolve 
       ? await observeAccess(privileged, account)
       : known({ enabled: true, providers: [], apps: [], policies: [] }),
     dns: await observeDns(resolve, manifest),
+    confirmed,
     github: await observeGithub(run, directory, manifest),
   };
 }

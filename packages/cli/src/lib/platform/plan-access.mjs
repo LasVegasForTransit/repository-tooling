@@ -1,4 +1,10 @@
-import { accessAppGuide, googleWorkspaceGuide, ZERO_TRUST, zeroTrustGuide } from './guides.mjs';
+import {
+  accessAppGuide,
+  googleGroupGuide,
+  googleWorkspaceGuide,
+  ZERO_TRUST,
+  zeroTrustGuide,
+} from './guides.mjs';
 import { item, SETUP, TOKEN_HINT, unknownItem } from './plan-items.mjs';
 
 /**
@@ -72,6 +78,8 @@ export function accessDifferences(found, app, provider, reusable) {
     reasons.push(`signs people in for ${found.session_duration}, not ${session}`);
   if (provider && found.allowed_idps?.length > 0 && !found.allowed_idps.includes(provider.id))
     reasons.push(`does not offer the ${app.identityProvider} identity provider`);
+  else if (provider && Array.isArray(found.allowed_idps) && found.allowed_idps.length === 0)
+    reasons.push(`accepts every identity provider, not only ${app.identityProvider}`);
   return [...reasons, ...policyReasons(found, app, reusable)];
 }
 
@@ -153,15 +161,57 @@ function applicationItem(manifest, access, app) {
   });
 }
 
+/**
+ * Each Google Group an application admits. Setup cannot read Google Groups,
+ * so a group is ready once a person confirms it exists, which setup then
+ * remembers on that computer. It only warns, because a check in CI cannot
+ * ask anyone.
+ */
+function groupItems({ manifest, state }) {
+  const groups = new Map();
+  for (const app of manifest.access ?? []) {
+    const group = app.allow.googleGroup;
+    if (group) groups.set(group, [...(groups.get(group) ?? []), app]);
+  }
+  return [...groups].map(([group, apps]) => {
+    const key = `google-group:${manifest.cloudflare.accountId}:${group}`;
+    const fields = {
+      id: `google-group:${group}`,
+      section: SECTION,
+      label: `Google Group ${group}`,
+      level: 'recommended',
+    };
+    if (state.confirmed?.has(key))
+      return item({ ...fields, status: 'ok', detail: 'was confirmed to exist on this computer' });
+    return item({
+      ...fields,
+      status: 'missing',
+      detail: 'is not confirmed to exist; setup cannot read Google Groups',
+      next: `${SETUP} shows how to create it, then asks`,
+      action: {
+        type: 'manual',
+        key: `google-group:${group}`,
+        guide: googleGroupGuide(group, apps),
+        confirm: {
+          key,
+          question: `Does the Google Group ${group} exist now, with the people who need in?`,
+        },
+      },
+    });
+  });
+}
+
 export function planAccess({ manifest, state }) {
   const apps = manifest.access ?? [];
   if (apps.length === 0) return [];
+  const groups = groupItems({ manifest, state });
   if (!state.access.ok)
     return [
       unknownItem(
         { id: 'access', section: SECTION, label: 'Zero Trust', credentialHint: TOKEN_HINT },
         state.access,
       ),
+      ...groups,
     ];
   const access = state.access.value;
   const zeroTrust = { id: 'access:zero-trust', section: SECTION, label: 'Zero Trust' };
@@ -174,6 +224,7 @@ export function planAccess({ manifest, state }) {
         next: `turn it on in the dashboard; ${SETUP} shows the steps`,
         action: { type: 'manual', key: 'zero-trust', guide: zeroTrustGuide(manifest) },
       }),
+      ...groups,
       ...apps.map((app) =>
         item({
           id: `access:${app.name}`,
@@ -194,6 +245,7 @@ export function planAccess({ manifest, state }) {
     ...[...new Set(apps.map((app) => app.identityProvider))].map((type) =>
       providerItem(manifest, access, type),
     ),
+    ...groups,
     ...apps.map((app) => applicationItem(manifest, access, app)),
   ];
 }
