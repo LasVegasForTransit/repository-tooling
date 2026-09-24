@@ -193,17 +193,20 @@ A Google Workspace super admin for lasvegasfortransit.org should do the Google s
 turning on "Trust internal apps" and approving group access both need one. The Cloudflare steps need
 a Cloudflare user who can administer the LVBT account.
 
-1. Open <https://console.cloud.google.com/> and use the project picker at the top to choose the
-   project "LVBT Access". If there is none, click "New project", name it `LVBT Access`, keep the
-   organization, and click "Create".
-2. Open <https://console.cloud.google.com/apis/library/admin.googleapis.com> and click "Enable" on
-   "Admin SDK API". Access uses it to read which Google Groups a person is in.
-3. Open <https://console.cloud.google.com/auth/overview>. If Google says the app is not configured,
-   click "Get started". Enter the app name `LVBT volunteer sign-in` and your @lasvegasfortransit.org
-   address as the support email, choose the audience "Internal", enter your address as the contact
-   email, agree to the policy, and click "Create".
-4. Open <https://console.cloud.google.com/auth/clients> and click "Create client". Choose the
-   application type "Web application" and name it `Cloudflare Access`.
+1. Use LVBT's one Google Cloud project, "LVBT Core" (ID `lvbt-core`):
+   <https://console.cloud.google.com/home/dashboard?project=lvbt-core>. Only if it does not exist,
+   click "New project", name it `LVBT Core`, make sure "Organization" is lasvegasfortransit.org, and
+   click "Create". If Google shows a Free Trial banner, dismiss it; none of this needs billing.
+2. Open <https://console.cloud.google.com/apis/library/admin.googleapis.com?project=lvbt-core> and
+   click "Enable" on "Admin SDK API". Access uses it to read which Google Groups a person is in.
+3. Open <https://console.cloud.google.com/auth/overview?project=lvbt-core>. If Google says the app
+   is not configured, click "Get started". Enter the app name `LVBT volunteer sign-in` and your
+   @lasvegasfortransit.org address as the support email, choose the audience "Internal", enter your
+   address as the contact email, agree to the policy, and click "Create".
+4. Open <https://console.cloud.google.com/auth/clients?project=lvbt-core>. If a client named
+   "Cloudflare Access" is listed, open it and check the two addresses below instead of creating
+   another. Otherwise click "Create client". Choose the application type "Web application" and name
+   it `Cloudflare Access`.
 5. Under "Authorized JavaScript origins", click "Add URI" and enter exactly
    `https://lvbt.cloudflareaccess.com`.
 6. Under "Authorized redirect URIs", click "Add URI" and enter exactly
