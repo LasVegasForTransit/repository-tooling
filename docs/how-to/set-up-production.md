@@ -20,9 +20,9 @@ nothing and say so.
 - For an Access application that admits a Google Group, a Google Workspace admin who can create
   groups is at hand, unless the group already exists.
 - Everything LVBT owns belongs to an LVBT organization, team, or account, never to a personal one:
-  the Cloudflare account "Las Vegas for Better Transit", the lasvegasfortransit.org Google Workspace
-  and its Google Cloud organization, the LasVegasForTransit GitHub organization, and the LVBT team
-  in Resend.
+  the LVBT Cloudflare account ("Las Vegans for Better Transit"), the lasvegasfortransit.org Google
+  Workspace and its Google Cloud organization, the LasVegasForTransit GitHub organization, and the
+  LVBT team in Resend.
 
 ## 1. Declare what production needs
 
@@ -256,7 +256,7 @@ by hand instead, use exactly the names in `platform.json`, so setup recognizes w
 than creating a second one. It finds an application by its name, or else by its paths. The steps
 below use lvwwd.org's volunteer admin pages, and follow the page from top to bottom.
 
-1. Open <https://one.dash.cloudflare.com/> with the LVBT account ("Las Vegas for Better Transit")
+1. Open <https://one.dash.cloudflare.com/> with the LVBT account ("Las Vegans for Better Transit")
    and go to Access controls, then Applications. If the application is already listed, skip to
    step 13.
 2. Click "Create new application" (some screens say "Add an application").
@@ -331,7 +331,7 @@ one needs the Super Administrator role on the account. Wrangler deploys with it 
 also sets `CLOUDFLARE_ACCOUNT_ID`; without that, Wrangler would ask Cloudflare for the token's
 memberships, which an account API token cannot read.
 
-1. Open the Cloudflare dashboard, choose the "Las Vegas for Better Transit" account, and go to
+1. Open the Cloudflare dashboard, choose the "Las Vegans for Better Transit" account, and go to
    Manage Account, then "Account API Tokens"
    (<https://dash.cloudflare.com/2557b5c2e166292ded0f8425b73075e9/api-tokens>). Click "Create
    Token", then "Create Custom Token".
