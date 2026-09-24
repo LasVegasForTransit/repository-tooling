@@ -26,8 +26,8 @@ export const ZERO_TRUST = 'https://one.dash.cloudflare.com/';
 export const LVBT_TEAM_SUBDOMAIN = 'lvbt';
 export const LVBT_TEAM_DOMAIN = `${LVBT_TEAM_SUBDOMAIN}.cloudflareaccess.com`;
 export const LVBT_TEAM_NAME = 'Las Vegans for Better Transit';
-/** The LVBT Cloudflare account's name, as the dashboard's account pickers show it. */
-export const LVBT_CLOUDFLARE_ACCOUNT = 'Las Vegas for Better Transit';
+/** The LVBT Cloudflare account's name. */
+export const LVBT_CLOUDFLARE_ACCOUNT = 'Las Vegans for Better Transit';
 
 const REGIONS = {
   'us-east-1': 'North Virginia (us-east-1)',
