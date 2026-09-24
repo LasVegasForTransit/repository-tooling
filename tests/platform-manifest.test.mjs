@@ -53,6 +53,13 @@ test('a value a person types in needs steps that say where to find it', () => {
   assert.ok(errors.some((error) => error.includes('RESEND_API_KEY')));
 });
 
+test('a generated value is a credential, so it cannot be marked not sensitive', () => {
+  const errors = errorsAfter((manifest) => {
+    manifest.secrets.find((secret) => secret.generate).sensitive = false;
+  });
+  assert.ok(errors.some((error) => error.includes('SIGNING_SECRET')));
+});
+
 test('a name cannot be both required and forbidden', () => {
   const errors = errorsAfter((manifest) =>
     manifest.forbidden.push({ name: 'RESEND_API_KEY', reason: 'contradiction' }),

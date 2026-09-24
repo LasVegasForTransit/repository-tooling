@@ -41,3 +41,8 @@ follow the "Create new self-hosted application" page from top to bottom and use 
 `platform.json`, so setup recognizes an application or widget someone made by hand. The check also
 reports an application that accepts every identity provider rather than only the declared one, and
 setup fixes it.
+
+Setup now hides only credentials. A secret can be marked `"sensitive": false` when it is not one,
+such as an account ID, a team domain, or an Access audience tag: setup asks for it with visible
+input, prints it when it stores it, and shows the value that belongs there in the report. Secrets
+without the field stay hidden, so updating changes nothing until a manifest opts in.

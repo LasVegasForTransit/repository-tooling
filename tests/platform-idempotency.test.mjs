@@ -348,3 +348,27 @@ test('--rotate refuses a name the manifest does not declare', async () => {
     assert.equal(run.error?.exitCode, 2);
   });
 });
+
+test('values that are not credentials are shown; credentials never are', async () => {
+  const manifest = sampleManifest();
+  for (const secret of manifest.secrets)
+    if (['ACCESS_TEAM_DOMAIN', 'ACCESS_AUD'].includes(secret.name)) secret.sensitive = false;
+  await withRepository(manifest, async (repository) => {
+    const world = freshWorld();
+    const run = await bootstrapOnce(world, repository, { rules: [RESEND] });
+    assert.equal(run.ready, true, run.error?.message);
+
+    const audience = world.worker.secrets.get('ACCESS_AUD');
+    assert.match(run.output, /Stored ACCESS_TEAM_DOMAIN = team\.cloudflareaccess\.com/);
+    assert.ok(run.output.includes(`Stored ACCESS_AUD = ${audience}`));
+    for (const credential of ['RESEND_API_KEY', 'TURNSTILE_SECRET', 'SIGNING_SECRET'])
+      assert.ok(
+        !run.output.includes(world.worker.secrets.get(credential)),
+        `${credential} was printed`,
+      );
+
+    const report = await bootstrapOnce(world, repository, { rules: [RESEND] });
+    assert.match(report.output, /ACCESS_TEAM_DOMAIN.*it should be team\.cloudflareaccess\.com/);
+    assert.ok(report.output.includes(`it should be ${audience}`));
+  });
+});

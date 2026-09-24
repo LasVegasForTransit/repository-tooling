@@ -1,5 +1,5 @@
 import { accessAppGuide, teamDomainGuide, turnstileGuide } from './guides.mjs';
-import { findApp, findWidget, secretSource } from './plan.mjs';
+import { findApp, findWidget, isSensitive, secretSource } from './plan.mjs';
 import { paint } from './terminal.mjs';
 import { account, generateSecret, printGuide, storeSecret, targetName } from './apply-steps.mjs';
 
@@ -29,9 +29,9 @@ async function promptValue(context, secret, standard) {
   printGuide(io, guide);
   if (guide.url && (await io.confirm('Open that page in your browser?', true))) io.open(guide.url);
   for (let attempt = 0; attempt < 3; attempt += 1) {
-    const value = await io.askHidden(
-      `Paste ${secret.name} (hidden; leave empty to skip for now): `,
-    );
+    const value = isSensitive(secret)
+      ? await io.askHidden(`Paste ${secret.name} (hidden; leave empty to skip for now): `)
+      : await io.ask(`Paste ${secret.name} (leave empty to skip for now): `);
     if (!value) return undefined;
     if (!secret.pattern || new RegExp(secret.pattern, 'u').test(value)) return value;
     io.write(

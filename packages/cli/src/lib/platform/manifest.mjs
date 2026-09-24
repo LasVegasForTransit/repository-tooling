@@ -174,6 +174,10 @@ function secretErrors(manifest) {
       errors.push(
         `${secret.name} is typed in by a person, so it needs steps that say where to find it.`,
       );
+    if (secret.sensitive === false && secret.generate)
+      errors.push(
+        `${secret.name} is generated, which makes it a credential, so it cannot be "sensitive": false.`,
+      );
     if (secret.pattern && !validPattern(secret.pattern))
       errors.push(`${secret.name} has a pattern that is not a valid regular expression.`);
     if (targetsGithub(secret) && !manifest.github)

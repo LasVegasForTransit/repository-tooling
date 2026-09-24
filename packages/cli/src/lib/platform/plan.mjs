@@ -17,7 +17,7 @@ import {
 export { SETUP } from './plan-items.mjs';
 export { findWidget } from './plan-cloudflare.mjs';
 export { accessDifferences, allowRule, findApp } from './plan-access.mjs';
-export { secretSource } from './plan-values.mjs';
+export { isSensitive, secretSource } from './plan-values.mjs';
 
 /**
  * Every item the manifest declares, in the order setup works through them:
