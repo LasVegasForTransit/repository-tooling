@@ -168,7 +168,7 @@ export function googleWorkspaceGuide(teamDomain, workspaceDomain, group) {
       'Copy the Client secret and paste it into "Client secret" in the Cloudflare tab. Neither value is stored in GitHub or on the Worker.',
       `In the Cloudflare tab, type ${domain} as the Google Workspace domain, and click "Save".`,
       'Cloudflare then shows a link. Open it signed in as the Google Workspace super admin and approve it, so Access can read group membership.',
-      `Back in Integrations → Identity providers, click "Test" next to Google Workspace. It should show your name and your groups${group ? `, including ${group} if you are in it` : ''}. Then run this command again.`,
+      `Back in Integrations → Identity providers, click "Test" next to Google Workspace. It should show your name and your groups${group ? `, including ${group}; add yourself to that group first (the Google Group step shows how), or the test cannot show it` : ''}. Then run this command again.`,
     ],
   };
 }
@@ -241,7 +241,7 @@ export function accessAppGuide(app, zone) {
   ];
   const createSteps = [
     `Open Cloudflare One and choose the LVBT account (${LVBT_CLOUDFLARE_ACCOUNT}). Go to Access controls → Applications. If "${app.name}" is already listed, it exists: skip the steps that create it.`,
-    'Click "Create new application" (some screens say "Add an application").',
+    'Click "Create new application" at the top right (some screens say "Add an application"). An account with no applications yet shows only a list of prerequisites; the button is still at the top right.',
     'In the "Add an application" dialog, under "Self-hosted and private", choose the "Public DNS" tab. Do not choose "Private destinations", "Workers", or "Service auth". Click "Continue with Self-hosted and private". The page is now "Create new self-hosted application"; work down it from the top.',
     'Under "Destinations" there should be public hostname rows. If you see a "Private IPs" row with "Private IP address" and "Port" instead, "Private destinations" was chosen: click "+ Add public hostname", then remove the empty private row, or go back and choose "Public DNS".',
     `Add one public hostname row per address with "+ Add public hostname", leaving any other box empty: ${hostnames.join('; ')}. A path does not cover the paths under it, and a wildcard does not cover its parent, so every row is needed; with one missing, that part of the site would be open to anyone.`,
@@ -285,7 +285,7 @@ export function googleGroupGuide(group, apps) {
       `Group name: ${names}. Group email: type ${local} and keep the domain ${domain}. Description: People who can sign in to ${names}. Group owner(s): add yourself and anyone who will add and remove people later.`,
       'Click "Next". Tick "Security", because the group controls access, and click "Next".',
       'Set Access type to "Restricted" and "Who can join the group" to "Only invited users". Leave "Allow external members in the group" off. Click "Create Group".',
-      `Open the group, click "Members", then "Add members". Type each person's @${domain} address and click "Add To Group". Only accounts in the ${domain} Workspace can sign in through Access, so a personal Gmail address does not work, even in the group.`,
+      `Open the group, click "Members", then "Add members". Type each person's @${domain} address, including your own so you can test the sign-in, and click "Add To Group". Only accounts in the ${domain} Workspace can sign in through Access, so a personal Gmail address does not work, even in the group.`,
       `Later, to let someone in, open Directory → Groups → ${group} → Members and click "Add members". To take someone out, point to them in the Members list and click "Remove". A removal takes effect at their next sign-in, within ${session}.`,
     ],
   };
