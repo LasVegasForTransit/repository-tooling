@@ -320,7 +320,7 @@ export function setupTokenGuide(manifest) {
   return {
     url: setupTokenUrl(manifest),
     steps: [
-      'The link opens Cloudflare\'s "Create Custom Token" page with the permissions filled in. Sign in with your LVBT Cloudflare account if it asks.',
+      'The link opens Cloudflare\'s "Create Custom Token" page with the permissions filled in. Sign in with your LVBT Cloudflare account if it asks. This one is a personal token that expires tomorrow, because Cloudflare\'s account API tokens cannot manage Turnstile.',
       `Token name: lvbt setup ${manifest.name}.`,
       `Under "Permissions", check that there are exactly these rows, each set to "Account", and add any that is missing with "+ Add more": ${needed.join('; ')}.`,
       `Under "Account Resources", choose "Include" and the LVBT account, "${LVBT_CLOUDFLARE_ACCOUNT}" (ID ${manifest.cloudflare.accountId}), not "All accounts".`,
