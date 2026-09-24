@@ -228,7 +228,8 @@ a Cloudflare user who can administer the LVBT account.
 12. Cloudflare shows a link. Open it signed in as the Google Workspace super admin and approve it,
     so Access can read group membership.
 13. Back in Identity providers, click "Test" next to Google Workspace. It should show your name and
-    your groups.
+    your groups. Add yourself to the Access group first (see the next section), or the test cannot
+    show it.
 
 ### A Google Group for sign-in
 
@@ -250,7 +251,7 @@ You need a Google Workspace admin account with the Groups administrator privileg
 4. Set Access type to "Restricted" and "Who can join the group" to "Only invited users". Leave
    "Allow external members in the group" off. Click "Create Group".
 5. Open the group, click "Members", then "Add members". Type each person's @lasvegasfortransit.org
-   address and click "Add To Group".
+   address, including your own so you can test the sign-in, and click "Add To Group".
 6. Only accounts in the lasvegasfortransit.org Workspace can sign in through Access, so a personal
    Gmail address does not work, even in the group.
 
@@ -268,7 +269,9 @@ below use lvwwd.org's volunteer admin pages, and follow the page from top to bot
 1. Open <https://one.dash.cloudflare.com/> with the LVBT account ("Las Vegans for Better Transit")
    and go to Access controls, then Applications. If the application is already listed, skip to
    step 13.
-2. Click "Create new application" (some screens say "Add an application").
+2. Click "Create new application" at the top right (some screens say "Add an application"). An
+   account with no applications yet shows only a list of prerequisites; the button is still at the
+   top right.
 3. In the "Add an application" dialog, under "Self-hosted and private", choose the "Public DNS" tab,
    not "Private destinations", "Workers", or "Service auth". Click "Continue with Self-hosted and
    private". The page is now "Create new self-hosted application".
