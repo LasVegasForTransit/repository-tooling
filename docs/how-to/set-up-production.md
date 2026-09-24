@@ -325,23 +325,32 @@ applications:
    Paste it into the terminal, and delete it when you finish.
 
 The deploy token lets the Deploy workflow publish the Worker. It becomes the GitHub environment
-secret `CLOUDFLARE_API_TOKEN` in the `production` environment:
+secret `CLOUDFLARE_API_TOKEN` in the `production` environment. Make it an account API token, which
+belongs to the LVBT account rather than to you, so deploys keep working after you leave. Creating
+one needs the Super Administrator role on the account. Wrangler deploys with it because the workflow
+also sets `CLOUDFLARE_ACCOUNT_ID`; without that, Wrangler would ask Cloudflare for the token's
+memberships, which an account API token cannot read.
 
-1. Open <https://dash.cloudflare.com/profile/api-tokens> and click "Create Token".
-2. Next to "Edit Cloudflare Workers", click "Use template". The template grants, for the account:
-   Workers Scripts, Workers KV Storage, and Workers R2 Storage with "Edit", and Workers Tail and
-   Account Settings with "Read"; for the zone: Workers Routes with "Edit"; and for the user: User
-   Details and Memberships with "Read". It does not include D1. Add the account permission "D1" with
-   "Edit" only if the deploy workflow applies migrations.
-3. Under "Account Resources", choose "Include" and the LVBT account.
+1. Open the Cloudflare dashboard, choose the "Las Vegas for Better Transit" account, and go to
+   Manage Account, then "Account API Tokens"
+   (<https://dash.cloudflare.com/2557b5c2e166292ded0f8425b73075e9/api-tokens>). Click "Create
+   Token", then "Create Custom Token".
+2. Name it `<site> deploy (GitHub Actions)`, such as `lvwwd.org deploy (GitHub Actions)`.
+3. Under "Permissions", add these rows: "Account", "Workers Scripts", "Edit"; "Account", "Account
+   Settings", "Read"; and "Zone", "Workers Routes", "Edit". Add "Account", "D1", "Edit" only if the
+   deploy workflow applies migrations, and "Account", "Workers R2 Storage", "Edit" only if it writes
+   to a bucket.
 4. Under "Zone Resources", choose "Include", then "Specific zone", then the site's zone, such as
    `lvwwd.org`.
-5. Rename the token to `<site> deploy (GitHub Actions)` and leave "TTL" empty, so deploys keep
-   working.
-6. Click "Continue to summary", then "Create Token", then "Copy". Paste it when setup asks for
-   `CLOUDFLARE_API_TOKEN`.
+5. Leave the expiration empty, so deploys keep working. Click "Continue to summary", then "Create
+   Token", then "Copy"; Cloudflare shows it only once. Paste it when setup asks for
+   `CLOUDFLARE_API_TOKEN`. If it ever leaks, roll it on the same page and store the new one with
+   `pnpm bootstrap --production --rotate CLOUDFLARE_API_TOKEN`.
 
 Setup copies `CLOUDFLARE_ACCOUNT_ID` into the same environment by itself.
+
+The setup token above stays a personal, short-lived token: Cloudflare's account API tokens cannot
+manage Turnstile.
 
 ### Resend
 
