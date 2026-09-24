@@ -292,7 +292,10 @@ below use lvwwd.org's volunteer admin pages, and follow the page from top to bot
    lvwwd.org there are three rows, each with Subdomain empty and `lvwwd.org` chosen in the Domain
    dropdown, and the paths `admin`, `admin/*`, and `api/admin/*`. A path does not cover the paths
    under it, and a wildcard does not cover its parent, so all three are needed; with one missing,
-   that part of the site would be open to anyone.
+   that part of the site would be open to anyone. Match each row's Subdomain box exactly, including
+   a row that says Subdomain empty — the box starts empty regardless of what a row calls for, and
+   leaving it empty where a row names a subdomain puts the whole domain behind sign-in instead of
+   only the part named.
 6. Leave "Allow access through browser-based RDP, SSH, or VNC sessions" off.
 7. "Access policies" says "No policy associated". If "Add current policies" lists
    `lvwwd.org volunteer admin allow`, choose it and go to step 9. Otherwise click "Create new
