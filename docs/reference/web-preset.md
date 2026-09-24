@@ -39,20 +39,26 @@ templates.
 The update runs with the updater carried by the preset it installs, so a release's own changes apply
 in the same update. It also makes three small migrations in the consumer's own files and lists every
 file they touch under `consumerChanged`, in the dry run as well. It rewrites legacy `@lvbt/*`
-references to the platform packages as `@lasvegasfortransit/*`, skipping any nested checkout such as
-an agent worktree. It adds the ignore rules the examples carry to the consumer's root ignore files
-where they are missing, and leaves every existing line, comment, and entry in place:
+references to the platform packages as `@lasvegasfortransit/*`, skipping `.claude/worktrees/` and
+any other nested checkout. It adds the ignore rules the examples carry to the consumer's root ignore
+files where they are missing, and leaves every existing line, comment, and entry in place. A rule
+already written another way that covers the same paths, such as `.claude/worktrees/**`, counts as
+present, and added lines keep the file's line endings:
 
 - `.gitignore` gets Playwright's output (`test-results/`, `playwright-report/`, `blob-report/`, and
   `**/playwright/.cache/`) and agent worktrees (`.claude/worktrees/`).
 - `.prettierignore` gets `.claude/worktrees/`.
-- `.markdownlint-cli2.jsonc` gets `.claude/worktrees` as the first entry of its `ignores`.
+- `.markdownlint-cli2.jsonc` gets `.claude/worktrees` as the first entry of its `ignores`. A YAML or
+  JavaScript markdownlint configuration isn't edited; the update prints a warning naming the rule to
+  add.
 
 Claude Code creates each agent worktree, a full checkout of the same repository, under
 `.claude/worktrees/` inside the checkout, and without these rules another session's files fail this
-checkout's checks. In a repository with an Astro package, the updater also gives each Astro package
-a `sync` script (`astro sync`) and adds a `sync` task to `turbo.json` that `lint` depends on, so
-lint reads Astro's generated types on a clean checkout. Nothing else in application configuration or
+checkout's checks. In a repository with an Astro project, a package that depends on `astro` and has
+its own `astro.config.*`, the updater also gives each one a `sync` script (`astro sync`) and adds a
+`sync` task to `turbo.json` that `lint` depends on, so lint reads Astro's generated types on a clean
+checkout. The update works out every migration before it writes any file, so a consumer file it
+can't read stops the update with nothing changed. Nothing else in application configuration or
 product files changes.
 
 Consumer validation against an unpublished standard uses the reviewed commit directly:

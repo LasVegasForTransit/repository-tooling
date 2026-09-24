@@ -1,4 +1,4 @@
-import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import path from 'node:path';
 
 /**
@@ -129,8 +129,16 @@ function packageFailures(root, directory) {
   return failures;
 }
 
-function dependsOnAstro(manifest) {
-  return Boolean(manifest.dependencies?.astro ?? manifest.devDependencies?.astro);
+// Astro loads its configuration from the first of these it finds in the project's root.
+const ASTRO_CONFIGS = ['mjs', 'js', 'ts', 'mts', 'cjs', 'cts'].map((ext) => `astro.config.${ext}`);
+
+/**
+ * An Astro project depends on astro and has its own configuration. A library that only imports
+ * Astro's types, such as an integration or components, has nothing for `astro sync` to generate.
+ */
+function isAstroProject(root, directory, manifest) {
+  if (!manifest.dependencies?.astro && !manifest.devDependencies?.astro) return false;
+  return ASTRO_CONFIGS.some((name) => existsSync(path.join(root, directory, name)));
 }
 
 /**
@@ -144,7 +152,7 @@ function astroFailures(root, directories) {
   let astro = false;
   for (const directory of directories) {
     const manifest = JSON.parse(readFileSync(path.join(root, directory, 'package.json'), 'utf8'));
-    if (!dependsOnAstro(manifest)) continue;
+    if (!isAstroProject(root, directory, manifest)) continue;
     astro = true;
     if (!manifest.scripts?.sync) {
       failures.push(

@@ -26,7 +26,7 @@ const writeJson = (file, value) => writeFile(file, `${JSON.stringify(value, null
  * A consumer from before the sync task: an Astro site and a plain library in a workspace, with
  * the turbo.json every example shipped until now (the React example still ships it).
  */
-async function consumer(root, { astro = true } = {}) {
+async function consumer(root, { astro = true, library = false } = {}) {
   await writeFile(
     path.join(root, 'pnpm-workspace.yaml'),
     'packages:\n  - apps/*\n  - packages/*\n',
@@ -36,12 +36,20 @@ async function consumer(root, { astro = true } = {}) {
   await mkdir(path.join(root, 'packages/ui'), { recursive: true });
   await writeJson(path.join(root, 'apps/site/package.json'), {
     name: '@example/site',
-    scripts: { build: 'astro build', lint: 'eslint .', 'check-types': 'astro check' },
+    scripts: {
+      build: 'astro build',
+      lint: 'eslint .',
+      'check-types': 'astro check',
+      test: 'vitest run',
+    },
     dependencies: astro ? { astro: 'catalog:' } : { vite: 'catalog:' },
   });
+  if (astro) await writeFile(path.join(root, 'apps/site/astro.config.mjs'), 'export default {};\n');
   await writeJson(path.join(root, 'packages/ui/package.json'), {
     name: '@example/ui',
     scripts: { lint: 'eslint .' },
+    // A component library imports Astro's types but has no configuration of its own.
+    ...(library ? { devDependencies: { astro: 'catalog:' } } : {}),
   });
   await writeFile(path.join(root, 'turbo.json'), await example('with-vite-react', 'turbo.json'));
 }
@@ -61,7 +69,7 @@ test('the update wires an Astro package to generate its types before lint', () =
     assert.deepEqual(applied.consumerChanged, ['apps/site/package.json', 'turbo.json']);
     const site = await json(path.join(root, 'apps/site/package.json'));
     assert.equal(site.scripts.sync, 'astro sync');
-    assert.deepEqual(Object.keys(site.scripts), ['build', 'lint', 'sync', 'check-types']);
+    assert.deepEqual(Object.keys(site.scripts), ['build', 'lint', 'sync', 'check-types', 'test']);
     assert.equal((await json(path.join(root, 'packages/ui/package.json'))).scripts.sync, undefined);
     // The migrated file is byte for byte the Astro example's, so it passes Prettier too.
     assert.equal(
@@ -92,6 +100,16 @@ test('the contract names each missing piece of the Astro sync wiring', () =>
     assert.ok(lines.some((line) => line.startsWith('apps/site/package.json has no "sync"')));
     assert.ok(lines.includes('turbo.json has no "sync" task'));
     assert.ok(lines.includes('turbo.json does not run "sync" before "lint"'));
+  }));
+
+test('an Astro library without its own configuration is not an Astro project', () =>
+  fixture(async (root) => {
+    await consumer(root, { astro: false, library: true });
+    const before = await readFile(path.join(root, 'packages/ui/package.json'), 'utf8');
+    const applied = await applyPreset(root, { ...preset, files: { 'catalog.json': '{}' } });
+    assert.deepEqual(applied.consumerChanged, []);
+    assert.equal(await readFile(path.join(root, 'packages/ui/package.json'), 'utf8'), before);
+    assert.deepEqual(checkContract({ cwd: root }).lines, []);
   }));
 
 test('the contract asks nothing of a repository without Astro', () =>
