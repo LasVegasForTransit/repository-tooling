@@ -1,5 +1,5 @@
 import { turnstileGuide } from './guides.mjs';
-import { item, SETUP, TOKEN_HINT, unknownItem } from './plan-items.mjs';
+import { item, manualGuide, SETUP, TOKEN_HINT, unknownItem } from './plan-items.mjs';
 
 /** The Worker, its D1 databases and R2 buckets, and its Turnstile widgets. */
 
@@ -170,7 +170,7 @@ export function findWidget(widgets, widget) {
 
 function widgetItem({ manifest, state, configPath }, widget) {
   const fields = { id: `turnstile:${widget.name}`, section: 'Turnstile', label: widget.name };
-  const guide = turnstileGuide(widget, manifest.cloudflare, configPath);
+  const guide = manualGuide(turnstileGuide(widget, manifest.cloudflare, configPath));
   if (!state.turnstile.ok)
     return unknownItem({ ...fields, credentialHint: TOKEN_HINT }, state.turnstile);
   const found = findWidget(state.turnstile.value, widget);

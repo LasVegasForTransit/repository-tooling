@@ -6,6 +6,10 @@
  *
  * Every guide assumes the person has never used the service before, so each
  * step says exactly what to type or choose, and where a copied value goes.
+ * A guide never asks for a second copy before the first is pasted: each
+ * copied value goes into its destination (this command's prompt, a
+ * dashboard field, a file) straight away, and a value needed in two places
+ * is pasted in both before anything else is copied.
  * The labels follow the dashboards as they were on 2026-09-23 and the
  * providers' own documentation:
  *   - developers.cloudflare.com/cloudflare-one/setup/
@@ -137,10 +141,9 @@ export function teamDomainGuide(secretName) {
   return {
     url: ZERO_TRUST,
     steps: [
-      `Open Cloudflare One and choose the LVBT account (${LVBT_CLOUDFLARE_ACCOUNT}).`,
-      `On Overview, find Account details and copy the Team domain. For LVBT it is ${LVBT_TEAM_DOMAIN}. Copy only the domain, without https://.`,
-      `Do not copy the Team name ("${LVBT_TEAM_NAME}") shown beside it. It is only a label, and ${secretName} needs the domain.`,
-      'If Cloudflare One shows its first-time setup instead, Zero Trust was never turned on for this account. Press Enter to skip, and run this command with the Cloudflare token it asks for, so it can show those steps.',
+      `Open Cloudflare One and choose the LVBT account (${LVBT_CLOUDFLARE_ACCOUNT}). If it shows its first-time setup instead, Zero Trust was never turned on for this account: press Enter to skip, and run this command with the Cloudflare token it asks for, so it can show those steps.`,
+      `On Overview, find Account details. It shows the Team domain (for LVBT, ${LVBT_TEAM_DOMAIN}) and the Team name ("${LVBT_TEAM_NAME}"), which is only a label. ${secretName} needs the domain.`,
+      "Copy the Team domain, without https://, and paste it at this command's prompt.",
     ],
   };
 }
@@ -148,20 +151,22 @@ export function teamDomainGuide(secretName) {
 export function googleWorkspaceGuide(teamDomain, workspaceDomain, group) {
   const team = teamDomain ?? LVBT_TEAM_DOMAIN;
   const domain = workspaceDomain ?? 'lasvegasfortransit.org';
+  const project = `?project=${LVBT_GOOGLE_PROJECT_ID}`;
   return {
-    url: `https://console.cloud.google.com/home/dashboard?project=${LVBT_GOOGLE_PROJECT_ID}`,
+    url: `https://console.cloud.google.com/home/dashboard${project}`,
     steps: [
       `Do the Google steps signed in as a Google Workspace super admin for ${domain}: turning on "Trust internal apps" and approving group access both need one. The Cloudflare steps need a Cloudflare user who can administer the LVBT account.`,
       `Use LVBT's one Google Cloud project, "${LVBT_GOOGLE_PROJECT}" (ID ${LVBT_GOOGLE_PROJECT_ID}); every link below opens it. If the project picker at the top shows no such project, click "New project", name it ${LVBT_GOOGLE_PROJECT}, make sure "Organization" is ${domain} so the project belongs to LVBT rather than to your own account, and click "Create". If Google shows a Free Trial banner, dismiss it: none of this needs billing.`,
-      `Open https://console.cloud.google.com/apis/library/admin.googleapis.com?project=${LVBT_GOOGLE_PROJECT_ID} and click "Enable" on "Admin SDK API" (it says "Manage" instead if it is already on). Access uses it to read which Google Groups a person is in.`,
-      `Open https://console.cloud.google.com/auth/overview?project=${LVBT_GOOGLE_PROJECT_ID}. If Google says the app is not configured yet, click "Get started": App name LVBT volunteer sign-in, User support email your @${domain} address, Audience "Internal", contact email your address, agree to the policy, and click "Create". If you can reach the "Marketing & Communications" shared drive in Google Drive, upload the square LVBT logo as the app logo on the "Branding" page, so people recognize the sign-in screen.`,
-      `Open https://console.cloud.google.com/auth/clients?project=${LVBT_GOOGLE_PROJECT_ID}. If a client named "Cloudflare Access" is listed, click it and check the two addresses below instead of creating another. Otherwise click "Create client". Application type: "Web application". Name: Cloudflare Access.`,
-      `Under "Authorized JavaScript origins", click "Add URI" and enter exactly https://${team}`,
-      `Under "Authorized redirect URIs", click "Add URI" and enter exactly https://${team}/cdn-cgi/access/callback, then click "Create".`,
-      'Copy the Client ID (it ends in .apps.googleusercontent.com) and the Client secret. They go into Cloudflare One in a later step; they are not stored in GitHub or on the Worker.',
+      `Open https://console.cloud.google.com/apis/library/admin.googleapis.com${project} and click "Enable" on "Admin SDK API" (it says "Manage" instead if it is already on). Access uses it to read which Google Groups a person is in.`,
+      `Open https://console.cloud.google.com/auth/overview${project}. If Google says the app is not configured yet, click "Get started": App name LVBT volunteer sign-in, User support email your @${domain} address, Audience "Internal", contact email your address, agree to the policy, and click "Create". If you can reach the "Marketing & Communications" shared drive in Google Drive, upload the square LVBT logo as the app logo on the "Branding" page, so people recognize the sign-in screen.`,
       'Open https://admin.google.com/ac/owl (Security → Access and data control → API controls), click "Settings", turn on "Trust internal apps", and save. It is off by default, and Access needs it.',
-      'In Cloudflare One, go to Integrations → Identity providers and click "Add new identity provider", then "Google Workspace".',
-      `Paste the Client ID into "App ID" and the Client secret into "Client secret". Type ${domain} as the Google Workspace domain, and click "Save".`,
+      'In a new browser tab, open Cloudflare One, go to Integrations → Identity providers, click "Add new identity provider", then "Google Workspace". Keep this tab open: two of the next steps fill it in, one value at a time.',
+      `Back in Google Cloud, open https://console.cloud.google.com/auth/clients${project}. If a client named "Cloudflare Access" is listed, click it, check that it has the two addresses below, and under "Client secrets" click "Add secret", because Google shows a secret only when it is made. Otherwise click "Create client", choose the application type "Web application", and name it Cloudflare Access.`,
+      `Under "Authorized JavaScript origins", click "Add URI" and enter exactly https://${team}`,
+      `Under "Authorized redirect URIs", click "Add URI" and enter exactly https://${team}/cdn-cgi/access/callback, then click "Create" (or "Save").`,
+      'Google shows the Client ID and the Client secret. Copy the Client ID (it ends in .apps.googleusercontent.com) and paste it into "App ID" in the Cloudflare tab.',
+      'Copy the Client secret and paste it into "Client secret" in the Cloudflare tab. Neither value is stored in GitHub or on the Worker.',
+      `In the Cloudflare tab, type ${domain} as the Google Workspace domain, and click "Save".`,
       'Cloudflare then shows a link. Open it signed in as the Google Workspace super admin and approve it, so Access can read group membership.',
       `Back in Integrations → Identity providers, click "Test" next to Google Workspace. It should show your name and your groups${group ? `, including ${group} if you are in it` : ''}. Then run this command again.`,
     ],
@@ -232,27 +237,32 @@ export function accessAppGuide(app, zone) {
   const policy = `${app.name} allow`;
   const audienceSteps = [
     `In Cloudflare One, go to Access controls → Applications and click "Configure" on "${app.name}".`,
-    `Open the "Additional settings" tab and copy "Application Audience (AUD) Tag". It is 64 lowercase letters and digits, and it is the value ${app.audienceSecret} holds.`,
+    `Open the "Additional settings" tab, copy "Application Audience (AUD) Tag", and paste it at this command's prompt. It is 64 lowercase letters and digits, and it is the value ${app.audienceSecret} holds.`,
+  ];
+  const createSteps = [
+    `Open Cloudflare One and choose the LVBT account (${LVBT_CLOUDFLARE_ACCOUNT}). Go to Access controls → Applications. If "${app.name}" is already listed, it exists: skip the steps that create it.`,
+    'Click "Create new application" (some screens say "Add an application").',
+    'In the "Add an application" dialog, under "Self-hosted and private", choose the "Public DNS" tab. Do not choose "Private destinations", "Workers", or "Service auth". Click "Continue with Self-hosted and private". The page is now "Create new self-hosted application"; work down it from the top.',
+    'Under "Destinations" there should be public hostname rows. If you see a "Private IPs" row with "Private IP address" and "Port" instead, "Private destinations" was chosen: click "+ Add public hostname", then remove the empty private row, or go back and choose "Public DNS".',
+    `Add one public hostname row per address with "+ Add public hostname", leaving any other box empty: ${hostnames.join('; ')}. A path does not cover the paths under it, and a wildcard does not cover its parent, so every row is needed; with one missing, that part of the site would be open to anyone.`,
+    'Leave "Allow access through browser-based RDP, SSH, or VNC sessions" off.',
+    `Under "Access policies", which says "No policy associated", open "Add current policies". If a policy named ${policy} is listed, choose it and go on to "Authentication". Otherwise click "Create new policy", name it exactly ${policy}, and set the action to "Allow".`,
+    includeRule(app),
+    `Save the policy. If it opened in another tab, come back to this page and choose ${policy} in "Add current policies".`,
+    'Skip "Policy tester".',
+    ...identitySteps(app),
+    'Skip "Preview".',
+    `Under "Details", type the name exactly: ${app.name}. Set "Session Duration" to ${sessionLabel(app.sessionDuration ?? '24h')}, which is the default.`,
+    'Click "Create".',
   ];
   return {
     url: ZERO_TRUST,
     audienceSteps,
-    steps: [
-      `Open Cloudflare One and choose the LVBT account (${LVBT_CLOUDFLARE_ACCOUNT}). Go to Access controls → Applications. If "${app.name}" is already listed, skip to the last two steps.`,
-      'Click "Create new application" (some screens say "Add an application").',
-      'In the "Add an application" dialog, under "Self-hosted and private", choose the "Public DNS" tab. Do not choose "Private destinations", "Workers", or "Service auth". Click "Continue with Self-hosted and private". The page is now "Create new self-hosted application"; work down it from the top.',
-      'Under "Destinations" there should be public hostname rows. If you see a "Private IPs" row with "Private IP address" and "Port" instead, "Private destinations" was chosen: click "+ Add public hostname", then remove the empty private row, or go back and choose "Public DNS".',
-      `Add one public hostname row per address with "+ Add public hostname", leaving any other box empty: ${hostnames.join('; ')}. A path does not cover the paths under it, and a wildcard does not cover its parent, so every row is needed; with one missing, that part of the site would be open to anyone.`,
-      'Leave "Allow access through browser-based RDP, SSH, or VNC sessions" off.',
-      `Under "Access policies", which says "No policy associated", open "Add current policies". If a policy named ${policy} is listed, choose it and go on to "Authentication". Otherwise click "Create new policy", name it exactly ${policy}, and set the action to "Allow".`,
-      includeRule(app),
-      `Save the policy. If it opened in another tab, come back to this page and choose ${policy} in "Add current policies".`,
-      'Skip "Policy tester".',
-      ...identitySteps(app),
-      'Skip "Preview".',
-      `Under "Details", type the name exactly: ${app.name}. Set "Session Duration" to ${sessionLabel(app.sessionDuration ?? '24h')}, which is the default.`,
-      'Click "Create".',
-      ...audienceSteps,
+    steps: [...createSteps, ...audienceSteps],
+    /** For a run that asks for the tag later: make the application now, copy the tag then. */
+    manualSteps: [
+      ...createSteps,
+      'Leave the tag for now. This command asks for it later in this run and shows where to find it.',
     ],
   };
 }
@@ -283,15 +293,25 @@ export function googleGroupGuide(group, apps) {
 
 export function turnstileGuide(widget, cloudflare, configPath) {
   const config = configPath ?? 'the production wrangler config';
+  const mode = { managed: 'Managed', 'non-interactive': 'Non-interactive', invisible: 'Invisible' };
+  const createSteps = [
+    `Open Turnstile in the Cloudflare dashboard with the LVBT account (${LVBT_CLOUDFLARE_ACCOUNT}). If a widget named "${widget.name}" is already listed, click it and go to the step for the Site Key.`,
+    `Click "Add widget". Widget name: ${widget.name}.`,
+    `Under "Hostname management", add ${widget.domains.join(', ')}.`,
+    `Widget Mode: "${mode[widget.mode ?? 'managed']}". Leave pre-clearance off, and click "Create".`,
+    `If "vars" in ${config} already has "${widget.siteKeyVar}" with this widget's Site Key, skip this step. Otherwise copy the Site Key (public, starts with 0x) and paste it into "vars" in ${config} as "${widget.siteKeyVar}" now; save the file and commit it through a pull request later.`,
+  ];
+  const secretSteps = [
+    `Copy the widget's Secret Key (private, also starts with 0x) and paste it at this command's prompt. It is the Worker secret ${widget.secret}.`,
+  ];
   return {
     url: `https://dash.cloudflare.com/${cloudflare.accountId}/turnstile`,
-    steps: [
-      `Open Turnstile in the Cloudflare dashboard with the LVBT account (${LVBT_CLOUDFLARE_ACCOUNT}). If a widget named "${widget.name}" is already listed, click it and skip to the last two steps.`,
-      `Click "Add widget". Widget name: ${widget.name}.`,
-      `Under "Hostname management", add ${widget.domains.join(', ')}.`,
-      `Widget Mode: "${{ managed: 'Managed', 'non-interactive': 'Non-interactive', invisible: 'Invisible' }[widget.mode ?? 'managed']}". Leave pre-clearance off, and click "Create".`,
-      `Copy the Site Key. It is public and starts with 0x. It goes into "vars" in ${config} as "${widget.siteKeyVar}", through a pull request.`,
-      `Copy the Secret Key. It is private and also starts with 0x. It is the Worker secret ${widget.secret}; paste it when this command asks for it.`,
+    secretSteps,
+    steps: [...createSteps, ...secretSteps],
+    /** For a run that asks for the secret later: make the widget now, copy the secret then. */
+    manualSteps: [
+      ...createSteps,
+      'Leave the Secret Key for now. This command asks for it later in this run.',
     ],
   };
 }

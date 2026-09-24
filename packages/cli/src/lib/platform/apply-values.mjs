@@ -58,7 +58,7 @@ function fedGuide(context, source) {
   if (source.type === 'turnstile') {
     const guide = turnstileGuide(source.widget, manifest.cloudflare, configPath);
     return context.shown.has(`turnstile:${source.widget.name}`)
-      ? { url: guide.url, steps: guide.steps.slice(-1) }
+      ? { url: guide.url, steps: guide.secretSteps }
       : guide;
   }
   if (source.type === 'access-team') return teamDomainGuide(source.app.teamDomainSecret);

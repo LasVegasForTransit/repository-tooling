@@ -153,11 +153,18 @@ it needs no credential.
 | `neededFor`   | no       | The feature that does not work without it, as a phrase that follows "needed for".                                                    |
 | `targets`     | no       | Where it is stored: `worker`, or `github:<environment>`. Defaults to `worker`.                                                       |
 | `url`         | no       | The page to open first. Setup offers to open it.                                                                                     |
-| `steps`       | no       | Numbered, click-by-click steps to find or create the value, each one complete sentence.                                              |
+| `steps`       | no       | Numbered, click-by-click steps to find or create the value, each one complete sentence. See the rules below.                         |
 | `generate`    | no       | `true` when setup should mint a random value (32 random bytes) instead of asking.                                                    |
 | `from`        | no       | `cloudflare.accountId` to copy the manifest's account ID.                                                                            |
 | `pattern`     | no       | A regular expression a pasted value must match.                                                                                      |
 | `patternHint` | no       | What a valid value looks like, shown when a pasted value does not match.                                                             |
+
+Write `steps` for someone who has never used the service. Say exactly what to type or choose in each
+field, and use the same names the manifest uses, so setup recognizes what the person makes. Never
+ask for a second copy before the first is pasted: the step that copies a value also says where to
+paste it, and the last step copies the value this secret needs, to paste at the prompt. When a value
+is needed in two places, say to paste it in both before copying anything else. The standard's own
+guides follow the same rules.
 
 A secret gets its value from exactly one place: `generate`, `from`, a Turnstile widget or Access
 application that names it, or a person. A secret a person types in must have `steps`, so the person

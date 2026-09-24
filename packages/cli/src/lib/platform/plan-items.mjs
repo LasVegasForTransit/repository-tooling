@@ -31,3 +31,12 @@ export function unknownItem(fields, observation) {
 export function targetLabel(manifest, target) {
   return target === 'worker' ? `Worker ${manifest.cloudflare.worker}` : `GitHub ${target.slice(7)}`;
 }
+
+/**
+ * The steps to show when a person must create something by hand and the
+ * value it produces is asked for later, so nothing is copied before it can
+ * be pasted.
+ */
+export function manualGuide(guide) {
+  return { url: guide.url, steps: guide.manualSteps ?? guide.steps };
+}
