@@ -39,12 +39,21 @@ templates.
 The update runs with the updater carried by the preset it installs, so a release's own changes apply
 in the same update. It also makes three small migrations in the consumer's own files and lists every
 file they touch under `consumerChanged`, in the dry run as well. It rewrites legacy `@lvbt/*`
-references to the platform packages as `@lasvegasfortransit/*`. It adds any of Playwright's output
-rules (`test-results/`, `playwright-report/`, `blob-report/`, and `**/playwright/.cache/`) that the
-root `.gitignore` lacks, below the lines already there. In a repository with an Astro package, it
-gives each Astro package a `sync` script (`astro sync`) and adds a `sync` task to `turbo.json` that
-`lint` depends on, so lint reads Astro's generated types on a clean checkout. Nothing else in
-application configuration or product files changes.
+references to the platform packages as `@lasvegasfortransit/*`, skipping any nested checkout such as
+an agent worktree. It adds the ignore rules the examples carry to the consumer's root ignore files
+where they are missing, and leaves every existing line, comment, and entry in place:
+
+- `.gitignore` gets Playwright's output (`test-results/`, `playwright-report/`, `blob-report/`, and
+  `**/playwright/.cache/`) and agent worktrees (`.claude/worktrees/`).
+- `.prettierignore` gets `.claude/worktrees/`.
+- `.markdownlint-cli2.jsonc` gets `.claude/worktrees` as the first entry of its `ignores`.
+
+Claude Code creates each agent worktree, a full checkout of the same repository, under
+`.claude/worktrees/` inside the checkout, and without these rules another session's files fail this
+checkout's checks. In a repository with an Astro package, the updater also gives each Astro package
+a `sync` script (`astro sync`) and adds a `sync` task to `turbo.json` that `lint` depends on, so
+lint reads Astro's generated types on a clean checkout. Nothing else in application configuration or
+product files changes.
 
 Consumer validation against an unpublished standard uses the reviewed commit directly:
 

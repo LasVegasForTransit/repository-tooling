@@ -4,6 +4,7 @@ import { mkdir, readFile, readdir, rename, rm, stat, writeFile } from 'node:fs/p
 import path from 'node:path';
 
 import { syncAstroTypesBeforeLint } from './astro-sync.ts';
+import { syncConsumerIgnores } from './consumer-ignores.ts';
 
 export interface WebPreset {
   formatVersion: number;
@@ -150,35 +151,12 @@ export async function applyPreset(root: string, bundle: WebPreset, dryRun = fals
   const consumerChanged = [
     ...new Set([
       ...(await migrateLegacyPackageScope(root, dryRun)),
-      ...(await ignorePlaywrightOutput(root, dryRun)),
+      ...(await syncConsumerIgnores(root, dryRun)),
       ...(await syncAstroTypesBeforeLint(root, dryRun)),
     ]),
   ].sort();
   if (!dryRun) await install(root, bundle);
   return { ...plan, consumerChanged };
-}
-
-// Playwright writes these beside each app's configuration, such as apps/site/test-results/.
-// Every example's .gitignore carries the same rules. A slash inside a pattern anchors it to the
-// .gitignore's own directory, so the cache rule needs its leading **/ to reach every app.
-export const PLAYWRIGHT_OUTPUT_IGNORES = [
-  'test-results/',
-  'playwright-report/',
-  'blob-report/',
-  '**/playwright/.cache/',
-];
-
-/** Appends the rules a consumer's root .gitignore lacks, leaving its own lines untouched. */
-async function ignorePlaywrightOutput(root: string, dryRun: boolean): Promise<string[]> {
-  const file = path.join(root, '.gitignore');
-  const source = await readFile(file, 'utf8').catch(() => null);
-  if (source === null) return [];
-  const present = new Set(source.split(/\r?\n/).map((line) => line.trim()));
-  const missing = PLAYWRIGHT_OUTPUT_IGNORES.filter((rule) => !present.has(rule));
-  if (missing.length === 0) return [];
-  const separator = source === '' || source.endsWith('\n') ? '' : '\n';
-  if (!dryRun) await writeFile(file, `${source}${separator}${missing.join('\n')}\n`);
-  return ['.gitignore'];
 }
 
 const SKIPPED_DIRECTORIES = new Set([
@@ -206,8 +184,10 @@ async function consumerFiles(root: string, relative = ''): Promise<string[]> {
   for (const entry of await readdir(directory, { withFileTypes: true })) {
     if (entry.name === '.lvbt' && relative === '') continue;
     if (entry.isDirectory()) {
-      if (!SKIPPED_DIRECTORIES.has(entry.name))
-        files.push(...(await consumerFiles(root, path.join(relative, entry.name))));
+      const directory = path.join(relative, entry.name);
+      // A nested checkout, such as an agent worktree under .claude/worktrees/, is another branch's.
+      if (!SKIPPED_DIRECTORIES.has(entry.name) && !existsSync(path.join(root, directory, '.git')))
+        files.push(...(await consumerFiles(root, directory)));
       continue;
     }
     if (entry.isFile()) files.push(path.join(relative, entry.name));
