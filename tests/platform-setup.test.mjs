@@ -37,6 +37,7 @@ function setupContext({ state = readyState(), io = scriptedIo(), api, run } = {}
     setupApi: async () => api,
     values: new Map(),
     handled: new Set(),
+    shown: new Set(),
     created: { widgets: new Map(), apps: new Map() },
   };
 }

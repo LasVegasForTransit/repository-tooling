@@ -19,7 +19,7 @@ import { check } from './lib/check/index.mjs';
 import { bootstrap, deploy, preflight } from './lib/operate.mjs';
 
 const usage = `Usage:
-  lvbt bootstrap [--production [--filter <app>]]
+  lvbt bootstrap [--production [--filter <app>] [--rotate <SECRET>[,<SECRET>...]]]
   lvbt preflight [--production [--filter <app>]]
   lvbt check [filenames|contract|debt|platform ...] [--staged]
   lvbt deploy [--filter <app>] [--dry-run]
@@ -29,6 +29,8 @@ Options:
                 report whether production has it, without changing anything
   --staged      For check filenames: check the staged tree instead of the working tree
   --filter      For deploy and --production: only the app directory named (apps/site)
+  --rotate      For bootstrap --production: replace the named secrets' stored values
+                on every target. Without it, a value that is already set is kept
   --dry-run     For deploy: build, then run wrangler deploy --dry-run
 `;
 

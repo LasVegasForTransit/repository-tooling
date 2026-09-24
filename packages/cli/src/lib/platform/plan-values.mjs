@@ -82,6 +82,18 @@ function secretItem({ manifest, state }, secret, target) {
     return unknownItem({ ...fields, credentialHint: present.credentialHint }, present);
   if (present.value) return item({ ...fields, status: 'ok', detail: 'is set' });
   const source = secretSource(secret, manifest);
+  const elsewhere = (secret.targets ?? ['worker']).filter(
+    (other) => other !== target && stored(state, other, secret.name).value === true,
+  );
+  if (source.type === 'generate' && elsewhere.length > 0)
+    // A generated value cannot be read back, so minting another here would
+    // leave the targets holding different values.
+    return item({
+      ...fields,
+      status: 'mismatch',
+      detail: `is not set here but is set on ${elsewhere.map((other) => targetLabel(manifest, other)).join(', ')}, and setup cannot read that value to copy it`,
+      next: `${SETUP} --rotate ${secret.name} stores one new value everywhere`,
+    });
   return item({
     ...fields,
     status: 'missing',
@@ -123,7 +135,9 @@ export function planVars({ manifest, state, configPath }) {
     const action = {
       type: 'manual',
       key: `var:${variable.name}`,
-      guide: varGuide(variable, configPath, live?.sitekey),
+      guide: varGuide(variable, configPath, live?.sitekey, widget?.name),
+      variable,
+      widget: widget?.name,
     };
     if (value === undefined || value === '')
       return item({

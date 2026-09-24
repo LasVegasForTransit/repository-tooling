@@ -1,4 +1,4 @@
-import { accessAppGuide, googleWorkspaceGuide, zeroTrustGuide } from './guides.mjs';
+import { accessAppGuide, googleWorkspaceGuide, ZERO_TRUST, zeroTrustGuide } from './guides.mjs';
 import { item, SETUP, TOKEN_HINT, unknownItem } from './plan-items.mjs';
 
 /**
@@ -87,11 +87,12 @@ function providerItem(manifest, access, type) {
   const group = manifest.access.find((app) => app.allow.googleGroup)?.allow.googleGroup;
   const guide =
     type === 'google-apps'
-      ? googleWorkspaceGuide(access.teamDomain, group?.split('@')[1])
+      ? googleWorkspaceGuide(access.teamDomain, group?.split('@')[1], group)
       : {
-          url: 'https://one.dash.cloudflare.com/',
+          url: ZERO_TRUST,
           steps: [
-            'In Zero Trust, go to Integrations → Identity providers → "Add new identity provider" → "One-time PIN", and save.',
+            'Open Cloudflare One and choose the LVBT account.',
+            'Go to Integrations → Identity providers, click "Add new identity provider", choose "One-time PIN", and click "Save". People then sign in with a code emailed to them.',
           ],
         };
   return item({
@@ -103,7 +104,7 @@ function providerItem(manifest, access, type) {
   });
 }
 
-function applicationItem(access, app) {
+function applicationItem(manifest, access, app) {
   const fields = { id: `access:${app.name}`, section: SECTION, label: app.name };
   const provider = access.providers.find((candidate) => candidate.type === app.identityProvider);
   const found = findApp(access.apps, app);
@@ -111,7 +112,7 @@ function applicationItem(access, app) {
     app,
     provider,
     rule: allowRule(app.allow, provider),
-    guide: accessAppGuide(app),
+    guide: accessAppGuide(app, manifest.cloudflare.zone.name),
   };
   if (!found && !provider)
     return item({
@@ -171,7 +172,7 @@ export function planAccess({ manifest, state }) {
         status: 'missing',
         detail: 'is not turned on for this account',
         next: `turn it on in the dashboard; ${SETUP} shows the steps`,
-        action: { type: 'manual', key: 'zero-trust', guide: zeroTrustGuide() },
+        action: { type: 'manual', key: 'zero-trust', guide: zeroTrustGuide(manifest) },
       }),
       ...apps.map((app) =>
         item({
@@ -185,10 +186,14 @@ export function planAccess({ manifest, state }) {
       ),
     ];
   return [
-    item({ ...zeroTrust, status: 'ok', detail: `team domain ${access.teamDomain ?? 'unknown'}` }),
+    item({
+      ...zeroTrust,
+      status: 'ok',
+      detail: `is on; team domain ${access.teamDomain ?? 'unknown'}${access.teamName ? ` (team name "${access.teamName}")` : ''}`,
+    }),
     ...[...new Set(apps.map((app) => app.identityProvider))].map((type) =>
       providerItem(manifest, access, type),
     ),
-    ...apps.map((app) => applicationItem(access, app)),
+    ...apps.map((app) => applicationItem(manifest, access, app)),
   ];
 }
