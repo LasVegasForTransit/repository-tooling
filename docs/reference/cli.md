@@ -21,6 +21,10 @@ binary. It needs Node.js 24.20 or newer on the 24 line, and git.
 it to one app. With `--production`, `--filter apps/site` (or `site`) limits bootstrap and preflight
 to that app's `platform.json`; `--filter .` picks the one at the root.
 
+`lvbt bootstrap --production --rotate SIGNING_SECRET` replaces the stored value of a secret the
+manifest declares; `--rotate` takes one name or several separated by commas, and only
+`bootstrap --production` accepts it.
+
 Through pnpm, the flags pass straight to the script: `pnpm bootstrap --production` and
 `pnpm preflight --production`.
 
@@ -65,10 +69,12 @@ items are reported as `FAIL` with "could not check".
 and asks once before starting. Then it:
 
 - creates missing D1 databases and R2 buckets with Wrangler, and applies unapplied D1 migrations
-  with `wrangler d1 migrations apply --remote`, which shows the migrations and asks to confirm;
+  with `wrangler d1 migrations apply --remote`, which shows the migrations and asks to confirm.
+  Migrations wait while the wrangler config names another `database_id`, because Wrangler applies
+  them to the database the config names;
 - creates or fixes Turnstile widgets and Access applications and their allow policies through the
-  Cloudflare API, and stores the values they produce (the widget's secret, the team domain, and the
-  application's audience tag) on the Worker straight away;
+  Cloudflare API, and stores the values a new resource produces (the widget's secret and the
+  application's audience tag) on the Worker straight away, since any older copy is stale;
 - stores each missing secret with `wrangler secret put` or `gh secret set --env`, sending the value
   on standard input: it generates values marked `generate`, copies values a resource or the manifest
   already has, and otherwise shows the secret's purpose, link, and numbered steps, offers to open
@@ -82,6 +88,17 @@ and asks once before starting. Then it:
 Items that only a feature not built yet needs are offered after asking. Pressing Enter at any value
 skips it. The run ends with a fresh report and exits 1 while anything required is still open;
 running it again picks up exactly those items, because every run starts from what exists.
+
+Every step checks before it acts, so running the command again on a finished setup changes nothing:
+it says "Nothing was changed" and exits 0. It finds existing resources by name across every page of
+Cloudflare's lists, so it never creates a second database, bucket, widget, application, or policy.
+It never asks for, generates, or copies a secret that is already set, and it never edits the
+wrangler config. A generated secret that is set on one target but missing from another is reported
+rather than generated again, because a second random value would leave the targets disagreeing.
+Replacing a stored value happens only with `--rotate`: a generated secret gets a new random value, a
+typed one is asked for again, and one a Turnstile widget or Access application feeds is copied from
+it again. The command asks before it replaces anything, and stores the new value on every target the
+secret lists.
 
 Secret values are held in memory only for the run and never written to disk, printed, or passed as
 command-line arguments. The same goes for the Turnstile and Access token.

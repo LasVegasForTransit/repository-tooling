@@ -87,7 +87,9 @@ does not read `env.*` sections.
 The check fails when the database or bucket does not exist, when the wrangler config does not bind
 it under `binding`, and when the config's `database_id` differs from the real database. It reads the
 applied migrations from the database's `d1_migrations` table (or the `migrations_table` the config
-names) with a read-only query.
+names) with a read-only query. Setup applies only migrations that are not applied yet, and only
+while the config's `database_id` is the real database's, because Wrangler applies them to the
+database the config names.
 
 ## `turnstile`
 
@@ -100,7 +102,8 @@ names) with a read-only query.
 | `secret`     | yes      | The Worker secret that carries the secret key. It must be listed in `secrets`. |
 
 Setup creates the widget when none has this name or covers these domains, stores its secret key on
-the Worker, and prints the site key to put in the wrangler config's `vars`.
+the Worker, and prints the site key to put in the wrangler config's `vars`. When it widens an
+existing widget to cover more domains, it keeps the widget's other settings.
 
 ## `access`
 
@@ -115,11 +118,15 @@ the Worker, and prints the site key to put in the wrangler config's `vars`.
 | `audienceSecret`   | yes      | The Worker secret that carries the application's audience (AUD) tag.                                                                                                         |
 
 Setup creates a reusable policy named `<name> allow` and the application, with instant sign-in
-through the one identity provider, then stores the team domain and the new audience tag on the
-Worker. The check fails when the application does not protect a declared path, has another session
-length, offers another identity provider, lacks an allow policy for the declared people, or has an
-allow policy that lets everyone in. Turning on Zero Trust and connecting Google Workspace have no
-API, so setup shows the dashboard steps for them.
+through the one identity provider, then stores the new audience tag on the Worker straight away,
+since any older one belongs to another application. It stores the team domain only when the
+`teamDomainSecret` is not set yet. The check fails when the application does not protect a declared
+path, has another session length, offers another identity provider, lacks an allow policy for the
+declared people, or has an allow policy that lets everyone in; fixing that last one detaches the
+policy that lets everyone in. Turning on Cloudflare One (Zero Trust) and connecting Google Workspace
+have no API, so setup shows the dashboard steps for them. When Cloudflare One is already on, the
+report shows its team domain, such as `lvbt.cloudflareaccess.com`, and its team name, and skips
+those steps.
 
 ## `email`
 
@@ -152,9 +159,18 @@ it needs no credential.
 
 A secret gets its value from exactly one place: `generate`, `from`, a Turnstile widget or Access
 application that names it, or a person. A secret a person types in must have `steps`, so the person
-is never left guessing where the value comes from. Setup can see only whether a secret exists, never
-its value, so it cannot tell a stale value from a current one; a resource created during a run
-always stores its new value.
+is never left guessing where the value comes from; the
+[set-up guide](../how-to/set-up-production.md#what-to-enter-in-each-dashboard) has reviewed steps
+for the common ones to copy. A value a Turnstile widget or Access application feeds is asked for
+only when setup cannot read it, and then with the standard's own steps, which walk through creating
+the resource.
+
+Setup can see only whether a secret exists, never its value. So it never replaces a secret that is
+set: it does not ask for it, generate it, or copy it again. A resource created during a run always
+stores its new value, since any older one is stale. A generated secret that is set on one target but
+missing from another is reported, not generated again, because a second random value would leave the
+targets disagreeing. To replace a value on purpose, run
+`pnpm bootstrap --production --rotate <NAME>`.
 
 ## `vars`
 

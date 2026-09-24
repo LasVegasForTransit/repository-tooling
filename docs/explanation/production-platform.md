@@ -26,6 +26,18 @@ Setup keeps no record of its own progress. Each run starts by reading what actua
 resumes exactly where the last run stopped, after a skipped question, a failed step, or a change
 someone made in a dashboard.
 
+## Running it twice changes nothing
+
+Every step checks before it acts, so a second run on a finished setup makes no changes and says so.
+That rule shapes several choices. Resources are found by name across every page of Cloudflare's
+lists, and a list that cannot be read to the end stops the run rather than making a resource look
+missing, because a missing resource would be created a second time. A secret that is set is never
+asked for, generated, or copied again, since setup cannot read a secret's value to tell whether it
+is current. Migrations run only when some are unapplied, and only against the database the config
+names. Replacing a value is something a person asks for by name with `--rotate`; it is never a side
+effect of running setup. A test runs setup twice against fake services and fails if the second run
+changes anything.
+
 ## Credentials stay where they already are
 
 Reading uses what a maintainer already has: Wrangler's sign-in for Workers, D1, and R2, `gh` for
@@ -40,8 +52,9 @@ printed.
 Setup never edits `wrangler.jsonc`. A var such as a Turnstile site key belongs in the reviewed
 config, because a deploy replaces every var with what the config says; setup prints the exact line
 to add instead. Turning on Zero Trust, connecting Google Workspace, and verifying an email domain
-have no API, so setup prints numbered dashboard steps and waits. Deleting a forbidden secret is
-offered, never done without asking.
+have no API, so setup prints numbered dashboard steps and waits. Those steps assume the person has
+never used the service: they say what to type in each field, where each copied value goes, and what
+it looks like. Deleting a forbidden secret is offered, never done without asking.
 
 ## Where the design came from
 
