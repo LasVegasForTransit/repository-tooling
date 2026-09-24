@@ -33,6 +33,8 @@ export const LVBT_TEAM_NAME = 'Las Vegans for Better Transit';
 /** LVBT's one Google Cloud project, which holds every OAuth client and service account. */
 export const LVBT_GOOGLE_PROJECT = 'LVBT Core';
 export const LVBT_GOOGLE_PROJECT_ID = 'lvbt-core';
+/** The shared LVBT address used as a contact wherever a service asks for one. */
+export const LVBT_SHARED_EMAIL = 'tech@lasvegasfortransit.org';
 /** The LVBT Cloudflare account's name. */
 export const LVBT_CLOUDFLARE_ACCOUNT = 'Las Vegans for Better Transit';
 
@@ -158,10 +160,10 @@ export function googleWorkspaceGuide(teamDomain, workspaceDomain, group) {
       `Do the Google steps signed in as a Google Workspace super admin for ${domain}: turning on "Trust internal apps" and approving group access both need one. The Cloudflare steps need a Cloudflare user who can administer the LVBT account.`,
       `Use LVBT's one Google Cloud project, "${LVBT_GOOGLE_PROJECT}" (ID ${LVBT_GOOGLE_PROJECT_ID}); every link below opens it. If the project picker at the top shows no such project, click "New project", name it ${LVBT_GOOGLE_PROJECT}, make sure "Organization" is ${domain} so the project belongs to LVBT rather than to your own account, and click "Create". If Google shows a Free Trial banner, dismiss it: none of this needs billing.`,
       `Open https://console.cloud.google.com/apis/library/admin.googleapis.com${project} and click "Enable" on "Admin SDK API" (it says "Manage" instead if it is already on). Access uses it to read which Google Groups a person is in.`,
-      `Open https://console.cloud.google.com/auth/overview${project}. If Google says the app is not configured yet, click "Get started": App name LVBT volunteer sign-in, User support email your @${domain} address, Audience "Internal", contact email your address, agree to the policy, and click "Create". If you can reach the "Marketing & Communications" shared drive in Google Drive, upload the square LVBT logo as the app logo on the "Branding" page, so people recognize the sign-in screen.`,
       'Open https://admin.google.com/ac/owl (Security → Access and data control → API controls), click "Settings", turn on "Trust internal apps", and save. It is off by default, and Access needs it.',
       'In a new browser tab, open Cloudflare One, go to Integrations → Identity providers, click "Add new identity provider", then "Google Workspace". Keep this tab open: two of the next steps fill it in, one value at a time.',
-      `Back in Google Cloud, open https://console.cloud.google.com/auth/clients${project}. If a client named "Cloudflare Access" is listed, click it, check that it has the two addresses below, and under "Client secrets" click "Add secret", because Google shows a secret only when it is made. Otherwise click "Create client", choose the application type "Web application", and name it Cloudflare Access.`,
+      `Back in Google Cloud, open https://console.cloud.google.com/auth/clients${project}. If it says "Google Auth Platform not configured yet", click "Get started" and complete its four steps: App Information: App name ${LVBT_TEAM_NAME}, User support email ${LVBT_SHARED_EMAIL} (a shared LVBT address, never a person's), then "Next"; Audience: "Internal", then "Next"; Contact Information: ${LVBT_SHARED_EMAIL}, then "Next"; Finish: tick the box agreeing to the Google API Services: User Data Policy, click "Continue", then "Create". Optionally, under "Branding", upload the square LVBT logo from the "Marketing & Communications" shared drive as the App logo. Then open "Clients" again.`,
+      `On the Clients page, if a client named "Cloudflare Access" is listed, click it, check that it has the two addresses below, and under "Client secrets" click "Add secret", because Google shows a secret only when it is made. Otherwise click "Create client", choose the application type "Web application", and name it Cloudflare Access.`,
       `Under "Authorized JavaScript origins", click "Add URI" and enter exactly https://${team}`,
       `Under "Authorized redirect URIs", click "Add URI" and enter exactly https://${team}/cdn-cgi/access/callback, then click "Create" (or "Save").`,
       'Google shows the Client ID and the Client secret. Copy the Client ID (it ends in .apps.googleusercontent.com) and paste it into "App ID" in the Cloudflare tab.',
