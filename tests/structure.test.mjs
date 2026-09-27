@@ -104,6 +104,15 @@ test('continuous integration uses the same pnpm setup contract', async () => {
   assert.match(setup, /NODE_AUTH_TOKEN: \$\{\{ github\.token \}\}/);
 });
 
+test('generated repositories authenticate GitHub Packages during installation', async () => {
+  for (const profile of ['basic', 'with-astro', 'with-vite-react']) {
+    const setup = await read(`examples/${profile}/.github/actions/setup-node-pnpm/action.yml`);
+    assert.match(setup, /registry-url: https:\/\/npm\.pkg\.github\.com/);
+    assert.match(setup, /scope: '@lasvegasfortransit'/);
+    assert.match(setup, /NODE_AUTH_TOKEN: \$\{\{ github\.token \}\}/);
+  }
+});
+
 test('template publication commits an installable frozen lockfile', async () => {
   const workflow = await read('.github/workflows/publish-template.yml');
 
