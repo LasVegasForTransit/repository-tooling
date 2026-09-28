@@ -1,10 +1,12 @@
 import { execFileSync } from 'node:child_process';
+import { realpathSync } from 'node:fs';
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
 
+import { ownedFileDrift } from './owned-files.ts';
 import { applyPreset, verifyPreset, type WebPreset } from './web-platform.ts';
 import { readCommit, readRelease } from './web-platform-source.ts';
 
@@ -91,6 +93,17 @@ async function update(
   }
 }
 
+/** Verifies the vendored preset and the files the standard owns in the repository. */
+async function check(root: string, json: boolean | undefined) {
+  const metadata = await verifyPreset(root);
+  // Warnings until v0.6.0, when these fail and the update restores the standard's copies.
+  for (const problem of await ownedFileDrift(root, metadata.release))
+    process.stderr.write(
+      `warning: ${problem} This file belongs to the standard; from v0.6.0 \`pnpm standards:check\` fails on it. Make the change in repository-tooling instead.\n`,
+    );
+  process.stdout.write(`${JSON.stringify({ ok: true, metadata }, null, json ? 0 : 2)}\n`);
+}
+
 export async function main(args: string[]): Promise<void> {
   const { values, positionals } = parseArgs({
     args,
@@ -111,10 +124,7 @@ export async function main(args: string[]): Promise<void> {
     if (positionals.length !== 1 || (values.apply && values['dry-run']))
       throw new Error('Choose one command and either --apply or --dry-run.');
     if (command === 'check') {
-      const metadata = await verifyPreset(root);
-      process.stdout.write(
-        `${JSON.stringify({ ok: true, metadata }, null, values.json ? 0 : 2)}\n`,
-      );
+      await check(root, values.json);
       return;
     }
     if (command !== 'update') throw new Error('Choose check or update.');
@@ -132,6 +142,6 @@ export async function main(args: string[]): Promise<void> {
   }
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (process.argv[1] && import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href) {
   await main(process.argv.slice(2));
 }

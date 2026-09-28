@@ -3,14 +3,7 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import test from 'node:test';
 
-import {
-  SETTINGS,
-  applyExceptions,
-  daysBehind,
-  findings,
-  pluginRef,
-  report,
-} from '../standards/status.ts';
+import { applyExceptions, daysBehind, findings, pluginRef, report } from '../standards/status.ts';
 
 const root = path.resolve(import.meta.dirname, '..');
 const day = 86_400_000;
@@ -24,7 +17,7 @@ const current = (overrides = {}) => ({
   name: 'example',
   release: 'v0.4.5',
   pluginRef: 'v0.4.5',
-  settings: { ...SETTINGS },
+  selfUpdating: true,
   rulesets: ['org-standard'],
   updates: [],
   ...overrides,
@@ -43,12 +36,10 @@ test('lag counts from the first release a repository missed, not the latest', ()
   assert.ok(daysBehind('v0.4.4', releases, now + 4 * day) > 3);
 });
 
-test('unreleased vendoring, plugin refs, settings, rulesets, and red updates are drift', () => {
+test('unreleased vendoring, plugin refs, self-update, rulesets, and red updates are drift', () => {
   assert.deepEqual(rules(current({ release: null, pluginRef: null })), ['release']);
   assert.deepEqual(rules(current({ pluginRef: 'v0.4.0' })), ['plugin-ref']);
-  assert.deepEqual(rules(current({ settings: { ...SETTINGS, allow_squash_merge: true } })), [
-    'settings',
-  ]);
+  assert.deepEqual(rules(current({ selfUpdating: false })), ['self-update']);
   assert.deepEqual(rules(current({ rulesets: [] })), ['ruleset']);
   assert.deepEqual(
     rules(
@@ -89,10 +80,11 @@ test('the report lists every repository', () => {
   assert.match(output, /\| other \| unreleased \|/);
 });
 
-test('the status workflow runs daily, after publishing, and by hand', async () => {
+test('the status workflow runs daily and by hand with only its own token', async () => {
   const workflow = await readFile(path.join(root, '.github/workflows/standard-status.yml'), 'utf8');
   assert.match(workflow, /^ {2}schedule:/m);
-  assert.match(workflow, /workflows: \[Publish standard\]/);
   assert.match(workflow, /^ {2}workflow_dispatch:/m);
   assert.match(workflow, /node standards\/status\.ts/);
+  assert.match(workflow, /GH_TOKEN: \$\{\{ github\.token \}\}/);
+  assert.doesNotMatch(workflow, /secrets\./);
 });

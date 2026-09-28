@@ -24,6 +24,8 @@ const IGNORED = new Set([
   '.astro',
 ]);
 
+const STANDARD_CATALOG = new URL('../../../catalog.json', import.meta.url);
+
 /** Version specifiers the standard permits besides the catalog. */
 function allowedRange(name, range) {
   return (
@@ -66,6 +68,38 @@ function workspaceGlobs(root) {
     }
   }
   return globs;
+}
+
+/** The default `catalog:` of pnpm-workspace.yaml as name → version, without a YAML dependency. */
+export function catalogEntries(text) {
+  const entries = {};
+  let inCatalog = false;
+  for (const line of text.split(/\r?\n/)) {
+    if (/^catalog:\s*$/.test(line)) {
+      inCatalog = true;
+      continue;
+    }
+    if (!inCatalog || /^\s*(?:#.*)?$/.test(line)) continue;
+    if (/^\S/.test(line)) break;
+    const match = /^\s+(['"]?)([^'"\s:]+)\1:\s*(['"]?)([^'"\s#]+)\3/.exec(line);
+    if (match) entries[match[2]] = match[4];
+  }
+  return entries;
+}
+
+/**
+ * Shared catalog versions belong to the standard; a repository adds entries but never re-pins one.
+ * These are warnings until standard v0.6.0, which moves the entries and fails on any that differ.
+ */
+function catalogWarnings(root) {
+  const standard = JSON.parse(readFileSync(STANDARD_CATALOG, 'utf8')).catalog;
+  const entries = catalogEntries(readFileSync(path.join(root, 'pnpm-workspace.yaml'), 'utf8'));
+  return Object.entries(entries)
+    .filter(([name, version]) => Object.hasOwn(standard, name) && standard[name] !== version)
+    .map(
+      ([name, version]) =>
+        `warning: pnpm-workspace.yaml pins "${name}" to "${version}"; the standard's catalog has "${standard[name]}" (from v0.6.0 this fails)`,
+    );
 }
 
 function packageDirectories(root) {
@@ -200,7 +234,7 @@ export function checkContract({ cwd }) {
   return {
     name: 'contract',
     ok: lines.length === 0,
-    lines,
+    lines: [...lines, ...catalogWarnings(cwd)],
     fix: 'add the missing script, move test material under tests/, set the range to "catalog:" and add the version to pnpm-workspace.yaml, or run `pnpm standards:update` to wire an Astro package\'s "sync" task before lint',
   };
 }

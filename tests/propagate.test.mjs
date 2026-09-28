@@ -8,6 +8,7 @@ import test from 'node:test';
 import {
   applyRelease,
   compareReleases,
+  isPatchUpdate,
   latestRelease,
   planOpenUpdates,
   propagationTargets,
@@ -16,6 +17,7 @@ import {
   readRegistry,
   updateBranch,
 } from '../standards/propagate.ts';
+import { repositoryEntry } from '../standards/self-update.ts';
 import { materializeTemplate } from '../standards/template-publication.ts';
 
 const root = path.resolve(import.meta.dirname, '..');
@@ -31,6 +33,18 @@ test('every template and consumer receives each release, and the source does not
     if (entry.kind === 'template') assert.equal(entry.name, `template-${entry.example}`);
     else assert.equal(entry.kind, 'consumer');
   }
+});
+
+test('only a patch step merges itself', () => {
+  assert.equal(isPatchUpdate('v0.4.5', 'v0.4.6'), true);
+  assert.equal(isPatchUpdate('v0.4.5', 'v0.5.0'), false);
+  assert.equal(isPatchUpdate('v0.4.5', 'v1.4.6'), false);
+  assert.equal(isPatchUpdate(null, 'v0.4.6'), false);
+  assert.equal(isPatchUpdate('v0.4.6', 'v0.4.6'), false);
+  assert.match(
+    pullRequestBody({ tag: 'v0.5.0', kind: 'consumer', hasNotes: true, automerge: false }),
+    /a maintainer merges it/,
+  );
 });
 
 test('releases compare by version, not by text', () => {
@@ -59,7 +73,12 @@ test('an update supersedes older update pull requests and yields to newer ones',
 });
 
 test('the update pull request follows the organization template', () => {
-  const body = pullRequestBody({ tag: 'v0.4.5', kind: 'consumer', hasNotes: true });
+  const body = pullRequestBody({
+    tag: 'v0.4.5',
+    kind: 'consumer',
+    hasNotes: true,
+    automerge: true,
+  });
   assert.deepEqual(
     [...body.matchAll(/^# (.+)$/gm)].map(([, heading]) => heading),
     ['TL;DR', 'Overview of Changes', 'Follow-ups'],
@@ -113,15 +132,16 @@ test('a release moves a repository forward once, with its own updater, and never
     kind: 'template',
     example: 'basic',
   };
-  assert.deepEqual(
-    await applyRelease({
-      source,
-      target: template,
-      entry: templateEntry,
-      tag: 'v99.0.0',
-      install: false,
-    }),
-    { changed: false },
+  const republished = await applyRelease({
+    source,
+    target: template,
+    entry: templateEntry,
+    tag: 'v99.0.0',
+    install: false,
+  });
+  assert.equal(
+    republished.changed,
+    false,
     'republishing the same release keeps the published lockfile and proposes nothing',
   );
 
@@ -149,7 +169,7 @@ test('a release moves a repository forward once, with its own updater, and never
     tag: 'v99.0.1',
     install: false,
   });
-  assert.deepEqual(first, { changed: true });
+  assert.equal(first.changed, true);
   assert.equal(git(consumer, 'branch', '--show-current'), 'automation/repository-standard-v99.0.1');
   assert.equal(git(consumer, 'log', '-1', '--format=%ae'), 'noreply@lasvegasfortransit.org');
   const manifest = JSON.parse(
@@ -157,9 +177,10 @@ test('a release moves a repository forward once, with its own updater, and never
   );
   assert.equal(manifest.release, 'v99.0.1');
 
-  assert.deepEqual(
-    await applyRelease({ source, target: consumer, entry, tag: 'v99.0.1', install: false }),
-    { changed: false },
+  assert.equal(
+    (await applyRelease({ source, target: consumer, entry, tag: 'v99.0.1', install: false }))
+      .changed,
+    false,
   );
   const older = await applyRelease({
     source,
@@ -170,24 +191,81 @@ test('a release moves a repository forward once, with its own updater, and never
   });
   assert.equal(older.changed, false);
   assert.match(older.reason ?? '', /newer than v99\.0\.0/);
+
+  // A repository's own token may not push workflow files, so a self-update leaves them alone.
+  const selfUpdating = path.join(fixture, 'self-updating');
+  await materializeTemplate({ source, target: selfUpdating, example: 'basic', release: 'v99.0.1' });
+  await rm(path.join(selfUpdating, '.github/workflows/standard-update.yml'));
+  git(selfUpdating, 'init', '--quiet', '--initial-branch', 'main');
+  git(selfUpdating, 'add', '-A');
+  git(
+    selfUpdating,
+    '-c',
+    'user.name=test',
+    '-c',
+    'user.email=test@example.org',
+    'commit',
+    '-qm',
+    'init',
+  );
+  await writeFile(
+    path.join(source, 'LICENSE'),
+    `${await readFile(path.join(source, 'LICENSE'), 'utf8')}\n`,
+  );
+  git(
+    source,
+    '-c',
+    'user.name=test',
+    '-c',
+    'user.email=test@example.org',
+    'commit',
+    '-qam',
+    'patch',
+  );
+  git(source, 'tag', 'v99.0.2', 'HEAD');
+  const skipped = await applyRelease({
+    source,
+    target: selfUpdating,
+    entry,
+    tag: 'v99.0.2',
+    install: false,
+    skipWorkflows: true,
+  });
+  assert.equal(skipped.changed, true);
+  assert.deepEqual(skipped.skippedWorkflows, ['.github/workflows/standard-update.yml']);
+  assert.equal(
+    git(selfUpdating, 'show', '--name-only', '--format=', 'HEAD').includes('.github/workflows/'),
+    false,
+  );
 });
 
-test('the publish workflow proposes every release through the shared helper and the bot', async () => {
-  const workflow = await readFile(
-    path.join(root, '.github/workflows/publish-standard.yml'),
-    'utf8',
-  );
-  assert.match(workflow, /^ {2}push:\n {4}tags:/m);
-  assert.match(workflow, /^ {2}schedule:/m);
-  assert.match(workflow, /^ {2}workflow_dispatch:/m);
-  assert.match(workflow, /actions\/create-github-app-token@[0-9a-f]{40}/);
-  assert.match(workflow, /LVBT_BOT_PRIVATE_KEY/);
-  assert.match(workflow, /standards\/repositories\.json/);
-  assert.match(workflow, /node tooling\/standards\/propagate\.ts/);
-  assert.doesNotMatch(workflow, /TEMPLATE_PUBLISH_TOKEN/);
+test('every example updates itself with only its own workflow token', async () => {
+  for (const example of ['basic', 'with-astro', 'with-vite-react']) {
+    const directory = path.join(root, 'examples', example, '.github/workflows');
+    const workflow = await readFile(path.join(directory, 'standard-update.yml'), 'utf8');
+    assert.match(workflow, /^ {2}schedule:/m, example);
+    assert.match(workflow, /^ {2}workflow_dispatch:/m, example);
+    for (const permission of ['actions: write', 'contents: write', 'pull-requests: write'])
+      assert.match(workflow, new RegExp(`^ {2}${permission}$`, 'm'), `${example}: ${permission}`);
+    assert.match(workflow, /node \.lvbt\/web-platform\/standards\/self-update\.ts/, example);
+    assert.doesNotMatch(workflow, /secrets\./, example);
+    const ci = await readFile(path.join(directory, 'ci.yml'), 'utf8');
+    assert.match(ci, /^ {2}workflow_dispatch:$/m, `${example}: ci.yml must accept the dispatch`);
+  }
 
-  const propagate = await readFile(path.join(root, 'standards/propagate.ts'), 'utf8');
+  const propagate = await readFile(path.join(root, 'standards/propose.ts'), 'utf8');
   assert.match(propagate, /github-create\.mjs/);
   assert.match(propagate, /'--auto', '--rebase'/);
+  assert.match(propagate, /'workflow', 'run', 'ci\.yml'/);
   assert.doesNotMatch(propagate, /'pr', 'create'/);
+});
+
+test('a template repository is regenerated from the example its name gives', () => {
+  assert.deepEqual(repositoryEntry('template-with-astro', true), {
+    name: 'template-with-astro',
+    requiredStatus: 'Validate',
+    kind: 'template',
+    example: 'with-astro',
+  });
+  assert.equal(repositoryEntry('labs', false).kind, 'consumer');
 });

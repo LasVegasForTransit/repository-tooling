@@ -1,4 +1,5 @@
 import { execFileSync } from 'node:child_process';
+import { realpathSync } from 'node:fs';
 import { appendFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
@@ -17,19 +18,12 @@ import {
 /** Days a repository may trail the latest release while its update pull request runs. */
 export const GRACE_DAYS = 3;
 
-export const SETTINGS = {
-  allow_merge_commit: false,
-  allow_squash_merge: false,
-  allow_rebase_merge: true,
-  allow_auto_merge: true,
-  delete_branch_on_merge: true,
-} as const;
-
 export interface RepositoryState {
   name: string;
   release: string | null;
   pluginRef: string | null;
-  settings: Partial<Record<keyof typeof SETTINGS, boolean>>;
+  /** The repository runs `Standard update`, and `ci.yml` accepts the dispatch it sends. */
+  selfUpdating: boolean;
   rulesets: string[];
   updates: { number: number; headRefName: string; failing: boolean }[];
 }
@@ -79,10 +73,11 @@ export function findings(state: RepositoryState, releases: Release[], now: numbe
       `.claude/settings.json pins the contribution plugin to ${state.pluginRef ?? 'nothing'}, not ${state.release}.`,
     );
   }
-  for (const [key, expected] of Object.entries(SETTINGS)) {
-    const actual = state.settings[key as keyof typeof SETTINGS];
-    if (actual !== expected) add('settings', `${key} is ${String(actual)}; expected ${expected}.`);
-  }
+  if (!state.selfUpdating)
+    add(
+      'self-update',
+      'it cannot update itself: copy .github/workflows/standard-update.yml from the example and give ci.yml a workflow_dispatch trigger.',
+    );
   if (!state.rulesets.includes('org-standard'))
     add('ruleset', 'the org-standard ruleset is missing.');
   for (const update of state.updates) {
@@ -153,9 +148,6 @@ export function pluginRef(settings: string | null): string | null {
 function readState(entry: RegistryEntry): RepositoryState {
   const manifest = readRaw(entry.name, '.lvbt/web-platform.json');
   const release = manifest ? (JSON.parse(manifest) as { release: string | null }).release : null;
-  const settings = JSON.parse(
-    gh(['api', `repos/${OWNER}/${entry.name}`]),
-  ) as RepositoryState['settings'];
   const rulesets = (
     JSON.parse(gh(['api', `repos/${OWNER}/${entry.name}/rulesets`])) as { name: string }[]
   ).map(({ name }) => name);
@@ -194,9 +186,9 @@ function readState(entry: RegistryEntry): RepositoryState {
     name: entry.name,
     release,
     pluginRef: pluginRef(readRaw(entry.name, '.claude/settings.json')),
-    settings: Object.fromEntries(
-      Object.keys(SETTINGS).map((key) => [key, settings[key as keyof typeof SETTINGS]]),
-    ),
+    selfUpdating:
+      readRaw(entry.name, '.github/workflows/standard-update.yml') !== null &&
+      /^\s{2}workflow_dispatch:/m.test(readRaw(entry.name, '.github/workflows/ci.yml') ?? ''),
     rulesets,
     updates,
   };
@@ -260,7 +252,7 @@ export async function main(args: string[]): Promise<void> {
   if (open.length > 0) process.exitCode = 1;
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+if (process.argv[1] && import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href) {
   try {
     await main(process.argv.slice(2));
   } catch (error) {

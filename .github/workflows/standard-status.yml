@@ -1,22 +1,21 @@
 # Checks every repository in standards/repositories.json against the latest
 # release and the organization settings, and fails when one has drifted:
 # behind the latest release for more than three days, an unreleased vendored
-# commit on main, a failing update pull request, a stale plugin ref, or merge
-# settings that differ from the standard. The job summary lists every
-# repository. A documented, unexpired exception in repositories.json silences
-# one rule for one repository.
+# commit on main, a failing update pull request, a stale plugin ref, a missing
+# org-standard ruleset, or a repository that cannot update itself. The job
+# summary lists every repository. A documented, unexpired exception in
+# repositories.json silences one rule for one repository. Every repository is
+# public, so the workflow's own token reads everything it needs.
 name: Standard status
 
 on:
   schedule:
     - cron: '47 14 * * *'
-  workflow_run:
-    workflows: [Publish standard]
-    types: [completed]
   workflow_dispatch:
 
 permissions:
   contents: read
+  pull-requests: read
 
 jobs:
   status:
@@ -24,14 +23,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Create the standard bot token
-        id: bot
-        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
-        with:
-          client-id: ${{ vars.LVBT_BOT_CLIENT_ID }}
-          private-key: ${{ secrets.LVBT_BOT_PRIVATE_KEY }}
-          owner: ${{ github.repository_owner }}
-
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -44,5 +35,5 @@ jobs:
 
       - name: Report drift
         env:
-          GH_TOKEN: ${{ steps.bot.outputs.token }}
+          GH_TOKEN: ${{ github.token }}
         run: node standards/status.ts

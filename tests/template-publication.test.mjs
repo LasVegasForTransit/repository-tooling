@@ -78,10 +78,13 @@ test('browser templates type their Node.js test configuration', async () => {
 
 test('template publication respects protected branches through a reviewed pull request', async () => {
   const workflow = await readFile(
-    path.join(root, '.github/workflows/publish-standard.yml'),
+    path.join(root, 'examples/basic/.github/workflows/standard-update.yml'),
     'utf8',
   );
-  const propagate = await readFile(path.join(root, 'standards/propagate.ts'), 'utf8');
+  const propagate = [
+    await readFile(path.join(root, 'standards/propagate.ts'), 'utf8'),
+    await readFile(path.join(root, 'standards/propose.ts'), 'utf8'),
+  ].join('\n');
 
   assert.match(propagate, /automation\/repository-standard-/);
   assert.match(propagate, /github-create\.mjs/);
@@ -90,7 +93,7 @@ test('template publication respects protected branches through a reviewed pull r
   assert.match(propagate, /'pr', 'list'/);
   assert.match(propagate, /'pr', 'edit'/);
   assert.match(propagate, /standards\/template-publication\.ts/);
-  assert.match(workflow, /LVBT_BOT_PRIVATE_KEY/);
+  assert.match(workflow, /self-update\.ts/);
   assert.doesNotMatch(`${workflow}\n${propagate}`, /HEAD:main/);
 });
 
