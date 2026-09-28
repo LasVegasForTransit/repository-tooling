@@ -26,5 +26,6 @@ Commit scopes are optional. The repository's [`.lvbt/commit-scopes.txt`](.lvbt/c
 file is the complete list of durable boundaries for this repository. Do not invent a scope for a
 feature, file, or task; omit it when the change crosses boundaries.
 
-Nothing is published or tagged from this repository without the maintainer's explicit approval. The
-publish workflow runs only by hand.
+Nothing is published or tagged from this repository without the maintainer's explicit approval.
+`Publish packages` runs only by hand. Pushing a release tag runs `Publish standard`, which opens a
+self-merging update pull request in every repository in `standards/repositories.json`.

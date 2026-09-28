@@ -20,7 +20,8 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "test": "node --import tsx --test --test-concurrency=1 'tests/**/*.test.mjs' && pnpm --filter @lasvegasfortransit/web-platform test",
-    "prepare": "git config --local core.hooksPath .githooks 2>/dev/null || true"
+    "prepare": "git config --local core.hooksPath .githooks 2>/dev/null || true",
+    "standards:status": "node standards/status.ts"
   },
   "devDependencies": {
     "@astrojs/check": "catalog:",

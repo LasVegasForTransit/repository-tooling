@@ -78,19 +78,20 @@ test('browser templates type their Node.js test configuration', async () => {
 
 test('template publication respects protected branches through a reviewed pull request', async () => {
   const workflow = await readFile(
-    path.join(root, '.github/workflows/publish-template.yml'),
+    path.join(root, '.github/workflows/publish-standard.yml'),
     'utf8',
   );
+  const propagate = await readFile(path.join(root, 'standards/propagate.ts'), 'utf8');
 
-  assert.match(workflow, /automation\/repository-standard-/);
-  assert.match(workflow, /github-create\.mjs[\s\S]*\bpr\b/);
-  assert.match(workflow, /--body-file/);
-  assert.match(workflow, /--base main/);
-  assert.match(workflow, /gh pr list/);
-  assert.match(workflow, /gh pr edit/);
-  assert.match(workflow, /TEMPLATE_PUBLISH_TOKEN/);
-  assert.match(workflow, /node source\/standards\/template-publication\.ts/);
-  assert.doesNotMatch(workflow, /git push origin HEAD:main/);
+  assert.match(propagate, /automation\/repository-standard-/);
+  assert.match(propagate, /github-create\.mjs/);
+  assert.match(propagate, /'--body-file'/);
+  assert.match(propagate, /'--base', 'main'/);
+  assert.match(propagate, /'pr', 'list'/);
+  assert.match(propagate, /'pr', 'edit'/);
+  assert.match(propagate, /standards\/template-publication\.ts/);
+  assert.match(workflow, /LVBT_BOT_PRIVATE_KEY/);
+  assert.doesNotMatch(`${workflow}\n${propagate}`, /HEAD:main/);
 });
 
 test('template publication vendors one exact release and is byte-for-byte idempotent', async (t) => {

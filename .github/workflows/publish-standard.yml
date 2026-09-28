@@ -1,0 +1,142 @@
+# Moves every repository in standards/repositories.json to a release of the
+# standard. Each template is regenerated from its example; each consumer runs
+# the release's own updater. Every repository gets one pull request on
+# automation/repository-standard-<tag>, which merges itself once Validate
+# passes. A newer release closes the older pull requests.
+#
+# Runs when a release tag is pushed, by hand for any stable tag, and daily for
+# the latest release so an update branch that fell behind main is rebuilt.
+# A branch someone pushed a fix to is left as it is.
+#
+# Needs the LVBT standard bot GitHub App: the LVBT_BOT_CLIENT_ID repository
+# variable and the LVBT_BOT_PRIVATE_KEY secret. See
+# docs/how-to/set-up-the-standard-bot.md.
+name: Publish standard
+
+on:
+  push:
+    tags: ['v[0-9]+.[0-9]+.[0-9]+']
+  schedule:
+    - cron: '17 14 * * *'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: The release tag to publish (for example v0.4.5); empty means the latest
+        required: false
+      repository:
+        description: One repository to update; empty means every repository
+        required: false
+
+permissions:
+  contents: read
+  packages: read
+
+concurrency:
+  group: publish-standard
+  cancel-in-progress: false
+
+jobs:
+  targets:
+    name: Resolve release and repositories
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      tag: ${{ steps.resolve.outputs.tag }}
+      repositories: ${{ steps.resolve.outputs.repositories }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+          persist-credentials: false
+
+      - name: Resolve
+        id: resolve
+        shell: bash
+        env:
+          INPUT_TAG: ${{ inputs.tag }}
+          INPUT_REPOSITORY: ${{ inputs.repository }}
+          PUSHED_TAG: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
+        run: |
+          set -euo pipefail
+          TAG="${INPUT_TAG:-$PUSHED_TAG}"
+          if [ -z "$TAG" ]; then
+            TAG=$(git tag --list 'v*' --sort=-v:refname | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | head -n 1)
+          fi
+          if ! [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Publishing the standard requires a stable release tag, not '${TAG}'." >&2
+            exit 1
+          fi
+          REPOSITORIES=$(jq -c --arg only "$INPUT_REPOSITORY" \
+            '[.repositories[] | select(.kind != "source") | .name | select($only == "" or . == $only)]' \
+            standards/repositories.json)
+          if [ "$REPOSITORIES" = "[]" ]; then
+            echo "No propagation target is named '${INPUT_REPOSITORY}'." >&2
+            exit 1
+          fi
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "repositories=${REPOSITORIES}" >> "$GITHUB_OUTPUT"
+
+  publish:
+    name: Update ${{ matrix.repository }}
+    needs: targets
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        repository: ${{ fromJSON(needs.targets.outputs.repositories) }}
+    env:
+      TAG: ${{ needs.targets.outputs.tag }}
+      REPOSITORY: ${{ matrix.repository }}
+    steps:
+      - name: Create the standard bot token
+        id: bot
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ vars.LVBT_BOT_CLIENT_ID }}
+          private-key: ${{ secrets.LVBT_BOT_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: ${{ matrix.repository }}
+
+      - name: Checkout the propagation tooling
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          path: tooling
+
+      - name: Checkout the release
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ env.TAG }}
+          persist-credentials: false
+          path: source
+
+      - name: Checkout ${{ matrix.repository }}
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ github.repository_owner }}/${{ matrix.repository }}
+          token: ${{ steps.bot.outputs.token }}
+          fetch-depth: 0
+          path: target
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+        with:
+          version: 11.25.0
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: tooling/package.json
+
+      - name: Open the update pull request
+        shell: bash
+        env:
+          GH_TOKEN: ${{ steps.bot.outputs.token }}
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          node tooling/standards/propagate.ts \
+            --source source --target target --repository "$REPOSITORY" --release "$TAG"
