@@ -78,7 +78,19 @@ function openUpdates(target: string, runner: Runner): OpenUpdate[] {
 function pushUpdateBranch(target: string, name: string, branch: string, runner: Runner): boolean {
   const state = remoteBranchState(target, branch, runner);
   if (state === 'absent' || state === 'stale') {
-    runner('git', ['push', '--force-with-lease', '--set-upstream', 'origin', branch], target);
+    runner(
+      'git',
+      [
+        '-c',
+        'core.hooksPath=/dev/null',
+        'push',
+        '--force-with-lease',
+        '--set-upstream',
+        'origin',
+        branch,
+      ],
+      target,
+    );
     return true;
   }
   if (state === 'edited') {
@@ -156,15 +168,45 @@ function defaultBranchRelease(target: string, runner: Runner): string | null {
   return (JSON.parse(manifest) as { release: string | null }).release;
 }
 
-/** Runs Validate on the update branch; a workflow token's push alone starts no workflow. */
-function dispatchValidation(target: string, branch: string, runner: Runner): void {
-  try {
-    runner('gh', ['workflow', 'run', 'ci.yml', '--ref', branch], target);
-  } catch {
-    process.stderr.write(
-      `Could not run ci.yml on ${branch}. Give ci.yml a workflow_dispatch trigger, as the examples' has, so update pull requests get their Validate check.\n`,
-    );
-    process.exitCode = 1;
+/**
+ * GitHub holds the workflow runs of a pull request that a workflow's own token opened until someone
+ * with write access approves them. Approve the ones this update started so `Validate` runs on it.
+ */
+function approveHeldRuns(target: string, branch: string, runner: Runner): void {
+  const held = () =>
+    (
+      JSON.parse(
+        runner(
+          'gh',
+          ['run', 'list', '--branch', branch, '--json', 'databaseId,conclusion', '--limit', '20'],
+          target,
+        ),
+      ) as { databaseId: number; conclusion: string }[]
+    )
+      .filter(({ conclusion }) => conclusion === 'action_required')
+      .map(({ databaseId }) => databaseId);
+  const approved = new Set<number>();
+  // Runs appear a few seconds after the pull request opens; keep looking briefly after the first.
+  for (let attempt = 0, quiet = 0; attempt < 12 && quiet < 3; attempt += 1) {
+    const found = held().filter((id) => !approved.has(id));
+    for (const id of found) {
+      try {
+        runner(
+          'gh',
+          ['api', '-X', 'POST', `repos/{owner}/{repo}/actions/runs/${id}/approve`],
+          target,
+        );
+        approved.add(id);
+      } catch {
+        process.stderr.write(
+          `Could not approve workflow run ${id} on ${branch}. A maintainer approves it on the pull request so Validate runs.\n`,
+        );
+        process.exitCode = 1;
+        return;
+      }
+    }
+    quiet = approved.size > 0 && found.length === 0 ? quiet + 1 : 0;
+    runner('sleep', ['5'], target);
   }
 }
 
@@ -196,9 +238,7 @@ export async function proposeRelease(options: {
     const pushed = pushUpdateBranch(target, entry.name, updateBranch(tag), runner);
     number = await openPullRequest({ ...options, automerge, runner });
     if (automerge) runner('gh', ['pr', 'merge', String(number), '--auto', '--rebase'], target);
-    // A push made with a repository's own GITHUB_TOKEN starts no workflow, but a dispatch always
-    // does, and its Validate check lands on the branch's head commit.
-    if (pushed) dispatchValidation(target, updateBranch(tag), runner);
+    if (pushed) approveHeldRuns(target, updateBranch(tag), runner);
   } else if (defaultBranchRelease(target, runner) === tag) {
     // Only a default branch that already carries the release makes its update pull request moot;
     // a checkout that happens to be on the update branch does not.

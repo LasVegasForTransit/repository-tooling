@@ -32,8 +32,7 @@ Copy these from the example, overwriting your versions:
 - `.githooks/commit-msg`, `.githooks/prepare-commit-msg`, `.githooks/pre-push`
 - `.codex/hooks.json` and `.agents/plugins/marketplace.json`
 - `.github/actions/setup-node-pnpm/action.yml` and `.github/renovate.json`
-- `.github/workflows/standard-update.yml`, and give your `ci.yml` a `workflow_dispatch` trigger so
-  the update pull requests it opens run `Validate`
+- `.github/workflows/standard-update.yml`
 - `.editorconfig`, `.prettierignore`, `prettier.config.js`
 
 Merge these by hand, keeping what the repository already has:

@@ -48,11 +48,13 @@ own token:
 - Every other repository runs the release's own updater, so the release's migrations apply in one
   pass however old the repository's current release is.
 
-A patch release's pull request merges itself once `Validate` passes. A minor release's pull request
-waits for a maintainer to merge it, because a minor release can change how a repository works. A
-newer release closes the older pull requests it replaces, and an update branch that fell behind
-`main` is rebuilt, unless someone pushed a fix to it. To roll a release out sooner, run
-`Standard update` by hand in each repository's Actions tab.
+A patch release's pull request merges itself once `Validate` passes. GitHub holds the workflow runs
+of a pull request that a workflow's own token opened until someone approves them; `Standard update`
+approves the runs its own update started, so `Validate` runs without anyone clicking. A minor
+release's pull request waits for a maintainer to merge it, because a minor release can change how a
+repository works. A newer release closes the older pull requests it replaces, and an update branch
+that fell behind `main` is rebuilt, unless someone pushed a fix to it. To roll a release out sooner,
+run `Standard update` by hand in each repository's Actions tab.
 
 A workflow's own token may not change workflow files. When a release changes one, such as an
 example's `ci.yml`, the update still opens its pull request without that file, and the run fails and
@@ -74,8 +76,8 @@ The `Standard status` workflow runs daily. Its job summary lists each repository
 update pull request, and it fails when a repository has drifted: behind the latest release for more
 than three days, an unreleased vendored commit on `main`, a failing update pull request, a
 contribution plugin ref that differs from the vendored release, a missing `org-standard` ruleset, or
-no way to update itself (no `standard-update.yml`, or a `ci.yml` without `workflow_dispatch`). Run
-the same check locally with `pnpm standards:status`.
+no way to update itself (no `standard-update.yml`). Run the same check locally with
+`pnpm standards:status`.
 
 A failing update pull request means the repository needs a change the updater could not make. Fix it
 on the update branch; the pull request then merges itself. A repository that must diverge from one

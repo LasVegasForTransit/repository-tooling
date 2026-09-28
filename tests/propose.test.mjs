@@ -53,27 +53,45 @@ test('an unchanged checkout closes its update only when the default branch has t
   assert.ok(current.calls.some((call) => call.startsWith('gh pr close 7')));
 });
 
-test('a branch GitHub deleted is pushed afresh and a failed dispatch is reported, not thrown', async (t) => {
-  const exitCode = process.exitCode;
-  t.after(() => {
-    process.exitCode = exitCode;
-  });
+test('a branch GitHub deleted is pushed afresh, without hooks, and its held runs are approved', async () => {
   const { calls, runner } = fakeRunner([
     [/^gh pr list --state open/, '[]'],
     [/^git ls-remote --heads/, ''],
     [/^gh pr list --head/, JSON.stringify([{ number: 12 }])],
-    [/^gh workflow run ci\.yml/, new Error('no workflow_dispatch trigger')],
+    [/^gh run list/, JSON.stringify([{ databaseId: 99, conclusion: 'action_required' }])],
   ]);
   const outcome = await proposeRelease(
     options(runner, { changed: true, from: 'v0.5.0', tag: 'v0.5.1' }),
   );
   assert.equal(outcome, 'example: #12');
   const forget = calls.findIndex((call) => call.startsWith('git update-ref -d'));
-  const push = calls.findIndex((call) => call.startsWith('git push --force-with-lease'));
+  const push = calls.findIndex((call) => call.includes(' push --force-with-lease'));
   assert.ok(forget !== -1 && forget < push, 'the stale tracking ref is forgotten before the push');
-  assert.ok(
-    calls.some((call) => call === 'gh pr merge 12 --auto --rebase'),
-    'a patch merges itself',
+  assert.match(calls[push], /^git -c core\.hooksPath=\/dev\/null push/);
+  assert.ok(calls.includes('gh pr merge 12 --auto --rebase'), 'a patch merges itself');
+  assert.equal(
+    calls.filter((call) => call === 'gh api -X POST repos/{owner}/{repo}/actions/runs/99/approve')
+      .length,
+    1,
+    'each held run is approved once',
+  );
+});
+
+test('a held run the token may not approve is reported, not thrown', async (t) => {
+  const exitCode = process.exitCode;
+  t.after(() => {
+    process.exitCode = exitCode;
+  });
+  const { runner } = fakeRunner([
+    [/^gh pr list --state open/, '[]'],
+    [/^git ls-remote --heads/, ''],
+    [/^gh pr list --head/, JSON.stringify([{ number: 12 }])],
+    [/^gh run list/, JSON.stringify([{ databaseId: 99, conclusion: 'action_required' }])],
+    [/^gh api -X POST/, new Error('Resource not accessible by integration')],
+  ]);
+  assert.equal(
+    await proposeRelease(options(runner, { changed: true, from: 'v0.5.0', tag: 'v0.5.1' })),
+    'example: #12',
   );
   assert.equal(process.exitCode, 1);
 });

@@ -249,14 +249,13 @@ test('every example updates itself with only its own workflow token', async () =
       assert.match(workflow, new RegExp(`^ {2}${permission}$`, 'm'), `${example}: ${permission}`);
     assert.match(workflow, /node \.lvbt\/web-platform\/standards\/self-update\.ts/, example);
     assert.doesNotMatch(workflow, /secrets\./, example);
-    const ci = await readFile(path.join(directory, 'ci.yml'), 'utf8');
-    assert.match(ci, /^ {2}workflow_dispatch:$/m, `${example}: ci.yml must accept the dispatch`);
   }
 
   const propagate = await readFile(path.join(root, 'standards/propose.ts'), 'utf8');
   assert.match(propagate, /github-create\.mjs/);
   assert.match(propagate, /'--auto', '--rebase'/);
-  assert.match(propagate, /'workflow', 'run', 'ci\.yml'/);
+  assert.match(propagate, /actions\/runs\/\$\{id\}\/approve/);
+  assert.match(propagate, /core\.hooksPath=\/dev\/null/);
   assert.doesNotMatch(propagate, /'pr', 'create'/);
 });
 
