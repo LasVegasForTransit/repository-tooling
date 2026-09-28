@@ -1,9 +1,13 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
+import { mkdtemp, readFile, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
-import test from 'node:test';
+import test, { after } from 'node:test';
+
+// Every temporary directory lives under one root that is removed after the file's tests.
+const scratch = await mkdtemp(path.join(tmpdir(), 'lvbt-github-create-tests-'));
+after(() => rm(scratch, { recursive: true, force: true }));
 
 const repositoryRoot = path.resolve(import.meta.dirname, '..');
 const helper = path.join(
@@ -12,7 +16,7 @@ const helper = path.join(
 );
 
 async function bodyFile(body) {
-  const directory = await mkdtemp(path.join(tmpdir(), 'lvbt-github-create-'));
+  const directory = await mkdtemp(path.join(scratch, 'github-create-'));
   const file = path.join(directory, 'body.md');
   await writeFile(file, body);
   return file;
@@ -27,7 +31,7 @@ function run(args, env = {}) {
 }
 
 async function fakeGh(source) {
-  const directory = await mkdtemp(path.join(tmpdir(), 'lvbt-fake-gh-'));
+  const directory = await mkdtemp(path.join(scratch, 'fake-gh-'));
   await writeFile(path.join(directory, 'gh'), `#!/usr/bin/env node\n${source}`, {
     mode: 0o755,
   });
@@ -237,7 +241,7 @@ Both imports remain.
 # Additional context
 `;
   const file = await bodyFile(body);
-  const directory = await mkdtemp(path.join(tmpdir(), 'lvbt-gh-log-'));
+  const directory = await mkdtemp(path.join(scratch, 'gh-log-'));
   const log = path.join(directory, 'calls.log');
   const bin = await fakeGh(`
 const fs = require('node:fs');
