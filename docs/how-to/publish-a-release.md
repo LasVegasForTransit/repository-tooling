@@ -36,25 +36,26 @@ Create the GitHub release from the tag with `gh release create v0.3.0 --generate
 the notes so the first line says what changes for a repository that updates. The release notes page
 `docs/reference/release-<version>.md` belongs in the release commit; `pnpm check` fails without it.
 
-Pushing the tag runs the `Publish standard` workflow. It opens one pull request in every repository
-listed in [`standards/repositories.json`](../../standards/repositories.json), on the branch
-`automation/repository-standard-<tag>`:
+Nothing else is needed to roll the release out. Every repository runs its own `Standard update`
+workflow each day. When it finds a release newer than the one in `.lvbt/web-platform.json`, it opens
+one pull request on the branch `automation/repository-standard-<tag>`, using only that workflow's
+own token:
 
-- Each template repository is regenerated from its example (`examples/basic` for
+- A template repository is regenerated from its example (`examples/basic` for
   [LasVegasForTransit/template-basic](https://github.com/LasVegasForTransit/template-basic),
   `examples/with-astro` for `template-with-astro`, and `examples/with-vite-react` for
   `template-with-vite-react`). These power GitHub's "Use this template" button.
-- Each other repository runs the release's own updater, so the release's migrations apply in one
+- Every other repository runs the release's own updater, so the release's migrations apply in one
   pass however old the repository's current release is.
 
-Every pull request merges itself once its `Validate` check passes; approving the release is the
-review. A newer release closes the older pull requests it replaces. The workflow also runs daily for
-the latest release, which rebuilds an update branch that fell behind `main` and leaves alone a
-branch that someone pushed a fix to.
+Each pull request merges itself once `Validate` passes; approving the release is the review. A newer
+release closes the older pull requests it replaces, and an update branch that fell behind `main` is
+rebuilt, unless someone pushed a fix to it. To roll a release out sooner, run `Standard update` by
+hand in each repository's Actions tab.
 
-The workflow authenticates as the LVBT standard bot; [set it up](set-up-the-standard-bot.md) once
-before the first release. Manual dispatch accepts stable release tags only; development commits and
-prerelease tags are never published.
+A workflow's own token may not change workflow files. When a release changes one, such as an
+example's `ci.yml`, the update still opens its pull request without that file, and the run fails and
+names the file to copy by hand.
 
 ## 3. Publish to GitHub Packages
 
@@ -64,12 +65,12 @@ pnpm configuration to GitHub Packages; CI uses its repository token.
 
 ## 4. Watch the repositories update
 
-The `Standard status` workflow runs daily and after every publication. Its job summary lists each
-repository's release and open update pull request, and it fails when a repository has drifted:
-behind the latest release for more than three days, an unreleased vendored commit on `main`, a
-failing update pull request, a contribution plugin ref that differs from the vendored release, or
-merge settings that differ from the standard. Run the same check locally with
-`pnpm standards:status`.
+The `Standard status` workflow runs daily. Its job summary lists each repository's release and open
+update pull request, and it fails when a repository has drifted: behind the latest release for more
+than three days, an unreleased vendored commit on `main`, a failing update pull request, a
+contribution plugin ref that differs from the vendored release, a missing `org-standard` ruleset, or
+no way to update itself (no `standard-update.yml`, or a `ci.yml` without `workflow_dispatch`). Run
+the same check locally with `pnpm standards:status`.
 
 A failing update pull request means the repository needs a change the updater could not make. Fix it
 on the update branch; the pull request then merges itself. A repository that must diverge from one

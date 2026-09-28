@@ -131,6 +131,18 @@ test('the shared validator rejects catch-all scopes', () => {
   assert.match(result.stderr, /scope.*repo.*allowed/i);
 });
 
+test('the shared validator rejects ci as a type and as a scope', async () => {
+  const repository = await repositoryWithScopes(['ci', 'site']);
+  const asType = validateSubject('ci: pin the checkout action', repository);
+  const asScope = validateSubject('chore(ci): pin the checkout action', repository);
+
+  assert.equal(asType.status, 1);
+  assert.match(asType.stderr, /Type `ci` is retired.*`chore`/);
+  assert.equal(asScope.status, 1);
+  assert.match(asScope.stderr, /Scope `ci` is retired/);
+  assert.equal(validateSubject('chore: pin the checkout action', repository).status, 0);
+});
+
 test('the shared validator rejects a subject longer than 72 characters', () => {
   const subject = `chore(dx): ${'a'.repeat(63)}`;
   const result = validateSubject(subject);

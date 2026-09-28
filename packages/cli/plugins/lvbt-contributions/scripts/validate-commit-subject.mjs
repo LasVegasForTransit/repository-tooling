@@ -20,6 +20,14 @@ export const commitTypes = Object.freeze(
 
 const subjectPattern = /^(?<type>[a-z]+)(?:\((?<scope>[a-z0-9-]+)\))?: \S.*$/;
 
+/**
+ * Names that are neither a kind of change nor a boundary of a repository. `ci` behaved exactly like
+ * `chore` in every changelog and release tool, so it only added a choice to argue about.
+ */
+export const retiredNames = Object.freeze({
+  ci: 'Use `chore` for workflow and CI configuration changes.',
+});
+
 function choices(values) {
   return values.map((value) => `\`${value}\``).join(', ');
 }
@@ -76,6 +84,12 @@ export function commitSubjectError(subject) {
   }
 
   const { type, scope } = match.groups;
+  if (Object.hasOwn(retiredNames, type)) {
+    return `Type \`${type}\` is retired. ${retiredNames[type]}`;
+  }
+  if (scope && Object.hasOwn(retiredNames, scope)) {
+    return `Scope \`${scope}\` is retired. ${retiredNames[scope]} Omit the scope or name the boundary the change serves.`;
+  }
   if (!commitTypes.includes(type)) {
     return `Type \`${type}\` is not allowed. Use ${choices(commitTypes)}.`;
   }

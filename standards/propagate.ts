@@ -1,9 +1,8 @@
 import { execFileSync } from 'node:child_process';
 import { existsSync, realpathSync } from 'node:fs';
-import { readFile, writeFile } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import os from 'node:os';
 import path from 'node:path';
-import { pathToFileURL } from 'node:url';
-import { parseArgs } from 'node:util';
 
 export const OWNER = 'LasVegasForTransit';
 export const BRANCH_PREFIX = 'automation/repository-standard-';
@@ -122,7 +121,7 @@ export function pullRequestBody(options: {
     '',
     `${change} ${notes}`,
     '',
-    'This pull request was opened by the `Publish standard` workflow when the release was tagged, and it merges itself once `Validate` passes. If `Validate` fails, fix the repository on this branch; a newer release closes this pull request and opens its own.',
+    "This pull request was opened by this repository's `Standard update` workflow, and it merges itself once `Validate` passes. If `Validate` fails, fix the repository on this branch; a newer release closes this pull request and opens its own.",
     '',
     '# Follow-ups',
     '',
@@ -135,9 +134,23 @@ export function commitMessage(tag: string): string {
   return `${pullRequestTitle(tag)}\n\nApply the reviewed ${tag} release with its own updater.\n`;
 }
 
-type Runner = (command: string, args: string[], cwd: string) => string;
+export type Runner = (command: string, args: string[], cwd: string) => string;
 
-const run: Runner = (command, args, cwd) =>
+/** Writes a file for git or gh to read, outside the checkout so no repository check sees it. */
+export async function withTemporaryFile<T>(content: string, use: (file: string) => T | Promise<T>) {
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'lvbt-propagate-'));
+  try {
+    const file = path.join(directory, 'content');
+    await writeFile(file, content);
+    return await use(file);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+}
+
+const WORKFLOWS = '.github/workflows';
+
+export const run: Runner = (command, args, cwd) =>
   execFileSync(command, args, {
     cwd,
     encoding: 'utf8',
@@ -152,6 +165,40 @@ async function currentRelease(target: string): Promise<string | null> {
 }
 
 /**
+ * Regenerates a template repository from its example with the release's own publication script.
+ * Publication rebuilds the lockfile too; keeping the published one makes pnpm resolve only what the
+ * release changed, so a re-run with no new release proposes nothing.
+ */
+async function publishTemplate(options: {
+  source: string;
+  target: string;
+  entry: RegistryEntry;
+  tag: string;
+  runner: Runner;
+}): Promise<void> {
+  const { source, target, entry, tag, runner } = options;
+  if (!entry.example) throw new Error(`${entry.name} is a template without an example.`);
+  const lockfile = path.join(target, 'pnpm-lock.yaml');
+  const published = existsSync(lockfile) ? await readFile(lockfile, 'utf8') : undefined;
+  runner(
+    'node',
+    [
+      path.join(source, 'standards/template-publication.ts'),
+      '--source',
+      source,
+      '--target',
+      target,
+      '--example',
+      entry.example,
+      '--release',
+      tag,
+    ],
+    target,
+  );
+  if (published !== undefined) await writeFile(lockfile, published);
+}
+
+/**
  * Applies a release to one checked-out repository with the release's own scripts and commits the
  * result on the release's update branch. Returns false when the repository already matches.
  */
@@ -161,9 +208,10 @@ export async function applyRelease(options: {
   entry: RegistryEntry;
   tag: string;
   install?: boolean;
+  skipWorkflows?: boolean;
   runner?: Runner;
-}): Promise<{ changed: boolean; reason?: string }> {
-  const { entry, tag, install = true, runner = run } = options;
+}): Promise<{ changed: boolean; reason?: string; skippedWorkflows?: string[] }> {
+  const { entry, tag, install = true, skipWorkflows = false, runner = run } = options;
   // A release's scripts only run as entry points when invoked by their real path.
   const source = realpathSync(options.source);
   const target = realpathSync(options.target);
@@ -173,30 +221,8 @@ export async function applyRelease(options: {
     return { changed: false, reason: `${entry.name} is already on ${release}, newer than ${tag}.` };
   }
 
-  if (entry.kind === 'template') {
-    if (!entry.example) throw new Error(`${entry.name} is a template without an example.`);
-    // Publication rebuilds the template from the example, lockfile included. Keeping the published
-    // lockfile makes pnpm resolve only what the release changed, so a re-run with no new release
-    // proposes nothing instead of whichever transitive packages were published since.
-    const lockfile = path.join(target, 'pnpm-lock.yaml');
-    const published = existsSync(lockfile) ? await readFile(lockfile, 'utf8') : undefined;
-    runner(
-      'node',
-      [
-        path.join(source, 'standards/template-publication.ts'),
-        '--source',
-        source,
-        '--target',
-        target,
-        '--example',
-        entry.example,
-        '--release',
-        tag,
-      ],
-      target,
-    );
-    if (published !== undefined) await writeFile(lockfile, published);
-  } else if (entry.kind === 'consumer') {
+  if (entry.kind === 'template') await publishTemplate({ source, target, entry, tag, runner });
+  else if (entry.kind === 'consumer')
     runner(
       'node',
       [
@@ -213,224 +239,47 @@ export async function applyRelease(options: {
       ],
       target,
     );
-  } else throw new Error(`${entry.name} does not receive releases.`);
+  else throw new Error(`${entry.name} does not receive releases.`);
 
   if (install) runner('pnpm', ['install', '--lockfile-only', '--no-frozen-lockfile'], target);
-  if (!runner('git', ['status', '--porcelain'], target)) return { changed: false };
+  const skippedWorkflows = skipWorkflows ? restoreWorkflows(target, runner) : [];
+  if (!runner('git', ['status', '--porcelain'], target))
+    return { changed: false, skippedWorkflows };
 
-  const message = path.join(target, '.git', 'lvbt-standard-commit-message');
-  await writeFile(message, commitMessage(tag));
   runner('git', ['switch', '-C', updateBranch(tag)], target);
   runner('git', ['restore', '--staged', '.'], target);
   runner('git', ['add', '-A'], target);
-  runner(
-    'git',
-    [
-      '-c',
-      'user.name=lvbt-bot',
-      '-c',
-      'user.email=noreply@lasvegasfortransit.org',
-      'commit',
-      '--quiet',
-      '--no-verify',
-      '-F',
-      message,
-    ],
-    target,
-  );
-  return { changed: true };
-}
-
-/**
- * Compares the freshly generated update commit with the branch already on GitHub. A branch that
- * carries someone's fix is kept; a bot-only branch is replaced when the base or the result moved.
- */
-function remoteBranchState(
-  target: string,
-  branch: string,
-  runner: Runner,
-): 'absent' | 'current' | 'stale' | 'edited' {
-  if (!runner('git', ['ls-remote', '--heads', 'origin', branch], target)) return 'absent';
-  runner(
-    'git',
-    ['fetch', '--quiet', 'origin', `+refs/heads/${branch}:refs/remotes/origin/${branch}`],
-    target,
-  );
-  const authors = runner('git', ['log', '--format=%ae', `HEAD^..origin/${branch}`], target).split(
-    '\n',
-  );
-  if (authors.some((author) => author !== 'noreply@lasvegasfortransit.org')) return 'edited';
-  const same = (ref: string) =>
-    runner('git', ['rev-parse', `origin/${branch}${ref}`], target) ===
-    runner('git', ['rev-parse', `HEAD${ref}`], target);
-  return same('^') && same('^{tree}') ? 'current' : 'stale';
-}
-
-function openUpdates(target: string, runner: Runner): OpenUpdate[] {
-  return JSON.parse(
+  await withTemporaryFile(commitMessage(tag), (message) =>
     runner(
-      'gh',
+      'git',
       [
-        'pr',
-        'list',
-        '--state',
-        'open',
-        '--base',
-        'main',
-        '--json',
-        'number,headRefName',
-        '--limit',
-        '100',
+        '-c',
+        'user.name=lvbt-bot',
+        '-c',
+        'user.email=noreply@lasvegasfortransit.org',
+        'commit',
+        '--quiet',
+        '--no-verify',
+        '-F',
+        message,
       ],
       target,
     ),
-  ) as OpenUpdate[];
-}
-
-/** Pushes a new or rebuilt update branch, or adopts the one on GitHub when it is current or fixed. */
-function pushUpdateBranch(target: string, name: string, branch: string, runner: Runner): void {
-  const state = remoteBranchState(target, branch, runner);
-  if (state === 'absent' || state === 'stale') {
-    runner('git', ['push', '--force-with-lease', '--set-upstream', 'origin', branch], target);
-    return;
-  }
-  if (state === 'edited') {
-    process.stdout.write(`${name}: keeping the fixes already pushed to ${branch}.\n`);
-    runner('git', ['reset', '--quiet', '--hard', `origin/${branch}`], target);
-  }
-  runner('git', ['branch', '--set-upstream-to', `origin/${branch}`], target);
-}
-
-/** Opens the update pull request with the shared helper, or refreshes the one already open. */
-async function openPullRequest(options: {
-  source: string;
-  tooling: string;
-  target: string;
-  entry: RegistryEntry;
-  tag: string;
-  runner: Runner;
-}): Promise<number> {
-  const { source, tooling, target, entry, tag, runner } = options;
-  const title = pullRequestTitle(tag);
-  const body = path.join(target, '.git', 'lvbt-standard-pr.md');
-  const hasNotes = existsSync(path.join(source, releaseNotesPath(tag)));
-  await writeFile(body, pullRequestBody({ tag, kind: entry.kind, hasNotes }));
-  const existing = JSON.parse(
-    runner(
-      'gh',
-      ['pr', 'list', '--head', updateBranch(tag), '--state', 'open', '--json', 'number'],
-      target,
-    ),
-  ) as { number: number }[];
-  if (existing[0]) {
-    runner(
-      'gh',
-      ['pr', 'edit', String(existing[0].number), '--title', title, '--body-file', body],
-      target,
-    );
-    return existing[0].number;
-  }
-  const helper = path.join(
-    tooling,
-    'packages/cli/plugins/lvbt-contributions/scripts/github-create.mjs',
   );
-  const args = [helper, 'pr', '--title', title, '--body-file', body, '--base', 'main', '--json'];
-  runner('node', [...args, '--dry-run'], target);
-  return (JSON.parse(runner('node', args, target)) as { number: number }).number;
+  return { changed: true, skippedWorkflows };
 }
 
 /**
- * Pushes the update branch, opens or refreshes its pull request, enables auto-merge, and closes
- * update pull requests for older releases.
+ * A repository's own GITHUB_TOKEN may not push workflow files, so a self-update leaves them as they
+ * are and reports which ones the release changed; a maintainer copies those by hand.
  */
-export async function proposeRelease(options: {
-  source: string;
-  tooling: string;
-  target: string;
-  entry: RegistryEntry;
-  tag: string;
-  changed: boolean;
-  runner?: Runner;
-}): Promise<string | undefined> {
-  const { target, entry, tag, changed, runner = run } = options;
-  const { superseded, newer } = planOpenUpdates(openUpdates(target, runner), tag);
-  if (newer.length > 0) {
-    process.stdout.write(`${entry.name}: a newer update is already open (#${newer[0]?.number}).\n`);
-    return undefined;
-  }
-
-  let number: number | undefined;
-  if (changed) {
-    pushUpdateBranch(target, entry.name, updateBranch(tag), runner);
-    number = await openPullRequest({ ...options, runner });
-    runner('gh', ['pr', 'merge', String(number), '--auto', '--rebase'], target);
-  }
-
-  for (const update of superseded) {
-    const comment = number
-      ? `Superseded by #${number}, which updates to ${tag}.`
-      : `Superseded: this repository already matches ${tag}.`;
-    runner(
-      'gh',
-      ['pr', 'close', String(update.number), '--comment', comment, '--delete-branch'],
-      target,
-    );
-  }
-  return number ? `${entry.name}: #${number}` : `${entry.name}: already on ${tag}`;
-}
-
-export async function main(args: string[]): Promise<void> {
-  const { values } = parseArgs({
-    args,
-    options: {
-      source: { type: 'string' },
-      target: { type: 'string' },
-      repository: { type: 'string' },
-      release: { type: 'string' },
-      'dry-run': { type: 'boolean' },
-    },
-  });
-  if (!values.source || !values.target || !values.repository || !values.release) {
-    throw new Error(
-      'Usage: --source <release checkout> --target <repository checkout> --repository <name> --release <tag> [--dry-run]',
-    );
-  }
-  const registry = await readRegistry();
-  const entry = propagationTargets(registry).find(({ name }) => name === values.repository);
-  if (!entry)
-    throw new Error(`${values.repository} is not a propagation target in repositories.json.`);
-
-  const source = path.resolve(values.source);
-  const target = path.resolve(values.target);
-  const result = await applyRelease({ source, target, entry, tag: values.release });
-  if (result.reason) {
-    process.stdout.write(`${result.reason}\n`);
-    return;
-  }
-  if (values['dry-run']) {
-    process.stdout.write(
-      result.changed
-        ? `${entry.name}: committed ${values.release} on ${updateBranch(values.release)}; not pushed (dry run).\n`
-        : `${entry.name}: already matches ${values.release}.\n`,
-    );
-    return;
-  }
-  const outcome = await proposeRelease({
-    source,
-    tooling: path.resolve(import.meta.dirname, '..'),
-    target,
-    entry,
-    tag: values.release,
-    changed: result.changed,
-  });
-  if (outcome) process.stdout.write(`${outcome}\n`);
-}
-
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  try {
-    await main(process.argv.slice(2));
-  } catch (error) {
-    process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
-    process.exitCode = 1;
-  }
+function restoreWorkflows(target: string, runner: Runner): string[] {
+  const changed = runner('git', ['status', '--porcelain', '--', WORKFLOWS], target)
+    .split('\n')
+    .filter(Boolean)
+    .map((line) => line.slice(3));
+  if (changed.length === 0) return [];
+  runner('git', ['checkout', '--quiet', 'HEAD', '--', WORKFLOWS], target);
+  runner('git', ['clean', '--quiet', '--force', '--', WORKFLOWS], target);
+  return changed;
 }

@@ -152,11 +152,8 @@ test('generated repositories authenticate GitHub Packages during installation', 
 });
 
 test('publication commits an installable frozen lockfile', async () => {
-  const workflow = await read('.github/workflows/publish-standard.yml');
   const propagate = await read('standards/propagate.ts');
 
-  assert.match(workflow, /uses: pnpm\/action-setup@/);
-  assert.match(workflow, /node-version-file: tooling\/package\.json/);
   assert.match(propagate, /'install', '--lockfile-only', '--no-frozen-lockfile'/);
   assert.ok(
     propagate.indexOf("'--lockfile-only'") < propagate.indexOf("'add', '-A'"),

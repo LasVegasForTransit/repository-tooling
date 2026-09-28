@@ -4,11 +4,14 @@ import { mkdir, readFile, readdir, rename, rm, stat, writeFile } from 'node:fs/p
 import path from 'node:path';
 
 import { syncAstroTypesBeforeLint } from './astro-sync.ts';
+import { syncCatalog } from './catalog.ts';
+import { retireCommitScopes } from './commit-scopes.ts';
 import {
   AGENT_WORKTREES,
   consumerIgnoreWarnings,
   syncConsumerIgnores,
 } from './consumer-ignores.ts';
+import { syncOwnedFiles, syncPluginRef } from './owned-files.ts';
 
 export interface WebPreset {
   formatVersion: number;
@@ -158,6 +161,10 @@ export async function applyPreset(root: string, bundle: WebPreset, dryRun = fals
         ...(await migrateLegacyPackageScope(root, dry)),
         ...(await syncConsumerIgnores(root, dry)),
         ...(await syncAstroTypesBeforeLint(root, dry)),
+        ...(await syncOwnedFiles(root, bundle, dry)),
+        ...(await syncPluginRef(root, bundle, dry)),
+        ...(await retireCommitScopes(root, dry)),
+        ...(await syncCatalog(root, bundle, dry)),
       ]),
     ].sort();
   // Planning first means a consumer file a migration can't read stops the update before any write.

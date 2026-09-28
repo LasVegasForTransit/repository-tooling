@@ -2,4 +2,3 @@
 # Omit a scope when a change crosses boundaries.
 tooling
 dx
-ci
