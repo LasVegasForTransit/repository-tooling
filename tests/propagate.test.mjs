@@ -253,7 +253,8 @@ test('every example updates itself with only its own workflow token', async () =
 
   const propagate = await readFile(path.join(root, 'standards/propose.ts'), 'utf8');
   assert.match(propagate, /github-create\.mjs/);
-  assert.match(propagate, /'--auto', '--rebase'/);
+  assert.match(propagate, /'--auto'/);
+  assert.match(propagate, /'--rebase'/);
   assert.match(propagate, /actions\/runs\/\$\{id\}\/approve/);
   assert.match(propagate, /core\.hooksPath=\/dev\/null/);
   assert.doesNotMatch(propagate, /'pr', 'create'/);

@@ -3,7 +3,11 @@ import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
-import test from 'node:test';
+import test, { after } from 'node:test';
+
+// Every temporary directory lives under one root that is removed after the file's tests.
+const scratch = await mkdtemp(path.join(tmpdir(), 'lvbt-hooks-tests-'));
+after(() => rm(scratch, { recursive: true, force: true }));
 
 const pluginRoot = path.resolve(import.meta.dirname, '../packages/cli/plugins/lvbt-contributions');
 const repositoryRoot = path.resolve(import.meta.dirname, '..');
@@ -24,14 +28,14 @@ function validateSubject(subject, cwd = repositoryRoot) {
 }
 
 async function repositoryWithScopes(scopes) {
-  const directory = await mkdtemp(path.join(tmpdir(), 'lvbt-commit-scopes-'));
+  const directory = await mkdtemp(path.join(scratch, 'commit-scopes-'));
   await mkdir(path.join(directory, '.lvbt'));
   await writeFile(path.join(directory, '.lvbt/commit-scopes.txt'), `${scopes.join('\n')}\n`);
   return directory;
 }
 
 async function commitMessageFile(subject) {
-  const directory = await mkdtemp(path.join(tmpdir(), 'lvbt-commit-message-'));
+  const directory = await mkdtemp(path.join(scratch, 'commit-message-'));
   const file = path.join(directory, 'COMMIT_EDITMSG');
   await writeFile(file, `${subject}\n`);
   return file;
@@ -117,7 +121,7 @@ test('the shared validator reads scopes from the calling repository', async () =
 });
 
 test('the shared validator requires each repository to declare its scopes', async () => {
-  const repository = await mkdtemp(path.join(tmpdir(), 'lvbt-commit-scopes-'));
+  const repository = await mkdtemp(path.join(scratch, 'commit-scopes-'));
   const result = validateSubject('chore: standardize contribution tooling', repository);
 
   assert.equal(result.status, 1);
@@ -165,7 +169,7 @@ test('the source repository commit hook rejects an invented scope', async () => 
 });
 
 test('the pre-push hook clears repository-local Git variables before checks', async () => {
-  const directory = await mkdtemp(path.join(tmpdir(), 'lvbt-pre-push-'));
+  const directory = await mkdtemp(path.join(scratch, 'pre-push-'));
   const resultFile = path.join(directory, 'result');
   const pnpm = path.join(directory, 'pnpm');
   await writeFile(
@@ -194,7 +198,7 @@ test('the pre-push hook clears repository-local Git variables before checks', as
 });
 
 test('the pre-push hook uploads Git LFS objects after the check, only where LFS is used', async (t) => {
-  const directory = await mkdtemp(path.join(tmpdir(), 'lvbt-pre-push-lfs-'));
+  const directory = await mkdtemp(path.join(scratch, 'pre-push-lfs-'));
   t.after(() => rm(directory, { recursive: true, force: true }));
   const repository = path.join(directory, 'repository');
   const log = path.join(directory, 'log');

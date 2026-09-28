@@ -58,6 +58,7 @@ test('a branch GitHub deleted is pushed afresh, without hooks, and its held runs
     [/^gh pr list --state open/, '[]'],
     [/^git ls-remote --heads/, ''],
     [/^gh pr list --head/, JSON.stringify([{ number: 12 }])],
+    [/rules\/branches\/main/, JSON.stringify([{ type: 'pull_request' }])],
     [/^gh run list/, JSON.stringify([{ databaseId: 99, conclusion: 'action_required' }])],
   ]);
   const outcome = await proposeRelease(
@@ -86,6 +87,7 @@ test('a held run the token may not approve is reported, not thrown', async (t) =
     [/^gh pr list --state open/, '[]'],
     [/^git ls-remote --heads/, ''],
     [/^gh pr list --head/, JSON.stringify([{ number: 12 }])],
+    [/rules\/branches\/main/, '[]'],
     [/^gh run list/, JSON.stringify([{ databaseId: 99, conclusion: 'action_required' }])],
     [/^gh api -X POST/, new Error('Resource not accessible by integration')],
   ]);
@@ -94,4 +96,17 @@ test('a held run the token may not approve is reported, not thrown', async (t) =
     'example: #12',
   );
   assert.equal(process.exitCode, 1);
+});
+
+test('a repository with a merge queue gets auto-merge without a method, so it enters the queue', async () => {
+  const { calls, runner } = fakeRunner([
+    [/^gh pr list --state open/, '[]'],
+    [/^git ls-remote --heads/, ''],
+    [/^gh pr list --head/, JSON.stringify([{ number: 12 }])],
+    [/rules\/branches\/main/, JSON.stringify([{ type: 'pull_request' }, { type: 'merge_queue' }])],
+    [/^gh run list/, '[]'],
+  ]);
+  await proposeRelease(options(runner, { changed: true, from: 'v0.5.0', tag: 'v0.5.1' }));
+  assert.ok(calls.includes('gh pr merge 12 --auto'));
+  assert.ok(!calls.some((call) => call.includes('--auto --rebase')));
 });
