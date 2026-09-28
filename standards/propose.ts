@@ -29,7 +29,12 @@ function remoteBranchState(
   branch: string,
   runner: Runner,
 ): 'absent' | 'current' | 'stale' | 'edited' {
-  if (!runner('git', ['ls-remote', '--heads', 'origin', branch], target)) return 'absent';
+  if (!runner('git', ['ls-remote', '--heads', 'origin', branch], target)) {
+    // A tracking ref left from a branch GitHub has since deleted would make --force-with-lease
+    // refuse the push, so forget it.
+    runner('git', ['update-ref', '-d', `refs/remotes/origin/${branch}`], target);
+    return 'absent';
+  }
   runner(
     'git',
     ['fetch', '--quiet', 'origin', `+refs/heads/${branch}:refs/remotes/origin/${branch}`],
@@ -136,6 +141,33 @@ function createOrEdit(options: {
   return (JSON.parse(runner('node', args, target)) as { number: number }).number;
 }
 
+/** The release the repository's default branch vendors, read from GitHub rather than the checkout. */
+function defaultBranchRelease(target: string, runner: Runner): string | null {
+  const manifest = runner(
+    'gh',
+    [
+      'api',
+      'repos/{owner}/{repo}/contents/.lvbt/web-platform.json',
+      '-H',
+      'Accept: application/vnd.github.raw',
+    ],
+    target,
+  );
+  return (JSON.parse(manifest) as { release: string | null }).release;
+}
+
+/** Runs Validate on the update branch; a workflow token's push alone starts no workflow. */
+function dispatchValidation(target: string, branch: string, runner: Runner): void {
+  try {
+    runner('gh', ['workflow', 'run', 'ci.yml', '--ref', branch], target);
+  } catch {
+    process.stderr.write(
+      `Could not run ci.yml on ${branch}. Give ci.yml a workflow_dispatch trigger, as the examples' has, so update pull requests get their Validate check.\n`,
+    );
+    process.exitCode = 1;
+  }
+}
+
 /**
  * Pushes the update branch, opens or refreshes its pull request, enables auto-merge, and closes
  * update pull requests for older releases.
@@ -166,8 +198,10 @@ export async function proposeRelease(options: {
     if (automerge) runner('gh', ['pr', 'merge', String(number), '--auto', '--rebase'], target);
     // A push made with a repository's own GITHUB_TOKEN starts no workflow, but a dispatch always
     // does, and its Validate check lands on the branch's head commit.
-    if (pushed) runner('gh', ['workflow', 'run', 'ci.yml', '--ref', updateBranch(tag)], target);
-  } else {
+    if (pushed) dispatchValidation(target, updateBranch(tag), runner);
+  } else if (defaultBranchRelease(target, runner) === tag) {
+    // Only a default branch that already carries the release makes its update pull request moot;
+    // a checkout that happens to be on the update branch does not.
     superseded.push(...open.filter(({ headRefName }) => headRefName === updateBranch(tag)));
   }
 
