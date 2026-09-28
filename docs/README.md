@@ -9,6 +9,7 @@ reference pages record facts and contracts, and explanation gives the reasoning.
 - [Adopt the standard in an existing repository](how-to/adopt-in-an-existing-repository.md)
 - [Set up a repository's production platform](how-to/set-up-production.md)
 - [Publish a tooling release](how-to/publish-a-release.md)
+- [Set up the standard bot](how-to/set-up-the-standard-bot.md)
 
 ## Reference
 

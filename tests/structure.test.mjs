@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import assert from 'node:assert/strict';
 import { access, readFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -52,7 +53,44 @@ test('the organization registry contains every active repository', async () => {
     'website',
     'week-without-driving',
   ]);
-  assert.deepEqual(registry.exceptions, []);
+  for (const entry of registry.repositories) {
+    assert.ok(
+      ['source', 'template', 'consumer'].includes(entry.kind),
+      `${entry.name} needs a kind`,
+    );
+    assert.equal(entry.requiredStatus, 'Validate');
+  }
+  assert.deepEqual(
+    registry.repositories.filter(({ kind }) => kind === 'source').map(({ name }) => name),
+    ['repository-tooling'],
+  );
+  for (const exception of registry.exceptions) {
+    assert.ok(
+      registry.repositories.some(({ name }) => name === exception.repository),
+      `exception names an unknown repository: ${exception.repository}`,
+    );
+    assert.ok(exception.rule && exception.reason, 'an exception needs a rule and a reason');
+    assert.match(exception.expires, /^\d{4}-\d{2}-\d{2}$/, 'an exception needs an expiry date');
+  }
+});
+
+test('every stable release since 0.2.6 has release notes', async () => {
+  const { version } = JSON.parse(await read('package.json'));
+  const tags = execFileSync('git', ['-C', root, 'tag', '--list', 'v*'], { encoding: 'utf8' })
+    .split('\n')
+    .filter((tag) => /^v\d+\.\d+\.\d+$/.test(tag));
+  const versions = new Set([version, ...tags.map((tag) => tag.slice(1))]);
+  for (const release of versions) {
+    const [major, minor, patch] = release.split('.').map(Number);
+    if (major === 0 && (minor < 2 || (minor === 2 && patch < 6))) continue;
+    await access(
+      path.join(root, `docs/reference/release-${release.replaceAll('.', '-')}.md`),
+    ).catch(() =>
+      assert.fail(
+        `release ${release} has no docs/reference/release-${release.replaceAll('.', '-')}.md`,
+      ),
+    );
+  }
 });
 
 test('both harness manifests publish one plugin version', async () => {
@@ -113,16 +151,16 @@ test('generated repositories authenticate GitHub Packages during installation', 
   }
 });
 
-test('template publication commits an installable frozen lockfile', async () => {
-  const workflow = await read('.github/workflows/publish-template.yml');
+test('publication commits an installable frozen lockfile', async () => {
+  const workflow = await read('.github/workflows/publish-standard.yml');
+  const propagate = await read('standards/propagate.ts');
 
   assert.match(workflow, /uses: pnpm\/action-setup@/);
-  assert.match(workflow, /node-version-file: source\/package\.json/);
-  assert.match(workflow, /pnpm install --lockfile-only --no-frozen-lockfile/);
+  assert.match(workflow, /node-version-file: tooling\/package\.json/);
+  assert.match(propagate, /'install', '--lockfile-only', '--no-frozen-lockfile'/);
   assert.ok(
-    workflow.indexOf('pnpm install --lockfile-only --no-frozen-lockfile') <
-      workflow.indexOf('git add -A'),
-    'the lockfile must be generated before the template commit',
+    propagate.indexOf("'--lockfile-only'") < propagate.indexOf("'add', '-A'"),
+    'the lockfile must be generated before the update commit',
   );
 });
 

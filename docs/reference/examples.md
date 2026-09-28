@@ -67,6 +67,6 @@ adds the task to any repository that gains an Astro package.
 ## Adding an example
 
 Copy `examples/basic`, change what the profile needs, and add it to the table above, to the
-`examples` map in `tests/example.test.mjs` so it is proven on every check, and to the matrix in
-`.github/workflows/publish-template.yml`. Keep the standard scripts and the catalog identical across
-examples.
+`examples` map in `tests/example.test.mjs` so it is proven on every check, and to
+`standards/repositories.json` as a `template` with its `example`, so each release publishes it. Keep
+the standard scripts and the catalog identical across examples.

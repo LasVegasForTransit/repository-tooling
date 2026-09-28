@@ -33,19 +33,28 @@ git push origin main v0.3.0
 ```
 
 Create the GitHub release from the tag with `gh release create v0.3.0 --generate-notes`, then edit
-the notes so the first line says what changes for a repository that updates.
+the notes so the first line says what changes for a repository that updates. The release notes page
+`docs/reference/release-<version>.md` belongs in the release commit; `pnpm check` fails without it.
 
-Publishing the release runs the `Publish template` workflow, which prepares each example at that tag
-in a protected template repository (`examples/basic` for
-[LasVegasForTransit/template-basic](https://github.com/LasVegasForTransit/template-basic),
-`examples/with-astro` for `template-with-astro`, and `examples/with-vite-react` for
-`template-with-vite-react`). Each generated update uses a release-specific branch and pull request;
-the organization ruleset still guards `main`. Merge those reviews after their `Validate` checks
-pass. These repositories power GitHub's "Use this template" button.
+Pushing the tag runs the `Publish standard` workflow. It opens one pull request in every repository
+listed in [`standards/repositories.json`](../../standards/repositories.json), on the branch
+`automation/repository-standard-<tag>`:
 
-The workflow requires the repositories to be marked as templates and a `TEMPLATE_PUBLISH_TOKEN`
-secret with contents and pull-request write access to all three. Manual dispatch accepts stable
-release tags only; development commits and prerelease tags do not publish templates.
+- Each template repository is regenerated from its example (`examples/basic` for
+  [LasVegasForTransit/template-basic](https://github.com/LasVegasForTransit/template-basic),
+  `examples/with-astro` for `template-with-astro`, and `examples/with-vite-react` for
+  `template-with-vite-react`). These power GitHub's "Use this template" button.
+- Each other repository runs the release's own updater, so the release's migrations apply in one
+  pass however old the repository's current release is.
+
+Every pull request merges itself once its `Validate` check passes; approving the release is the
+review. A newer release closes the older pull requests it replaces. The workflow also runs daily for
+the latest release, which rebuilds an update branch that fell behind `main` and leaves alone a
+branch that someone pushed a fix to.
+
+The workflow authenticates as the LVBT standard bot; [set it up](set-up-the-standard-bot.md) once
+before the first release. Manual dispatch accepts stable release tags only; development commits and
+prerelease tags are never published.
 
 ## 3. Publish to GitHub Packages
 
@@ -53,7 +62,20 @@ Trigger the `Publish packages` workflow with the release tag. It publishes every
 `npm.pkg.github.com` under the `@lasvegasfortransit` scope. Contributors authenticate their local
 pnpm configuration to GitHub Packages; CI uses its repository token.
 
-## 4. Update the repositories
+## 4. Watch the repositories update
 
-Renovate opens one grouped pull request titled "LVBT repository standard" in each repository. Review
-it, run `pnpm check`, and merge.
+The `Standard status` workflow runs daily and after every publication. Its job summary lists each
+repository's release and open update pull request, and it fails when a repository has drifted:
+behind the latest release for more than three days, an unreleased vendored commit on `main`, a
+failing update pull request, a contribution plugin ref that differs from the vendored release, or
+merge settings that differ from the standard. Run the same check locally with
+`pnpm standards:status`.
+
+A failing update pull request means the repository needs a change the updater could not make. Fix it
+on the update branch; the pull request then merges itself. A repository that must diverge from one
+rule for a while records an exception in `standards/repositories.json` with the rule, a reason, and
+an expiry date.
+
+Do not cut a release to unblock one repository. Try an unreleased change there with
+`pnpm standards:update --commit <sha>` on a branch that is never merged; `Standard status` flags
+`release: null` on `main`.

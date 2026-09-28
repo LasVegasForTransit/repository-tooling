@@ -1,5 +1,10 @@
 # LVBT repository standardization plan (mass-volunteer readiness)
 
+> **Superseded (2026-09-27).** The status section below stopped tracking releases after v0.2.2.
+> Releases now reach every repository through the `Publish standard` workflow, and the
+> `Standard status` workflow reports drift; see
+> [Publish a tooling release](../../how-to/publish-a-release.md).
+
 ## Status (2026-09-02)
 
 Phase 0 is released: PR #11 merged (squash), then #12 and #13 (rebase) as patch releases; the

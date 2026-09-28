@@ -79,9 +79,10 @@ git commit -m "chore(dx): start from the LVBT repository standard"
 git push
 ```
 
-Then add the repository's name to `standards/repositories.json` here so the organization ruleset
-applies. A deployable repository also needs the `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID`
-secrets in a `production` environment before `.github/workflows/deploy.yml` can run.
+Then add the repository to `standards/repositories.json` here with `"kind": "consumer"`, so the
+organization ruleset applies and every release opens its update pull request. A deployable
+repository also needs the `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` secrets in a
+`production` environment before `.github/workflows/deploy.yml` can run.
 
 ## Common problems
 

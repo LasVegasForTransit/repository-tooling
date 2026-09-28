@@ -49,5 +49,6 @@ snapshot. It does not generate or overwrite application-owned configuration.
 
 The organization must keep the packages small and stable, because every repository feels a change to
 them. A repository that needs to diverge does so in its own file, on top of the shared rule, and
-says why in the commit. A release still needs a tag and release notes, followed by an explicit,
-reviewed preset update in each repository.
+says why in the commit. A release still needs a tag and release notes. The `Publish standard`
+workflow then opens the preset update in every repository, and each one merges once that
+repository's own checks pass.
