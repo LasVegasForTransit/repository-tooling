@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { chmod, mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
+import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -191,6 +191,44 @@ test('the pre-push hook clears repository-local Git variables before checks', as
 
   assert.equal(result.status, 0, result.stderr);
   assert.equal(await readFile(resultFile, 'utf8'), 'unset|unset');
+});
+
+test('the pre-push hook uploads Git LFS objects after the check, only where LFS is used', async (t) => {
+  const directory = await mkdtemp(path.join(tmpdir(), 'lvbt-pre-push-lfs-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const repository = path.join(directory, 'repository');
+  const log = path.join(directory, 'log');
+  spawnSync('git', ['init', '--quiet', repository]);
+  await writeFile(path.join(directory, 'pnpm'), `#!/bin/sh\necho check >> "${log}"\n`);
+  await writeFile(path.join(directory, 'git-lfs'), `#!/bin/sh\necho "lfs $* $(cat)" >> "${log}"\n`);
+  await chmod(path.join(directory, 'pnpm'), 0o755);
+  await chmod(path.join(directory, 'git-lfs'), 0o755);
+  const push = () =>
+    spawnSync(
+      path.join(repositoryRoot, 'packages/cli/hooks/pre-push.sh'),
+      ['origin', 'git@example.org:repo.git'],
+      {
+        cwd: repository,
+        encoding: 'utf8',
+        input: 'refs/heads/main abc refs/heads/main def\n',
+        env: { ...process.env, PATH: `${directory}:${process.env.PATH}` },
+      },
+    );
+
+  assert.equal(push().status, 0);
+  assert.equal(await readFile(log, 'utf8'), 'check\n', 'no LFS upload without an LFS rule');
+
+  await writeFile(
+    path.join(repository, '.gitattributes'),
+    '*.png filter=lfs diff=lfs merge=lfs -text\n',
+  );
+  await rm(log);
+  const result = push();
+  assert.equal(result.status, 0, result.stderr);
+  assert.equal(
+    await readFile(log, 'utf8'),
+    'check\nlfs pre-push origin git@example.org:repo.git refs/heads/main abc refs/heads/main def\n',
+  );
 });
 
 test('the shared and source repository hooks pass ShellCheck', (context) => {
