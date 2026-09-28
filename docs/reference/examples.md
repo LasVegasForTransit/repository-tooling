@@ -25,6 +25,7 @@ its own `check` with the shared packages.
 | `.codex/hooks.json`, `.agents/plugins/`      | Codex loads the plugin from `node_modules` and runs its guard                                    |
 | `.claude/settings.json`                      | Claude Code loads the plugin from the release tag, formats on edit, and cannot read secret files |
 | `.github/workflows/ci.yml`                   | The `Validate` job: `pnpm check`, dependency audit, secret scan                                  |
+| `.github/workflows/standard-update.yml`      | Daily: opens a self-merging pull request when a newer standard release exists                    |
 | `.github/actions/setup-node-pnpm/action.yml` | Node from `package.json`, pinned pnpm, frozen install                                            |
 | `.github/renovate.json`                      | Weekly grouped updates; `@lasvegasfortransit/*` bumps grouped as one                             |
 | `.github/CODEOWNERS`                         | The maintainers team reviews everything                                                          |

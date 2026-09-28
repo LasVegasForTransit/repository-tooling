@@ -9,6 +9,7 @@ import {
   consumerIgnoreWarnings,
   syncConsumerIgnores,
 } from './consumer-ignores.ts';
+import { seedFiles, syncPluginRef } from './owned-files.ts';
 
 export interface WebPreset {
   formatVersion: number;
@@ -158,6 +159,8 @@ export async function applyPreset(root: string, bundle: WebPreset, dryRun = fals
         ...(await migrateLegacyPackageScope(root, dry)),
         ...(await syncConsumerIgnores(root, dry)),
         ...(await syncAstroTypesBeforeLint(root, dry)),
+        ...(await seedFiles(root, bundle, dry)),
+        ...(await syncPluginRef(root, bundle, dry)),
       ]),
     ].sort();
   // Planning first means a consumer file a migration can't read stops the update before any write.

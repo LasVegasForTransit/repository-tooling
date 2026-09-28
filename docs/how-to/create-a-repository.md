@@ -10,7 +10,7 @@ shared rules arrive as ordinary dependencies.
 - Node.js 24 or newer and git are installed on your machine. pnpm is activated by Corepack if it is
   missing (`corepack enable`).
 - You know the repository's durable commit scopes: the two to six boundaries a change can belong to,
-  such as `web`, `worker`, `docs`, `ci`, `dx`. A scope is never a feature, file, task, or role.
+  such as `web`, `worker`, `docs`, `dx`. A scope is never a feature, file, task, or role.
 
 ## 1. Create the repository from a template
 
