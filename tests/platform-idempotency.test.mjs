@@ -215,6 +215,20 @@ test('resources on later pages of a long list are found, not created again', asy
   });
 });
 
+test('ambiguous D1 names fail inventory before setup can migrate either database', async () => {
+  await withRepository(undefined, async (repository) => {
+    const world = freshWorld();
+    world.databases.push(
+      { name: 'example', uuid: 'db-1', applied: [] },
+      { name: 'example', uuid: 'db-2', applied: [] },
+    );
+    const run = await bootstrapOnce(world, repository, { rules: [RESEND] });
+    assert.equal(run.ready, false);
+    assert.match(run.output, /multiple D1 databases named example/);
+    assert.ok(!run.writes.some((write) => /migrat/i.test(write)));
+  });
+});
+
 test('the Google Group step is shown until the person confirms it, then never again', async () => {
   await withRepository(undefined, async (repository) => {
     const world = freshWorld();

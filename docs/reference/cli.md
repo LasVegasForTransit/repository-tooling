@@ -58,6 +58,11 @@ authentication before reporting the machine ready to deploy.
 repository root and under `apps/*`. The [platform manifest reference](platform-manifest.md) lists
 its fields. For each item, the report prints one line under its section:
 
+When a manifest uses `cloudflare.accountIdEnv`, set `CLOUDFLARE_ACCOUNT_ID` to the selected
+account's 32-character ID. The command validates it before reading production resources. D1 bindings
+may use the database name alone; preflight checks that exactly one matching database exists in that
+account and setup uses the observed ID for cf migrations.
+
 | Mark   | Meaning                                                                                                       |
 | ------ | ------------------------------------------------------------------------------------------------------------- |
 | `ok`   | Production has it.                                                                                            |

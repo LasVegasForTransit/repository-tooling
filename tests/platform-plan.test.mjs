@@ -55,6 +55,24 @@ test('unapplied migrations are named and applied', () => {
   assert.match(migrations.detail, /0002_second\.sql/);
 });
 
+test('a name-only D1 binding is ready and can apply migrations from the observed database', () => {
+  const plan = planAfter((state) => {
+    delete state.config.value.d1[0].id;
+    state.d1.value.example.applied = known(['0001_first.sql']);
+  });
+  assert.equal(plan.byId('d1:example').status, 'ok');
+  assert.equal(plan.byId('d1:example:migrations').action.type, 'd1.migrate');
+});
+
+test('D1 readiness and migrations wait when the binding config cannot be read', () => {
+  const plan = planAfter((state) => {
+    state.config = unknown('config unavailable');
+    state.d1.value.example.applied = known(['0001_first.sql']);
+  });
+  assert.equal(plan.byId('d1:example').status, 'unknown');
+  assert.equal(plan.byId('d1:example:migrations').action, undefined);
+});
+
 test('a wrangler config pointing at another database is a mismatch nobody fixes silently', () => {
   const plan = planAfter((state) => (state.config.value.d1[0].id = 'db-old'));
   const database = plan.byId('d1:example');

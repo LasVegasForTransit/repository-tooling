@@ -10,10 +10,9 @@ nothing and say so.
 
 - `pnpm bootstrap` passes on your machine. That means Node.js, pnpm, the GitHub CLI (signed in with
   `gh auth login`), and Wrangler (signed in with `pnpm exec wrangler login`) all work.
-- Your Cloudflare user can administer the LVBT account (ID `2557b5c2e166292ded0f8425b73075e9`),
-  including Cloudflare One, which Cloudflare used to call Zero Trust. The account should be named
-  "Las Vegans for Better Transit"; if the switcher still shows "Las Vegas for Better…", open Manage
-  Account and rename it first.
+- Your Cloudflare user can administer the LVBT account, including Cloudflare One, which Cloudflare
+  used to call Zero Trust. The account should be named "Las Vegans for Better Transit"; if the
+  switcher still shows "Las Vegas for Better…", open Manage Account and rename it first.
 - Your GitHub user is an admin of the repository, so it can create environments and their secrets.
 - For email, you can sign in to the LVBT Resend account.
 - For admin sign-in through Google Workspace the first time in an account, a Google Workspace super
@@ -35,6 +34,10 @@ repository), starting from the example in the
 reads from `env`: the D1 databases and R2 buckets, each secret with its purpose and the steps to
 find it, the vars, any Turnstile widget and Access application, the email domain, and the GitHub
 environment secrets the deploy workflow uses. Add every preview-only value to `forbidden`.
+
+To keep the account ID out of the manifest, use `"accountIdEnv": "CLOUDFLARE_ACCOUNT_ID"` instead of
+`accountId` and set that environment variable on the machine running production setup or preflight.
+The production workflow should carry the same account ID as a GitHub environment secret.
 
 For a secret a person types in, such as the Resend key or the deploy token, copy the steps from
 [What to enter in each dashboard](#what-to-enter-in-each-dashboard) below, so the person running
@@ -116,12 +119,13 @@ where you stopped.
 ## 4. Commit the config changes it asks for
 
 The command never edits the production config, because a config change should be reviewed. When the
-report says a var is missing, such as the Turnstile site key, or a D1 id differs, follow its `next:`
-line. A `cloudflare.config.ts` project puts public values in `worker.env` with `bindings.text(...)`
-and database ids in `bindings.d1(...)`; a Wrangler project uses `vars` and `database_id`. Make the
-change on a branch, open a pull request, and merge it. Keep a Wrangler fallback mirror in sync if
-the repository has one. The next deploy from `main` carries it. A database created in this run gets
-its migrations on the next setup run, once the config names its id.
+report says a var is missing, such as the Turnstile site key, or a D1 binding differs, follow its
+`next:` line. A `cloudflare.config.ts` project puts public values in `worker.env` with
+`bindings.text(...)` and databases in `bindings.d1({ name: "..." })`; a Wrangler project uses `vars`
+and `d1_databases` with `database_name`. An explicit D1 ID is optional, but must match inventory.
+Make the change on a branch, open a pull request, and merge it. Keep a Wrangler fallback mirror in
+sync if the repository has one. The next deploy from `main` carries it. A database created in this
+run gets its migrations once the config names it.
 
 ## 5. Confirm production is ready
 
@@ -341,8 +345,8 @@ below use lvwwd.org's volunteer admin pages, and follow the page from top to bot
 
 ### A Turnstile widget
 
-1. Open <https://dash.cloudflare.com/2557b5c2e166292ded0f8425b73075e9/turnstile>. If a widget with
-   the site's name is listed, click it and skip to step 5.
+1. Open the LVBT account in Cloudflare, then go to Turnstile. If a widget with the site's name is
+   listed, click it and skip to step 5.
 2. Click "Add widget" and type the widget name, which is the site, such as `lvwwd.org`.
 3. Under "Hostname management", add the site's hostname.
 4. Choose the widget mode "Managed", leave pre-clearance off, and click "Create".
@@ -379,9 +383,7 @@ account. Cf and Wrangler both use it with `CLOUDFLARE_ACCOUNT_ID` from the workf
 account-owned token has no user memberships to discover.
 
 1. Open the Cloudflare dashboard, choose the "Las Vegans for Better Transit" account, and go to
-   Manage Account, then "Account API Tokens"
-   (<https://dash.cloudflare.com/2557b5c2e166292ded0f8425b73075e9/api-tokens>). Click "Create
-   Token", then "Create Custom Token".
+   Manage Account, then "Account API Tokens". Click "Create Token", then "Create Custom Token".
 2. Name it `<site> deploy (GitHub Actions)`, such as `lvwwd.org deploy (GitHub Actions)`.
 3. Under "Permissions", add these rows: "Account", "Workers Scripts", "Edit"; "Account", "Account
    Settings", "Read"; and "Zone", "Workers Routes", "Edit". Add "Account", "D1", "Edit" only if the
@@ -438,8 +440,8 @@ omitted profile means `ses`, so existing manifests keep their current checks.
 A site that counts visits with Cloudflare Web Analytics needs the site's token at build time. It is
 public, so it is a GitHub environment variable, not a secret.
 
-1. Open <https://dash.cloudflare.com/2557b5c2e166292ded0f8425b73075e9/web-analytics> and click "Add
-   a site". Type the site's hostname, such as `lvwwd.org`.
+1. Open the LVBT account in Cloudflare, then go to Web Analytics and click "Add a site". Type the
+   site's hostname, such as `lvwwd.org`.
 2. Choose "Enable with JS Snippet installation", not the automatic option, because the site loads
    the beacon itself.
 3. Open "Manage site" to see the JS snippet. Copy only the token inside

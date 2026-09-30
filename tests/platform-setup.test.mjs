@@ -85,7 +85,7 @@ test('cf projects create D1 and R2 in the canonical project directory', async ()
     ],
   );
   assert.ok(calls.every(({ options }) => options.cwd === '/repo/apps/deploy'));
-  assert.match(context.io.output(), /D1 id.*apps\/deploy\/cloudflare\.config\.ts/);
+  assert.match(context.io.output(), /Bind its name in apps\/deploy\/cloudflare\.config\.ts/);
 });
 
 test('cf projects apply migrations by D1 ID and manifest migrations directory', async () => {
@@ -105,6 +105,22 @@ test('cf projects apply migrations by D1 ID and manifest migrations directory', 
     '--dir',
     '/repo/apps/site/migrations',
   ]);
+});
+
+test('cf migrations after creation use the observed ID with a name-only binding', async () => {
+  const { run, calls } = recordingRun();
+  const context = setupContext({ run });
+  context.manifest.cloudflare.cloudflareConfig = '../deploy/cloudflare.config.ts';
+  delete context.state.config.value.d1[0].id;
+  context.observe = async () => context.state;
+  await applyPlan(context, [
+    {
+      status: 'missing',
+      label: 'migrations',
+      action: { type: 'd1.migrate', name: 'example', binding: 'DB', afterCreate: true },
+    },
+  ]);
+  assert.equal(calls[0].args[5], 'db-1');
 });
 
 test('a pasted value is checked against its pattern, and an empty answer skips it', async () => {
@@ -222,11 +238,11 @@ test('creating a Turnstile widget prints the canonical Cloudflare config syntax'
 });
 
 /** A repository on disk plus a fake Cloudflare and DNS, both answering from `state`. */
-async function fakeRepository(state) {
+async function fakeRepository(state, manifest = sampleManifest()) {
   const root = await mkdtemp(path.join(os.tmpdir(), 'lvbt-platform-'));
   const site = path.join(root, 'apps/site');
   await mkdir(path.join(site, 'migrations'), { recursive: true });
-  await writeFile(path.join(site, 'platform.json'), JSON.stringify(sampleManifest()));
+  await writeFile(path.join(site, 'platform.json'), JSON.stringify(manifest));
   await writeFile(
     path.join(site, 'wrangler.jsonc'),
     `{
@@ -282,8 +298,12 @@ function fakeRequest(state, seen) {
   };
 }
 
-async function preflightWith(state, env = { LVBT_CLOUDFLARE_SETUP_TOKEN: 'setup-token' }) {
-  const root = await fakeRepository(state);
+async function preflightWith(
+  state,
+  env = { LVBT_CLOUDFLARE_SETUP_TOKEN: 'setup-token' },
+  manifest = sampleManifest(),
+) {
+  const root = await fakeRepository(state, manifest);
   const seen = [];
   const { run, calls } = recordingRun({
     'gh api': { stdout: '{}' },
@@ -308,6 +328,24 @@ test('preflight --production passes when production has everything the manifest 
   const result = await preflightWith(readyState());
   assert.equal(result.ready, true, result.error?.message);
   assert.match(result.io.output(), /Ready for production/);
+});
+
+test('preflight scopes inventory to the account selected by the environment', async () => {
+  const manifest = sampleManifest();
+  delete manifest.cloudflare.accountId;
+  manifest.cloudflare.accountIdEnv = 'CLOUDFLARE_ACCOUNT_ID';
+  const accountId = 'c'.repeat(32);
+  const result = await preflightWith(
+    readyState(),
+    {
+      CLOUDFLARE_ACCOUNT_ID: accountId,
+      LVBT_CLOUDFLARE_INVENTORY_TOKEN: 'inventory-token',
+      LVBT_CLOUDFLARE_SETUP_TOKEN: 'setup-token',
+    },
+    manifest,
+  );
+  assert.equal(result.ready, true, result.error?.message);
+  assert.ok(result.seen.some(({ url }) => url.includes(`/accounts/${accountId}/d1/database`)));
 });
 
 test('a scoped inventory token reads production without Wrangler OAuth', async () => {
