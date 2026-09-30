@@ -82,6 +82,8 @@ async function deployable(cwd, directory) {
     const canonical = manifest.cloudflare?.cloudflareConfig;
     if (canonical) {
       const configFile = path.resolve(directory, canonical);
+      if (path.basename(configFile) !== CF_FILE)
+        throw new CliError(`deploy: canonical cf config must be named ${CF_FILE}.`, 2);
       if (!(await exists(configFile)))
         throw new CliError(`deploy: canonical cf config ${configFile} is missing.`, 2);
       const target = path.relative(cwd, path.dirname(configFile)) || '.';

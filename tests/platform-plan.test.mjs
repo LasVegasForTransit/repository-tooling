@@ -63,6 +63,26 @@ test('a wrangler config pointing at another database is a mismatch nobody fixes 
   assert.match(database.next, /db-1/);
 });
 
+test('cf plan names typed D1, R2 and text bindings in its repair instructions', () => {
+  const manifest = sampleManifest();
+  manifest.cloudflare.cloudflareConfig = '../deploy/cloudflare.config.ts';
+  const state = readyState();
+  state.config.value.d1 = [];
+  state.config.value.r2 = [];
+  state.config.value.vars = {};
+  const items = planPlatform({
+    manifest,
+    state,
+    configPath: 'apps/deploy/cloudflare.config.ts',
+  });
+  const byId = (id) => items.find((entry) => entry.id === id);
+  assert.match(byId('d1:example').next, /bindings\.d1/);
+  assert.match(byId('r2:example-photos').next, /bindings\.r2/);
+  assert.match(byId('var:TURNSTILE_SITE_KEY').next, /worker\.env/);
+  assert.doesNotMatch(byId('d1:example').next, /d1_databases/);
+  assert.doesNotMatch(byId('r2:example-photos').next, /r2_buckets/);
+});
+
 test('a missing bucket is created', () => {
   const plan = planAfter((state) => (state.r2 = known([])));
   assert.equal(plan.byId('r2:example-photos').action.type, 'r2.create');

@@ -11,6 +11,7 @@ import {
   setupTokenGuide,
   teamDomainGuide,
   turnstileGuide,
+  varGuide,
   zeroTrustGuide,
 } from '../packages/cli/src/lib/platform/guides.mjs';
 import { sampleManifest } from './support/platform.mjs';
@@ -73,6 +74,23 @@ test('email records are named relative to the zone, including for a sending subd
   assert.ok(steps.includes('name send.notify'));
   assert.ok(steps.includes('name resend._domainkey.notify'));
   assert.ok(steps.includes('us-east-1'));
+});
+
+test('Cloudflare config guides use typed worker bindings while Wrangler guides use JSON vars', () => {
+  const manifest = sampleManifest();
+  const widget = manifest.turnstile[0];
+  const variable = manifest.vars.find((entry) => entry.name === widget.siteKeyVar);
+  const cfPath = 'apps/deploy/cloudflare.config.ts';
+  const cfSteps = everyStep(turnstileGuide(widget, manifest.cloudflare, cfPath));
+  const cfVar = everyStep(varGuide(variable, cfPath, '0xSITEKEY', widget.name));
+  assert.match(cfSteps, /worker\.env/);
+  assert.match(cfVar, /TURNSTILE_SITE_KEY: bindings\.text\(["']0xSITEKEY["']\)/);
+  assert.doesNotMatch(cfVar, /"vars"/);
+
+  const wranglerVar = everyStep(
+    varGuide(variable, 'apps/site/wrangler.jsonc', '0xSITEKEY', widget.name),
+  );
+  assert.match(wranglerVar, /"TURNSTILE_SITE_KEY": "0xSITEKEY" to "vars"/);
 });
 
 /** Each "copy" and "paste" in the order a person reads them, skipping "do not copy". */
