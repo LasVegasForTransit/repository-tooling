@@ -68,6 +68,43 @@ test('a generated secret reaches Wrangler on stdin and is never printed', async 
   assert.ok(!io.output().includes(put.options.input));
 });
 
+test('cf projects create D1 and R2 in the canonical project directory', async () => {
+  const { run, calls } = recordingRun();
+  const context = setupContext({ run });
+  context.manifest.cloudflare.cloudflareConfig = '../deploy/cloudflare.config.ts';
+  await applyPlan(context, [
+    { status: 'missing', label: 'database', action: { type: 'd1.create', name: 'example' } },
+    { status: 'missing', label: 'bucket', action: { type: 'r2.create', name: 'example-photos' } },
+  ]);
+  assert.deepEqual(
+    calls.map(({ args }) => args),
+    [
+      ['exec', 'cf', 'd1', 'create', '--name', 'example'],
+      ['exec', 'cf', 'r2', 'buckets', 'create-by-name', 'example-photos'],
+    ],
+  );
+  assert.ok(calls.every(({ options }) => options.cwd === '/repo/apps/deploy'));
+});
+
+test('cf projects apply migrations by D1 ID and manifest migrations directory', async () => {
+  const { run, calls } = recordingRun();
+  const context = setupContext({ run });
+  context.manifest.cloudflare.cloudflareConfig = '../deploy/cloudflare.config.ts';
+  await applyPlan(context, [
+    { status: 'missing', label: 'migrations', action: { type: 'd1.migrate', name: 'example' } },
+  ]);
+  assert.deepEqual(calls[0].args, [
+    'exec',
+    'cf',
+    'd1',
+    'migrations',
+    'apply',
+    'db-1',
+    '--dir',
+    '/repo/apps/site/migrations',
+  ]);
+});
+
 test('a pasted value is checked against its pattern, and an empty answer skips it', async () => {
   const state = readyState();
   state.worker.value.secrets = WORKER_SECRETS.filter((name) => name !== 'RESEND_API_KEY');
@@ -248,6 +285,19 @@ test('preflight --production passes when production has everything the manifest 
   const result = await preflightWith(readyState());
   assert.equal(result.ready, true, result.error?.message);
   assert.match(result.io.output(), /Ready for production/);
+});
+
+test('a scoped inventory token reads production without Wrangler OAuth', async () => {
+  const result = await preflightWith(readyState(), {
+    LVBT_CLOUDFLARE_INVENTORY_TOKEN: 'inventory-token',
+    LVBT_CLOUDFLARE_SETUP_TOKEN: 'setup-token',
+  });
+  assert.equal(result.ready, true, result.error?.message);
+  assert.equal(
+    result.calls.some(({ args }) => args.includes('wrangler') && args.includes('auth')),
+    false,
+  );
+  assert.ok(result.seen.some(({ authorization }) => authorization === 'Bearer inventory-token'));
 });
 
 test('preflight --production fails with exit code 1 and changes nothing', async () => {

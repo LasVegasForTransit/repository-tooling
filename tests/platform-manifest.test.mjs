@@ -9,9 +9,11 @@ import {
   findManifests,
   parseJsonc,
   platformSchema,
+  readCloudflareConfig,
   validateManifest,
 } from '../packages/cli/src/lib/platform/manifest.mjs';
 import { unsupportedKeywords } from '../packages/cli/src/lib/platform/schema.mjs';
+import { observePlatform } from '../packages/cli/src/lib/platform/observe.mjs';
 import { sampleManifest } from './support/platform.mjs';
 
 /** Validate a copy of the sample after `change` edits it. */
@@ -23,6 +25,72 @@ function errorsAfter(change) {
 
 test('a manifest that uses every section is valid', () => {
   assert.deepEqual(validateManifest(sampleManifest()), []);
+});
+
+test('a cf project can name its canonical config without a Wrangler config', () => {
+  assert.deepEqual(
+    errorsAfter((manifest) => {
+      manifest.cloudflare.cloudflareConfig = 'cloudflare.config.ts';
+    }),
+    [],
+  );
+});
+
+test('cf preflight reads the canonical binding declarations', async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'lvbt-cf-config-'));
+  try {
+    const config = path.join(root, 'cloudflare.config.ts');
+    await writeFile(
+      config,
+      `export default {
+        worker: { name: 'example', env: {
+          TURNSTILE_SITE_KEY: {type: 'text', value: '0xSITEKEY'},
+          DB: {type: 'd1', name: 'example', id: 'db-1'},
+          PHOTOS: {type: 'r2', name: 'example-photos'},
+          RESEND_API_KEY: {type: 'secret'},
+        }}
+      };`,
+    );
+    assert.deepEqual(await readCloudflareConfig(config), {
+      name: 'example',
+      vars: { TURNSTILE_SITE_KEY: '0xSITEKEY' },
+      d1: [{ binding: 'DB', name: 'example', id: 'db-1', migrationsTable: 'd1_migrations' }],
+      r2: [{ binding: 'PHOTOS', name: 'example-photos' }],
+    });
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test('production preflight does not inspect a retained Wrangler mirror', async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'lvbt-cf-preflight-'));
+  try {
+    const site = path.join(root, 'apps', 'site');
+    const deploy = path.join(root, 'apps', 'deploy');
+    await mkdir(site, { recursive: true });
+    await mkdir(deploy, { recursive: true });
+    await writeFile(path.join(site, 'wrangler.jsonc'), '{"name":"stale-preview"}');
+    await writeFile(
+      path.join(deploy, 'cloudflare.config.ts'),
+      "export default {worker:{name:'example',env:{DB:{type:'d1',name:'example',id:'db-1'}}}};",
+    );
+    const manifest = sampleManifest();
+    manifest.cloudflare.cloudflareConfig = '../deploy/cloudflare.config.ts';
+    const state = await observePlatform({
+      manifest,
+      directory: site,
+      apis: {},
+      run: () => ({ status: 1, stdout: '', stderr: '' }),
+      resolve: async () => [],
+    });
+    assert.equal(state.config.ok, true);
+    assert.equal(state.config.value.name, 'example');
+    assert.deepEqual(state.config.value.d1, [
+      { binding: 'DB', name: 'example', id: 'db-1', migrationsTable: 'd1_migrations' },
+    ]);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
 });
 
 test('the schema uses only keywords the validator enforces', () => {

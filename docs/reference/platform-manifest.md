@@ -3,9 +3,9 @@
 A platform manifest is a file named `platform.json` that lists everything one app needs in
 production: its Cloudflare Worker, D1 databases, R2 buckets, Turnstile widgets, Access applications,
 email sending domain, secrets, vars, GitHub environment secrets, and the values that must never be
-set there. The repository owns it. It lives next to the app's production `wrangler.jsonc`, usually
-at `apps/<app>/platform.json`, or at the repository root for a single-app repository. It never lives
-under `.lvbt/`, because that directory is vendored.
+set there. The repository owns it. It usually lives at `apps/<app>/platform.json`, or at the
+repository root for a single-app repository. Its production config can live in a sibling deploy
+package. It never lives under `.lvbt/`, because that directory is vendored.
 
 `pnpm preflight --production` compares the manifest with what exists and prints a readiness report.
 `pnpm bootstrap --production` sets up what is missing. `pnpm check` validates the manifest's shape
@@ -59,37 +59,40 @@ The complete lvwwd.org manifest in `LasVegasForTransit/week-without-driving` at
 | `access`     | no       | Cloudflare Access applications.                                          |
 | `email`      | no       | Domains the Worker sends email from.                                     |
 | `secrets`    | no       | Secret values on the Worker or in GitHub environments. Never the values. |
-| `vars`       | no       | Plain-text vars that must be in the wrangler config.                     |
+| `vars`       | no       | Plain-text vars that must be in the production config.                   |
 | `github`     | no       | The repository whose environments hold `github:` secrets.                |
 | `forbidden`  | no       | Names that must never be set in production.                              |
 
 ## `cloudflare`
 
-| Field            | Required | Meaning                                                                                 |
-| ---------------- | -------- | --------------------------------------------------------------------------------------- |
-| `accountId`      | yes      | The 32-character ID of the account that owns the Worker and the zone.                   |
-| `zone.name`      | yes      | The zone, such as `lvwwd.org`.                                                          |
-| `zone.id`        | yes      | The zone's 32-character ID, from the zone's Overview page in the dashboard.             |
-| `worker`         | yes      | The production Worker's name. It must equal `name` in the wrangler config.              |
-| `wranglerConfig` | no       | The production wrangler config, relative to the manifest. Defaults to `wrangler.jsonc`. |
+| Field              | Required | Meaning                                                                                    |
+| ------------------ | -------- | ------------------------------------------------------------------------------------------ |
+| `accountId`        | yes      | The 32-character ID of the account that owns the Worker and the zone.                      |
+| `zone.name`        | yes      | The zone, such as `lvwwd.org`.                                                             |
+| `zone.id`          | yes      | The zone's 32-character ID, from the zone's Overview page in the dashboard.                |
+| `worker`           | yes      | The production Worker's name. It must equal the configured Worker name.                    |
+| `cloudflareConfig` | no       | Canonical `cloudflare.config.ts`, relative to the manifest. Selects cf deployment.         |
+| `wranglerConfig`   | no       | Legacy production Wrangler config, relative to the manifest. Defaults to `wrangler.jsonc`. |
 
-The check reads the wrangler config's top-level `name`, `vars`, `d1_databases`, and `r2_buckets`. It
-does not read `env.*` sections.
+When `cloudflareConfig` is set, preflight imports that file and checks its Worker name and `env`
+bindings. It does not validate a retained Wrangler mirror in its place. Without it, preflight reads
+the Wrangler config's top-level `name`, `vars`, `d1_databases`, and `r2_buckets`; it does not read
+`env.*` sections.
 
 ## `d1` and `r2`
 
 | Field        | Required | Meaning                                                                                |
 | ------------ | -------- | -------------------------------------------------------------------------------------- |
-| `binding`    | yes      | The binding name in the wrangler config, such as `DB`.                                 |
+| `binding`    | yes      | The binding name in the production config, such as `DB`.                               |
 | `name`       | yes      | The database or bucket name in Cloudflare.                                             |
 | `migrations` | no (D1)  | The migrations directory, relative to the manifest. Every `.sql` file must be applied. |
 
-The check fails when the database or bucket does not exist, when the wrangler config does not bind
-it under `binding`, and when the config's `database_id` differs from the real database. It reads the
+The check fails when the database or bucket does not exist, when the production config does not bind
+it under `binding`, and when the config's database ID differs from the real database. It reads the
 applied migrations from the database's `d1_migrations` table (or the `migrations_table` the config
 names) with a read-only query. Setup applies only migrations that are not applied yet, and only
-while the config's `database_id` is the real database's, because Wrangler applies them to the
-database the config names.
+while the config's database ID is the real database's. Cf applies them by database ID for cf
+projects; Wrangler applies them to the database the legacy config names.
 
 ## `turnstile`
 
