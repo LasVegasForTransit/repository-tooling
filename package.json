@@ -1,7 +1,7 @@
 {
   "name": "lvbt-repository-tooling",
   "private": true,
-  "version": "0.6.0",
+  "version": "0.6.1",
   "type": "module",
   "description": "Source of truth for the LVBT repository standard: the shared @lasvegasfortransit packages and the example repositories create-turbo copies.",
   "packageManager": "pnpm@11.25.0",
@@ -39,6 +39,7 @@
     "@types/react-dom": "catalog:",
     "@vitejs/plugin-react": "catalog:",
     "astro": "catalog:",
+    "cf": "catalog:",
     "eslint": "catalog:",
     "lint-staged": "catalog:",
     "markdownlint-cli2": "catalog:",

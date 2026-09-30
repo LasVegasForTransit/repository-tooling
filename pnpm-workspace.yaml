@@ -15,7 +15,10 @@ minimumReleaseAge: 1440
 # Temporary transitive pins for published security fixes not yet selected by
 # their direct dependents.
 overrides:
+  fast-uri: 3.1.7
   sharp: 0.35.4
+  'undici@^7.0.0': 7.29.1
+  'undici@^8.0.0': 8.10.2
   smol-toml: 1.8.0
   svgo: 4.1.0
 
