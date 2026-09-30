@@ -8,7 +8,7 @@ target, so `lvbt deploy` cannot publish a second copy through Wrangler.
 `lvbt deploy` builds the app before invoking `cf deploy`. New repositories must provide
 `CLOUDFLARE_ACCOUNT_ID` and an account-owned `CLOUDFLARE_API_TOKEN` in their production GitHub
 environment. `cf` is still in beta; its Wrangler build adapter remains an explicit dependency of the
-deploy package.
+deploy package. The required repository check builds the app and dry-runs its Cloudflare bundle.
 
-The source and new templates pin patched `fast-uri` and both supported `undici` major lines to avoid
-high-severity transitive advisories in the current toolchain.
+The source and new templates pin patched `brace-expansion`, `fast-uri`, and both supported `undici`
+major lines to avoid high-severity transitive advisories in the current toolchain.
