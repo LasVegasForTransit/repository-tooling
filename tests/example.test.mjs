@@ -436,7 +436,7 @@ test('source and generated repositories pin audited transitive fixes', async () 
     );
     assert.match(
       workspace,
-      /^overrides:\n {2}sharp: 0\.35\.4\n {2}smol-toml: 1\.8\.0\n {2}svgo: 4\.1\.0$/m,
+      /^overrides:\n {2}fast-uri: 3\.1\.7\n {2}sharp: 0\.35\.4\n {2}'undici@\^7\.0\.0': 7\.29\.1\n {2}'undici@\^8\.0\.0': 8\.10\.2\n {2}smol-toml: 1\.8\.0\n {2}svgo: 4\.1\.0$/m,
     );
   }
 });

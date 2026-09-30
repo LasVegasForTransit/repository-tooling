@@ -55,7 +55,7 @@ install from the versioned snapshot under `.lvbt/web-platform`, so no registry l
 - Rename the root package in `package.json`.
 - Rename `packages/example`, `apps/site`, or `apps/app` to your first real package or app, or
   scaffold one with `turbo gen workspace` and delete the sample. Deployable templates also need the
-  Worker name in `apps/*/wrangler.jsonc` and, for a site, `site` in `astro.config.ts`.
+  Worker name in `apps/deploy/cloudflare.config.ts` and, for a site, `site` in `astro.config.ts`.
 - Replace the scopes in `.lvbt/commit-scopes.txt` with this repository's boundaries.
 - `.github/workflows/ci.yml` runs a job named `Validate`. Keep that name: the organization ruleset
   requires it on every pull request. Add steps to the job.

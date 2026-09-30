@@ -7,6 +7,7 @@ import path from 'node:path';
 
 import { applyPreset, verifyPreset, fingerprint } from '../standards/web-platform.ts';
 import { readCommit, readRelease } from '../standards/web-platform-source.ts';
+import { deployables } from '../packages/cli/src/lib/operate.mjs';
 
 async function fixture(run) {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'lvbt-preset-'));
@@ -211,13 +212,13 @@ test('reads an unpublished preset only from an exact commit', () =>
     assert.throws(() => readCommit(repository, 'main'), /full commit/i);
   }));
 
-test('web profiles preserve immutable Worker version previews', async () => {
-  for (const file of [
-    'examples/with-astro/apps/site/wrangler.jsonc',
-    'examples/with-vite-react/apps/app/wrangler.jsonc',
-  ]) {
-    const config = await readFile(path.join(new URL('..', import.meta.url).pathname, file), 'utf8');
-    assert.match(config, /"preview_urls": true/);
+test('web profiles deploy once through cf and preserve Worker version previews', async () => {
+  const root = new URL('..', import.meta.url).pathname;
+  for (const profile of ['with-astro', 'with-vite-react']) {
+    const example = path.join(root, 'examples', profile);
+    assert.deepEqual(await deployables(example), [{ directory: 'apps/deploy', tool: 'cf' }]);
+    const config = await readFile(path.join(example, 'apps/deploy/cloudflare.config.ts'), 'utf8');
+    assert.match(config, /previewUrls: true/);
   }
 });
 
