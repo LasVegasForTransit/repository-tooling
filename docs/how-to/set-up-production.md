@@ -115,11 +115,13 @@ where you stopped.
 
 ## 4. Commit the config changes it asks for
 
-The command never edits the wrangler config, because a config change should be reviewed. When the
-report says a var is missing, such as the Turnstile site key, or a `database_id` differs, it prints
-the exact line to change. Make that change on a branch, open a pull request, and merge it. The next
-deploy from `main` carries it. A database the command created in this run gets its migrations on the
-next run, once the config names its `database_id`.
+The command never edits the production config, because a config change should be reviewed. When the
+report says a var is missing, such as the Turnstile site key, or a D1 id differs, follow its `next:`
+line. A `cloudflare.config.ts` project puts public values in `worker.env` with `bindings.text(...)`
+and database ids in `bindings.d1(...)`; a Wrangler project uses `vars` and `database_id`. Make the
+change on a branch, open a pull request, and merge it. Keep a Wrangler fallback mirror in sync if
+the repository has one. The next deploy from `main` carries it. A database created in this run gets
+its migrations on the next setup run, once the config names its id.
 
 ## 5. Confirm production is ready
 
@@ -130,9 +132,11 @@ pnpm preflight --production
 The last line should read `Ready for production.` Delete the Cloudflare token you created in step 3
 at <https://dash.cloudflare.com/profile/api-tokens> if it has not expired yet.
 
-To check production from CI, run the same command with `CLOUDFLARE_API_TOKEN` (for Wrangler),
-`GH_TOKEN` (for `gh`), and `LVBT_CLOUDFLARE_SETUP_TOKEN` (a read-only token for Turnstile and
-Access) in the environment. It exits 1 when production is not ready.
+To check production from CI, run the same command with `LVBT_CLOUDFLARE_INVENTORY_TOKEN` (Workers,
+D1, and R2 read access), `GH_TOKEN` (for `gh`), and `LVBT_CLOUDFLARE_SETUP_TOKEN` (Turnstile and
+Access read access). A setup run that creates or changes Turnstile or Access resources needs the
+write permissions described in step 3. The narrower `CLOUDFLARE_API_TOKEN` used for deployment does
+not cover inventory. Preflight exits 1 when production is not ready.
 
 ## Running it again, and replacing a value
 

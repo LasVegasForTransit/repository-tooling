@@ -72,6 +72,7 @@ test('cf projects create D1 and R2 in the canonical project directory', async ()
   const { run, calls } = recordingRun();
   const context = setupContext({ run });
   context.manifest.cloudflare.cloudflareConfig = '../deploy/cloudflare.config.ts';
+  context.configPath = 'apps/deploy/cloudflare.config.ts';
   await applyPlan(context, [
     { status: 'missing', label: 'database', action: { type: 'd1.create', name: 'example' } },
     { status: 'missing', label: 'bucket', action: { type: 'r2.create', name: 'example-photos' } },
@@ -84,6 +85,7 @@ test('cf projects create D1 and R2 in the canonical project directory', async ()
     ],
   );
   assert.ok(calls.every(({ options }) => options.cwd === '/repo/apps/deploy'));
+  assert.match(context.io.output(), /D1 id.*apps\/deploy\/cloudflare\.config\.ts/);
 });
 
 test('cf projects apply migrations by D1 ID and manifest migrations directory', async () => {
@@ -196,6 +198,27 @@ test('without a setup token, Turnstile falls back to dashboard steps', async () 
   await setUp(setupContext({ state, run, io, api: undefined }));
   assert.match(io.output(), /dash\.cloudflare\.com\/a{32}\/turnstile/);
   assert.ok(io.asked.some((question) => /Press Enter/.test(question)));
+});
+
+test('creating a Turnstile widget prints the canonical Cloudflare config syntax', async () => {
+  const io = scriptedIo();
+  const { run } = recordingRun();
+  const context = setupContext({
+    io,
+    run,
+    api: { post: async () => ({ sitekey: '0xSITEKEY', secret: '0xSECRET' }) },
+  });
+  context.manifest.cloudflare.cloudflareConfig = '../deploy/cloudflare.config.ts';
+  context.configPath = 'apps/deploy/cloudflare.config.ts';
+  await applyPlan(context, [
+    {
+      status: 'missing',
+      label: 'widget',
+      action: { type: 'turnstile.create', widget: context.manifest.turnstile[0] },
+    },
+  ]);
+  assert.match(io.output(), /TURNSTILE_SITE_KEY: bindings\.text\(["']0xSITEKEY["']\)/);
+  assert.doesNotMatch(io.output(), /in vars in apps\/deploy/);
 });
 
 /** A repository on disk plus a fake Cloudflare and DNS, both answering from `state`. */

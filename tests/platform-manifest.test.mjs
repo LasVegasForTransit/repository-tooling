@@ -36,6 +36,13 @@ test('a cf project can name its canonical config without a Wrangler config', () 
   );
 });
 
+test('a cf project manifest rejects a config filename cf cannot discover', () => {
+  const errors = errorsAfter((manifest) => {
+    manifest.cloudflare.cloudflareConfig = 'production.config.ts';
+  });
+  assert.ok(errors.some((error) => error.includes('cloudflareConfig')));
+});
+
 test('cf preflight reads the canonical binding declarations', async () => {
   const root = await mkdtemp(path.join(os.tmpdir(), 'lvbt-cf-config-'));
   try {

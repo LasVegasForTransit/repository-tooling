@@ -106,3 +106,19 @@ test('a missing canonical cf config never falls back to a Wrangler mirror', asyn
     await rm(root, { recursive: true, force: true });
   }
 });
+
+test('deploy rejects a cf config filename that cf would not discover', async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'lvbt-cf-deploy-'));
+  try {
+    const site = path.join(root, 'apps', 'site');
+    await mkdir(site, { recursive: true });
+    await writeFile(path.join(site, 'production.config.ts'), 'export default {};');
+    await writeFile(
+      path.join(site, 'platform.json'),
+      JSON.stringify({ cloudflare: { cloudflareConfig: 'production.config.ts' } }),
+    );
+    await assert.rejects(deployables(root), /cloudflare\.config\.ts/);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});

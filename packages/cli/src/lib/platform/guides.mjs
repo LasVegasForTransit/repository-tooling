@@ -305,13 +305,15 @@ export function googleGroupGuide(group, apps) {
 
 export function turnstileGuide(widget, cloudflare, configPath) {
   const config = configPath ?? 'the production wrangler config';
+  const location = configVarLocation(config);
+  const entry = configVarEntry(widget.siteKeyVar, '<Site Key>', config);
   const mode = { managed: 'Managed', 'non-interactive': 'Non-interactive', invisible: 'Invisible' };
   const createSteps = [
     `Open Turnstile in the Cloudflare dashboard with the LVBT account (${LVBT_CLOUDFLARE_ACCOUNT}). If a widget named "${widget.name}" is already listed, click it and go to the step for the Site Key. ${ACCOUNT_NAME_CHECK}`,
     `Click "Add widget". Widget name: ${widget.name}.`,
     `Under "Hostname management", add ${widget.domains.join(', ')}.`,
     `Widget Mode: "${mode[widget.mode ?? 'managed']}". Leave pre-clearance off, and click "Create".`,
-    `If "vars" in ${config} already has "${widget.siteKeyVar}" with this widget's Site Key, skip this step. Otherwise copy the Site Key (public, starts with 0x) and paste it into "vars" in ${config} as "${widget.siteKeyVar}" now; save the file and commit it through a pull request later.`,
+    `If ${location} in ${config} already has "${widget.siteKeyVar}" with this widget's Site Key, skip this step. Otherwise copy the Site Key (public, starts with 0x) and paste it into ${location} in ${config} as ${entry} now; save the file and commit it through a pull request later.`,
   ];
   const secretSteps = [
     `Copy the widget's Secret Key (private, also starts with 0x) and paste it at this command's prompt. It is the Worker secret ${widget.secret}.`,
@@ -366,16 +368,25 @@ export function setupTokenGuide(manifest) {
   };
 }
 
+export function configVarLocation(configPath) {
+  return configPath.endsWith('.ts') ? 'worker.env' : '"vars"';
+}
+
+export function configVarEntry(name, value, configPath) {
+  const shown = JSON.stringify(value);
+  return configPath.endsWith('.ts') ? `${name}: bindings.text(${shown})` : `"${name}": ${shown}`;
+}
+
 export function varGuide(variable, configPath, value, widget) {
   const shown =
     value === undefined
       ? widget
-        ? `"<the Site Key of the ${widget} Turnstile widget, which starts with 0x>"`
-        : '"<value>"'
-      : JSON.stringify(value);
+        ? `<the Site Key of the ${widget} Turnstile widget, which starts with 0x>`
+        : '<value>'
+      : value;
   return {
     steps: [
-      `Add "${variable.name}": ${shown} to "vars" in ${configPath}. It is public, so it belongs in the config rather than in a secret.`,
+      `Add ${configVarEntry(variable.name, shown, configPath)} to ${configVarLocation(configPath)} in ${configPath}. It is public, so it belongs in the config rather than in a secret.`,
       'Commit it on a branch and open a pull request. The Worker gets it on the next deploy from main.',
     ],
   };
