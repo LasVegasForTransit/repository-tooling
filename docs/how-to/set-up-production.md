@@ -370,9 +370,9 @@ applications:
 The deploy token lets the Deploy workflow publish the Worker. It becomes the GitHub environment
 secret `CLOUDFLARE_API_TOKEN` in the `production` environment. Make it an account API token, which
 belongs to the LVBT account rather than to you, so deploys keep working after you leave. Creating
-one needs the Super Administrator role on the account. Wrangler deploys with it because the workflow
-also sets `CLOUDFLARE_ACCOUNT_ID`; without that, Wrangler would ask Cloudflare for the token's
-memberships, which an account API token cannot read.
+one needs either the API Token Provisioning permission or the Super Administrator role on the
+account. Cf and Wrangler both use it with `CLOUDFLARE_ACCOUNT_ID` from the workflow; an
+account-owned token has no user memberships to discover.
 
 1. Open the Cloudflare dashboard, choose the "Las Vegans for Better Transit" account, and go to
    Manage Account, then "Account API Tokens"

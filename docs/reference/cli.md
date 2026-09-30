@@ -13,13 +13,16 @@ binary. It needs Node.js 24.20 or newer on the 24 line, and git.
 | `lvbt preflight`              | Check Node, pnpm, dependencies, git hooks, scopes, GitHub CLI, Cloudflare                         | 0 pass, 1 fail              |
 | `lvbt preflight --production` | The same, then report whether production has everything `platform.json` declares; changes nothing | 0 ready, 1 not ready        |
 | `lvbt check [name ...]`       | The shared repository-shape rules: `filenames`, `contract`, `debt`, `platform` (all by default)   | 0 pass, 1 fail, 2 bad usage |
-| `lvbt deploy [--filter x]`    | `pnpm build`, then `wrangler deploy` in every app with a wrangler config                          | 0 done, 2 nothing to deploy |
+| `lvbt deploy [--filter x]`    | `pnpm build`, then `cf deploy` for cf projects or `wrangler deploy` for legacy projects           | 0 done, 2 nothing to deploy |
 | `lvbt help`                   | Print usage                                                                                       | 0                           |
 
 `lvbt check filenames --staged` checks the staged tree, which the pre-commit hook uses.
-`lvbt deploy --dry-run` builds and runs `wrangler deploy --dry-run`; `--filter apps/worker` limits
-it to one app. With `--production`, `--filter apps/site` (or `site`) limits bootstrap and preflight
-to that app's `platform.json`; `--filter .` picks the one at the root.
+`lvbt deploy --dry-run` builds and runs the selected Cloudflare CLI with `--dry-run`. A
+`cloudflare.config.ts` takes precedence over a retained Wrangler config. When `platform.json` points
+`cloudflare.cloudflareConfig` to a sibling deploy package, only that cf project deploys; the
+Wrangler config beside the manifest remains available for legacy operations. `--filter apps/worker`
+limits deploy to that target directory. With `--production`, `--filter apps/site` (or `site`) limits
+bootstrap and preflight to that app's `platform.json`; `--filter .` picks the one at the root.
 
 `lvbt bootstrap --production --rotate SIGNING_SECRET` replaces the stored value of a secret the
 manifest declares; `--rotate` takes one name or several separated by commas, and only
@@ -32,15 +35,15 @@ Through pnpm, the flags pass straight to the script: `pnpm bootstrap --productio
 
 Each failing check prints the command that fixes it.
 
-| Check         | Passes when                                       | Fix it prints                                 |
-| ------------- | ------------------------------------------------- | --------------------------------------------- |
-| Node.js       | the running version satisfies `engines.node`      | install the version `engines.node` names      |
-| pnpm          | `pnpm --version` equals `packageManager`          | `corepack prepare pnpm@<version> --activate`  |
-| dependencies  | `node_modules` exists                             | `pnpm install`                                |
-| git hooks     | `core.hooksPath` is `.githooks`                   | `pnpm install` (the prepare script sets it)   |
-| commit scopes | `.lvbt/commit-scopes.txt` exists                  | copy it from the example and list your scopes |
-| GitHub CLI    | `gh auth status` succeeds                         | `brew install gh && gh auth login`            |
-| Cloudflare    | no wrangler config, or `wrangler whoami` succeeds | `pnpm exec wrangler login`                    |
+| Check         | Passes when                                   | Fix it prints                                           |
+| ------------- | --------------------------------------------- | ------------------------------------------------------- |
+| Node.js       | the running version satisfies `engines.node`  | install the version `engines.node` names                |
+| pnpm          | `pnpm --version` equals `packageManager`      | `corepack prepare pnpm@<version> --activate`            |
+| dependencies  | `node_modules` exists                         | `pnpm install`                                          |
+| git hooks     | `core.hooksPath` is `.githooks`               | `pnpm install` (the prepare script sets it)             |
+| commit scopes | `.lvbt/commit-scopes.txt` exists              | copy it from the example and list your scopes           |
+| GitHub CLI    | `gh auth status` succeeds                     | `brew install gh && gh auth login`                      |
+| Cloudflare    | no config, or each project's CLI is signed in | `pnpm exec cf auth login` or `pnpm exec wrangler login` |
 
 ## Production checks
 
@@ -59,26 +62,31 @@ whether production is ready and counts what is needed now and what can wait. Pre
 any `FAIL` remains, so CI or a person can use it to verify production.
 
 The command reads with the credentials already on the machine. Workers, D1, R2, and secret names
-come through the Cloudflare API with the token `wrangler login` created. Email records come from
-public DNS over HTTPS. GitHub environments and secret names come from `gh`. Turnstile and Access
-need a Cloudflare API token with more permissions than Wrangler's sign-in has; interactive runs ask
-for one, and non-interactive runs read it from `LVBT_CLOUDFLARE_SETUP_TOKEN`. Without it, those
-items are reported as `FAIL` with "could not check".
+currently come through the Cloudflare API with a `LVBT_CLOUDFLARE_INVENTORY_TOKEN` that has Workers,
+D1 and R2 read permissions, or the token `wrangler login` created. The deploy token in
+`CLOUDFLARE_API_TOKEN` is intentionally not used for inventory; it can have fewer permissions. This
+is the compatibility path while cf is in beta; cf's login is separate from Wrangler's and cannot be
+exported to this observer. Email records come from public DNS over HTTPS. GitHub environments and
+secret names come from `gh`. Turnstile and Access need a Cloudflare API token with more permissions
+than Wrangler's sign-in has; interactive runs ask for one, and non-interactive runs read it from
+`LVBT_CLOUDFLARE_SETUP_TOKEN`. Without it, those items are reported as `FAIL` with "could not
+check".
 
 `lvbt bootstrap --production` needs a terminal. It prints the same report, lists what it will do,
 and asks once before starting. Then it:
 
-- creates missing D1 databases and R2 buckets with Wrangler, and applies unapplied D1 migrations
-  with `wrangler d1 migrations apply --remote`, which shows the migrations and asks to confirm.
-  Migrations wait while the wrangler config names another `database_id`, because Wrangler applies
-  them to the database the config names;
+- creates missing D1 databases and R2 buckets with cf when `cloudflareConfig` is set, otherwise with
+  Wrangler. It applies migrations with `cf d1 migrations apply <database-id> --dir` on cf projects
+  or `wrangler d1 migrations apply --remote` on legacy projects. Migrations wait while the
+  production config names another database ID;
 - creates or fixes Turnstile widgets and Access applications and their allow policies through the
   Cloudflare API, and stores the values a new resource produces (the widget's secret and the
   application's audience tag) on the Worker straight away, since any older copy is stale;
 - stores each missing secret with `wrangler secret put` or `gh secret set --env`, sending the value
   on standard input: it generates values marked `generate`, copies values a resource or the manifest
   already has, and otherwise shows the secret's purpose, link, and numbered steps, offers to open
-  the link, and asks for the value without echoing it;
+  the link, and asks for the value without echoing it. Cf beta has no equivalent single-secret
+  standard-input command, so Wrangler remains the explicit fallback for that operation;
 - creates missing GitHub environments;
 - offers to delete forbidden secrets it finds;
 - shows numbered dashboard steps, and offers to open the page, for the things no API does: turning

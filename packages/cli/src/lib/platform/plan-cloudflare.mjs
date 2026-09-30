@@ -11,7 +11,7 @@ function configItem({ manifest, state, configPath }) {
       ...fields,
       status: 'mismatch',
       detail: `cannot read it: ${state.config.reason}`,
-      next: 'point cloudflare.wranglerConfig at the production wrangler config',
+      next: `point cloudflare.${manifest.cloudflare.cloudflareConfig ? 'cloudflareConfig' : 'wranglerConfig'} at the production config`,
     });
   if (state.config.value.name !== name)
     return item({

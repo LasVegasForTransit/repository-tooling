@@ -107,6 +107,11 @@
           "type": "string",
           "minLength": 1,
           "description": "The production wrangler config, relative to this file. Defaults to wrangler.jsonc."
+        },
+        "cloudflareConfig": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The canonical cf project config, relative to this file. When set, preflight and deploy use cf instead of Wrangler."
         }
       }
     },
