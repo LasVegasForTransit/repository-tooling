@@ -35,15 +35,22 @@ Through pnpm, the flags pass straight to the script: `pnpm bootstrap --productio
 
 Each failing check prints the command that fixes it.
 
-| Check         | Passes when                                   | Fix it prints                                           |
-| ------------- | --------------------------------------------- | ------------------------------------------------------- |
-| Node.js       | the running version satisfies `engines.node`  | install the version `engines.node` names                |
-| pnpm          | `pnpm --version` equals `packageManager`      | `corepack prepare pnpm@<version> --activate`            |
-| dependencies  | `node_modules` exists                         | `pnpm install`                                          |
-| git hooks     | `core.hooksPath` is `.githooks`               | `pnpm install` (the prepare script sets it)             |
-| commit scopes | `.lvbt/commit-scopes.txt` exists              | copy it from the example and list your scopes           |
-| GitHub CLI    | `gh auth status` succeeds                     | `brew install gh && gh auth login`                      |
-| Cloudflare    | no config, or each project's CLI is signed in | `pnpm exec cf auth login` or `pnpm exec wrangler login` |
+| Check         | Passes when                                                     | Fix it prints                                                                            |
+| ------------- | --------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| Node.js       | the running version satisfies `engines.node`                    | install the version `engines.node` names                                                 |
+| pnpm          | `pnpm --version` equals `packageManager`                        | `corepack prepare pnpm@<version> --activate`                                             |
+| dependencies  | `node_modules` exists                                           | `pnpm install`                                                                           |
+| git hooks     | `core.hooksPath` is `.githooks`                                 | `pnpm install` (the prepare script sets it)                                              |
+| commit scopes | `.lvbt/commit-scopes.txt` exists                                | copy it from the example and list your scopes                                            |
+| GitHub CLI    | `gh auth status` succeeds                                       | `brew install gh && gh auth login`                                                       |
+| Cloudflare    | no config, or each project's CLI has a valid login or API token | `CLOUDFLARE_API_TOKEN` for cf, or `pnpm exec cf auth login` / `pnpm exec wrangler login` |
+
+`bootstrap --production` reports a missing cf login as a warning and continues to the platform setup
+steps. An account-owned `LVBT_CLOUDFLARE_SETUP_TOKEN` can then set up Turnstile and Access without
+signing in to cf. If setup needs to create a D1 database, create an R2 bucket, or apply D1
+migrations through cf, provide a token with those permissions in `CLOUDFLARE_API_TOKEN` for that
+session or sign in with `pnpm exec cf auth login`. Ordinary `preflight` still requires cf
+authentication before reporting the machine ready to deploy.
 
 ## Production checks
 
