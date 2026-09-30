@@ -21,7 +21,7 @@ editor completes and checks the fields as you type:
   "version": 1,
   "name": "example.org",
   "cloudflare": {
-    "accountId": "0123456789abcdef0123456789abcdef",
+    "accountIdEnv": "CLOUDFLARE_ACCOUNT_ID",
     "zone": { "name": "example.org", "id": "fedcba9876543210fedcba9876543210" },
     "worker": "example"
   },
@@ -65,19 +65,25 @@ The complete lvwwd.org manifest in `LasVegasForTransit/week-without-driving` at
 
 ## `cloudflare`
 
-| Field              | Required | Meaning                                                                                    |
-| ------------------ | -------- | ------------------------------------------------------------------------------------------ |
-| `accountId`        | yes      | The 32-character ID of the account that owns the Worker and the zone.                      |
-| `zone.name`        | yes      | The zone, such as `lvwwd.org`.                                                             |
-| `zone.id`          | yes      | The zone's 32-character ID, from the zone's Overview page in the dashboard.                |
-| `worker`           | yes      | The production Worker's name. It must equal the configured Worker name.                    |
-| `cloudflareConfig` | no       | Canonical `cloudflare.config.ts`, relative to the manifest. Selects cf deployment.         |
-| `wranglerConfig`   | no       | Legacy production Wrangler config, relative to the manifest. Defaults to `wrangler.jsonc`. |
+| Field              | Required     | Meaning                                                                                                |
+| ------------------ | ------------ | ------------------------------------------------------------------------------------------------------ |
+| `accountId`        | one of these | The 32-character ID of the account that owns the Worker and the zone.                                  |
+| `accountIdEnv`     | one of these | Set to `CLOUDFLARE_ACCOUNT_ID` to read that ID from the environment at production check or setup time. |
+| `zone.name`        | yes          | The zone, such as `lvwwd.org`.                                                                         |
+| `zone.id`          | yes          | The zone's 32-character ID, from the zone's Overview page in the dashboard.                            |
+| `worker`           | yes          | The production Worker's name. It must equal the configured Worker name.                                |
+| `cloudflareConfig` | no           | Canonical `cloudflare.config.ts`, relative to the manifest. Selects cf deployment.                     |
+| `wranglerConfig`   | no           | Legacy production Wrangler config, relative to the manifest. Defaults to `wrangler.jsonc`.             |
 
 When `cloudflareConfig` is set, preflight imports that file and checks its Worker name and `env`
 bindings. It does not validate a retained Wrangler mirror in its place. Without it, preflight reads
 the Wrangler config's top-level `name`, `vars`, `d1_databases`, and `r2_buckets`; it does not read
 `env.*` sections.
+
+Use exactly one of `accountId` and `accountIdEnv`. The environment form keeps the account identifier
+out of the manifest. Set `CLOUDFLARE_ACCOUNT_ID` to a 32-character account ID before running
+`pnpm preflight --production` or `pnpm bootstrap --production`. The latter can still copy that ID to
+a declared GitHub deploy secret.
 
 ## `d1` and `r2`
 
@@ -88,11 +94,12 @@ the Wrangler config's top-level `name`, `vars`, `d1_databases`, and `r2_buckets`
 | `migrations` | no (D1)  | The migrations directory, relative to the manifest. Every `.sql` file must be applied. |
 
 The check fails when the database or bucket does not exist, when the production config does not bind
-it under `binding`, and when the config's database ID differs from the real database. It reads the
-applied migrations from the database's `d1_migrations` table (or the `migrations_table` the config
-names) with a read-only query. Setup applies only migrations that are not applied yet, and only
-while the config's database ID is the real database's. Cf applies them by database ID for cf
-projects; Wrangler applies them to the database the legacy config names.
+it under `binding`, or when an explicit database ID differs from the real database. A name-only D1
+binding is accepted only when inventory finds exactly one database with that name in the selected
+account. It reads the applied migrations from the database's `d1_migrations` table (or the
+`migrations_table` the config names) with a read-only query. Setup applies only migrations that are
+not applied yet, and only while the config names the observed database. Cf applies them by the
+observed database ID for cf projects; Wrangler applies them to the database the legacy config names.
 
 ## `turnstile`
 

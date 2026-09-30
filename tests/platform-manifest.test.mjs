@@ -5,6 +5,7 @@ import path from 'node:path';
 import test from 'node:test';
 
 import { checkPlatform } from '../packages/cli/src/lib/check/platform.mjs';
+import { resolveManifestAccount } from '../packages/cli/src/lib/platform/index.mjs';
 import {
   findManifests,
   parseJsonc,
@@ -25,6 +26,37 @@ function errorsAfter(change) {
 
 test('a manifest that uses every section is valid', () => {
   assert.deepEqual(validateManifest(sampleManifest()), []);
+});
+
+test('a manifest can select the Cloudflare account from a named environment variable', () => {
+  assert.deepEqual(
+    errorsAfter((manifest) => {
+      delete manifest.cloudflare.accountId;
+      manifest.cloudflare.accountIdEnv = 'CLOUDFLARE_ACCOUNT_ID';
+    }),
+    [],
+  );
+  assert.ok(
+    errorsAfter((manifest) => {
+      delete manifest.cloudflare.accountId;
+    }).some((error) => error.includes('accountId')),
+  );
+  assert.ok(
+    errorsAfter((manifest) => {
+      manifest.cloudflare.accountIdEnv = 'CLOUDFLARE_ACCOUNT_ID';
+    }).some((error) => error.includes('exactly one')),
+  );
+});
+
+test('account ID resolves from an explicit environment variable and rejects missing or malformed values', () => {
+  const manifest = sampleManifest();
+  delete manifest.cloudflare.accountId;
+  manifest.cloudflare.accountIdEnv = 'CLOUDFLARE_ACCOUNT_ID';
+  const resolved = resolveManifestAccount(manifest, { CLOUDFLARE_ACCOUNT_ID: 'c'.repeat(32) });
+  assert.equal(resolved.cloudflare.accountId, 'c'.repeat(32));
+  assert.equal(manifest.cloudflare.accountId, undefined);
+  for (const env of [{}, { CLOUDFLARE_ACCOUNT_ID: 'bad' }])
+    assert.throws(() => resolveManifestAccount(manifest, env), /CLOUDFLARE_ACCOUNT_ID.*32/);
 });
 
 test('a cf project can name its canonical config without a Wrangler config', () => {
