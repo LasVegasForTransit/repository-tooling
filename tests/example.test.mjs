@@ -137,7 +137,7 @@ for (const [name, { uses, deploys }] of Object.entries(examples)) {
       Object.assign(specifiers, manifest.dependencies, manifest.devDependencies);
     }
     for (const [dependency, range] of Object.entries(specifiers)) {
-      if (dependency.startsWith('@lasvegasfortransit/')) {
+      if (sharedPackages.some((shared) => dependency === `@lasvegasfortransit/${shared}`)) {
         assert.equal(range, version, `${dependency} must be pinned to ${version}`);
       }
     }
@@ -436,7 +436,7 @@ test('source and generated repositories pin audited transitive fixes', async () 
     );
     assert.match(
       workspace,
-      /^overrides:\n {2}fast-uri: 3\.1\.7\n {2}sharp: 0\.35\.4\n {2}'undici@\^7\.0\.0': 7\.29\.1\n {2}'undici@\^8\.0\.0': 8\.10\.2\n {2}smol-toml: 1\.8\.0\n {2}svgo: 4\.1\.0$/m,
+      /^overrides:\n {2}brace-expansion: 5\.0\.12\n {2}fast-uri: 3\.1\.8\n {2}sharp: 0\.35\.4\n {2}'undici@\^7\.0\.0': 7\.29\.1\n {2}'undici@\^8\.0\.0': 8\.10\.2\n {2}smol-toml: 1\.8\.0\n {2}svgo: 4\.1\.0$/m,
     );
   }
 });

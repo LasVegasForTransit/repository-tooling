@@ -45,13 +45,13 @@ files.
 
 `with-astro` and `with-vite-react` carry everything above, minus `packages/example`, plus:
 
-| Path                           | Purpose                                                                                              |
-| ------------------------------ | ---------------------------------------------------------------------------------------------------- |
-| `apps/site` or `apps/app`      | The application: source under `src/`, unit tests under `tests/`, end-to-end tests under `tests/e2e/` |
-| `apps/*/wrangler.jsonc`        | A static-assets Worker serving `dist/`; `pnpm run deploy` deploys every app that has one             |
-| `apps/*/playwright.config.ts`  | Spreads `@lasvegasfortransit/playwright-config` and starts the app's `preview` server                |
-| `.github/workflows/deploy.yml` | Validates, then runs `pnpm run deploy` on every push to `main` with the Cloudflare secrets           |
-| root `preview` and `deploy`    | `turbo run preview` and `lvbt deploy`                                                                |
+| Path                               | Purpose                                                                                              |
+| ---------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `apps/site` or `apps/app`          | The application: source under `src/`, unit tests under `tests/`, end-to-end tests under `tests/e2e/` |
+| `apps/deploy/cloudflare.config.ts` | The `cf` Worker project, which serves the app's built static assets                                  |
+| `apps/*/playwright.config.ts`      | Spreads `@lasvegasfortransit/playwright-config` and starts the app's `preview` server                |
+| `.github/workflows/deploy.yml`     | Validates, then runs `pnpm run deploy` on every push to `main` with the Cloudflare secrets           |
+| root `preview` and `deploy`        | `turbo run preview` and `lvbt deploy`; CI builds the app and dry-runs `cf deploy`                    |
 
 The Astro example also adds `prettier-plugin-astro` to its Prettier config and extends
 `@lasvegasfortransit/typescript-config/astro.json`; the React example extends `react-library.json`

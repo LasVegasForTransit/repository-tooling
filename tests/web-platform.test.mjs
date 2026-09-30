@@ -222,6 +222,26 @@ test('web profiles deploy once through cf and preserve Worker version previews',
   }
 });
 
+test('web profiles validate the cf bundle after building their app', () => {
+  const root = new URL('..', import.meta.url).pathname;
+  for (const [profile, app] of [
+    ['with-astro', 'site'],
+    ['with-vite-react', 'app'],
+  ]) {
+    const example = path.join(root, 'examples', profile);
+    const result = spawnSync(
+      path.join(root, 'node_modules/turbo/bin/turbo'),
+      ['run', 'validate', '--dry-run=json', '--cwd', example],
+      { encoding: 'utf8' },
+    );
+    assert.equal(result.status, 0, `${result.stdout}\n${result.stderr}`);
+    const tasks = JSON.parse(result.stdout).tasks;
+    const deploy = tasks.find((task) => task.taskId === '@lasvegasfortransit/deploy#validate');
+    assert.equal(deploy?.command, 'cf deploy --dry-run');
+    assert.deepEqual(deploy.dependencies, [`@lasvegasfortransit/${app}#build`]);
+  }
+});
+
 test('the updater accepts either a release or an exact commit, never both', () =>
   fixture(async (root) => {
     const repository = new URL('..', import.meta.url).pathname;
