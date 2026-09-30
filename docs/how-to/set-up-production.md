@@ -401,28 +401,36 @@ manage Turnstile.
 
 ### Resend
 
+Resend shows the DNS records for each domain. Set `email.dnsProfile` in `platform.json` to match:
+`forge` for the `rsend` and `send` CNAMEs, or `ses` for the older `send` MX and SPF records. An
+omitted profile means `ses`, so existing manifests keep their current checks.
+
 1. Sign in at <https://resend.com/login>. If you have no account, sign up at
    <https://resend.com/signup> with your @lasvegasfortransit.org address, and ask a maintainer to
    invite you to the LVBT team.
 2. On the Domains page, click "Add Domain", type the sending domain (lvwwd.org sends from
    `lvwwd.org`), choose the region "North Virginia (us-east-1)", and click "Add". The region must
    match `email.region` in `platform.json`.
-3. On the domain's page, click "Sign in to Cloudflare" and approve the request. It adds every DNS
-   record for you.
-4. To add the records by hand instead, open the zone's DNS records page in the Cloudflare dashboard
-   and add each with TTL "Auto" and Proxy status "DNS only": an MX record named `send` with the mail
-   server `feedback-smtp.us-east-1.amazonses.com` and priority 10; a TXT record named `send` with
-   the content `v=spf1 include:amazonses.com ~all`; and a TXT record named `resend._domainkey` with
-   the long `p=` value Resend shows. For a subdomain such as `notify.lasvegasfortransit.org`, add
-   the subdomain to each name, as in `send.notify`.
-5. Add the DMARC record Resend recommends: a TXT record named `_dmarc` with the content
+3. If the domain's page offers "Sign in to Cloudflare", use it to add the DNS records, then check
+   each record against the values Resend shows. Otherwise add them by hand in the next steps.
+4. If Resend shows the Forge layout and you are adding its records by hand, open the zone's DNS
+   records page in Cloudflare. Add CNAME `rsend` pointing to `rsend.forge.rmta.net` and CNAME `send`
+   pointing to `send.forge.rmta.net`. Set both to DNS only with TTL Auto. Add TXT
+   `resend._domainkey` with the exact `p=` value shown for this domain in Resend. A Forge domain
+   does not use the older SES MX or SPF records.
+5. If Resend shows the older SES layout instead, add MX `send` pointing to
+   `feedback-smtp.us-east-1.amazonses.com` with priority 10, TXT `send` containing
+   `v=spf1 include:amazonses.com ~all`, and TXT `resend._domainkey` with the exact `p=` value Resend
+   shows. For a sending subdomain such as `notify.lasvegasfortransit.org`, add the subdomain to each
+   DNS name, as in `send.notify`.
+6. Add the DMARC record Resend recommends: a TXT record named `_dmarc` with the content
    `v=DMARC1; p=none;`.
-6. Click "Verify DNS Records" and wait until the domain's status says "Verified". It usually takes a
+7. Click "Verify DNS Records" and wait until the domain's status says "Verified". It usually takes a
    few minutes; DNS can take up to 72 hours.
-7. Open <https://resend.com/api-keys> and click "Create API Key". Name it after the Worker, such as
+8. Open <https://resend.com/api-keys> and click "Create API Key". Name it after the Worker, such as
    `lvwwd.org Worker`, choose the permission "Sending access", choose the verified domain, and click
    "Add".
-8. Copy the key, which starts with `re_` and is shown only once, and paste it when setup asks for
+9. Copy the key, which starts with `re_` and is shown only once, and paste it when setup asks for
    `RESEND_API_KEY`.
 
 ### Cloudflare Web Analytics

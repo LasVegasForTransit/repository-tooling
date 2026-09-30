@@ -67,6 +67,51 @@ export function emailRecords(email) {
   const region = email.region ?? 'us-east-1';
   const domain = email.domain;
   const mailFrom = `feedback-smtp.${region}.amazonses.com`;
+  const dkimAndDmarc = [
+    {
+      key: 'dkim',
+      type: 'TXT',
+      name: `resend._domainkey.${domain}`,
+      purpose: 'signs every message (DKIM)',
+      expected: 'TXT resend._domainkey → the p=… value Resend shows',
+      matches: (data) => dnsText(data).startsWith('p='),
+      level: 'required',
+    },
+    {
+      key: 'dmarc',
+      type: 'TXT',
+      name: `_dmarc.${domain}`,
+      purpose: 'tells inboxes what to do with mail that fails the checks (DMARC)',
+      expected: 'TXT _dmarc → "v=DMARC1; p=none;"',
+      matches: (data) => dnsText(data).startsWith('v=DMARC1'),
+      level: 'recommended',
+    },
+  ];
+  if (email.dnsProfile === 'forge') {
+    const cnameMatches = (target) => (data) =>
+      data.trim().replace(/\.$/, '').toLowerCase() === target;
+    return [
+      {
+        key: 'rsend',
+        type: 'CNAME',
+        name: `rsend.${domain}`,
+        purpose: 'connects this sending domain to Resend',
+        expected: 'CNAME rsend → rsend.forge.rmta.net',
+        matches: cnameMatches('rsend.forge.rmta.net'),
+        level: 'required',
+      },
+      {
+        key: 'send',
+        type: 'CNAME',
+        name: `send.${domain}`,
+        purpose: 'routes the return path through Resend',
+        expected: 'CNAME send → send.forge.rmta.net',
+        matches: cnameMatches('send.forge.rmta.net'),
+        level: 'required',
+      },
+      ...dkimAndDmarc,
+    ];
+  }
   return [
     {
       key: 'mx',
@@ -87,42 +132,28 @@ export function emailRecords(email) {
         dnsText(data).startsWith('v=spf1') && dnsText(data).includes('include:amazonses.com'),
       level: 'required',
     },
-    {
-      key: 'dkim',
-      type: 'TXT',
-      name: `resend._domainkey.${domain}`,
-      purpose: 'signs every message (DKIM)',
-      expected: 'TXT resend._domainkey → the p=… value Resend shows',
-      matches: (data) => dnsText(data).startsWith('p='),
-      level: 'required',
-    },
-    {
-      key: 'dmarc',
-      type: 'TXT',
-      name: `_dmarc.${domain}`,
-      purpose: 'tells inboxes what to do with mail that fails the checks (DMARC)',
-      expected: 'TXT _dmarc → "v=DMARC1; p=none;"',
-      matches: (data) => dnsText(data).startsWith('v=DMARC1'),
-      level: 'recommended',
-    },
+    ...dkimAndDmarc,
   ];
 }
 
 export function resendDomainGuide(email, cloudflare) {
   const region = email.region ?? 'us-east-1';
   const zone = cloudflare.zone.name;
-  const [mx, spf, dkim, dmarc] = emailRecords(email).map((record) => ({
-    ...record,
-    short: relativeName(record.name, zone),
-  }));
+  const records = Object.fromEntries(
+    emailRecords(email).map((record) => [record.key, relativeName(record.name, zone)]),
+  );
+  const forge = email.dnsProfile === 'forge';
+  const manualRecords = forge
+    ? `To add them by hand, open https://dash.cloudflare.com/${cloudflare.accountId}/${zone}/dns/records. Add these CNAME records with TTL "Auto" and Proxy status "DNS only": type CNAME, name ${records.rsend}, target rsend.forge.rmta.net; type CNAME, name ${records.send}, target send.forge.rmta.net. Add a third record: type TXT, name ${records.dkim}, content the long p=… value shown on this domain's page in Resend.`
+    : `To add them by hand instead, open https://dash.cloudflare.com/${cloudflare.accountId}/${zone}/dns/records and add these three, each with TTL "Auto" and Proxy status "DNS only": type MX, name ${records.mx}, mail server feedback-smtp.${region}.amazonses.com, priority 10; type TXT, name ${records.spf}, content v=spf1 include:amazonses.com ~all; type TXT, name ${records.dkim}, content the long p=… value Resend shows for it.`;
   return {
     url: 'https://resend.com/domains',
     steps: [
       'Sign in to Resend at https://resend.com/login. If you have no account, sign up at https://resend.com/signup with your @lasvegasfortransit.org address, then ask a maintainer to invite you to the LVBT team. Everything below belongs in that team, never in a personal one.',
-      `On the Domains page, if ${email.domain} is listed, click it and go to the next step. Otherwise click "Add Domain", type ${email.domain}, choose the region ${REGIONS[region] ?? region}, and click "Add". Keep that region: platform.json and the DNS records both name it.`,
-      `The easiest way to add the DNS records is the "Sign in to Cloudflare" button on the domain's page in Resend. Approve the request in the Cloudflare window, and it adds every record for you.`,
-      `To add them by hand instead, open https://dash.cloudflare.com/${cloudflare.accountId}/${zone}/dns/records and add these three, each with TTL "Auto" and Proxy status "DNS only": type MX, name ${mx.short}, mail server feedback-smtp.${region}.amazonses.com, priority 10; type TXT, name ${spf.short}, content v=spf1 include:amazonses.com ~all; type TXT, name ${dkim.short}, content the long p=… value Resend shows for it.`,
-      `Add the DMARC record too, which Resend recommends: type TXT, name ${dmarc.short}, content v=DMARC1; p=none;.`,
+      `On the Domains page, if ${email.domain} is listed, click it and go to the next step. Otherwise click "Add Domain", type ${email.domain}, choose the region ${REGIONS[region] ?? region}, and click "Add". Keep that region: platform.json names it${forge ? '.' : ' and the DNS records do too.'}`,
+      `If Resend offers a "Sign in to Cloudflare" button on the domain's page, you can use it to add the DNS records. Approve the request in the Cloudflare window, then check the records it added against the values Resend shows.`,
+      manualRecords,
+      `Add the DMARC record too, which Resend recommends: type TXT, name ${records.dmarc}, content v=DMARC1; p=none;.`,
       'Back in Resend, click "Verify DNS Records". Wait until the domain\'s status says "Verified", usually within a few minutes (DNS can take up to 72 hours). Then run this command again.',
     ],
   };

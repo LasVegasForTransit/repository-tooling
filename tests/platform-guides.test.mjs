@@ -3,6 +3,7 @@ import test from 'node:test';
 
 import {
   accessAppGuide,
+  emailRecords,
   googleGroupGuide,
   googleWorkspaceGuide,
   hostnameParts,
@@ -74,6 +75,36 @@ test('email records are named relative to the zone, including for a sending subd
   assert.ok(steps.includes('name send.notify'));
   assert.ok(steps.includes('name resend._domainkey.notify'));
   assert.ok(steps.includes('us-east-1'));
+});
+
+test('the Forge profile requires its two CNAMEs and DKIM but not legacy SES records', () => {
+  const email = { domain: 'example.org', provider: 'resend', dnsProfile: 'forge' };
+  const records = emailRecords(email);
+  assert.deepEqual(
+    records.map(({ key, type, name, level }) => ({ key, type, name, level })),
+    [
+      { key: 'rsend', type: 'CNAME', name: 'rsend.example.org', level: 'required' },
+      { key: 'send', type: 'CNAME', name: 'send.example.org', level: 'required' },
+      { key: 'dkim', type: 'TXT', name: 'resend._domainkey.example.org', level: 'required' },
+      { key: 'dmarc', type: 'TXT', name: '_dmarc.example.org', level: 'recommended' },
+    ],
+  );
+  assert.equal(records[0].matches('RSEND.FORGE.RMTA.NET.'), true);
+  assert.equal(records[0].matches('send.forge.rmta.net.'), false);
+  assert.equal(records[1].matches('send.forge.rmta.net.'), true);
+});
+
+test('the Forge guide names the observed Resend records without SES instructions', () => {
+  const steps = everyStep(
+    resendDomainGuide(
+      { domain: 'notify.example.org', provider: 'resend', dnsProfile: 'forge' },
+      sampleManifest().cloudflare,
+    ),
+  );
+  assert.match(steps, /CNAME, name rsend\.notify, target rsend\.forge\.rmta\.net/);
+  assert.match(steps, /CNAME, name send\.notify, target send\.forge\.rmta\.net/);
+  assert.match(steps, /TXT, name resend\._domainkey\.notify/);
+  assert.doesNotMatch(steps, /amazonses|type MX|include:amazonses/);
 });
 
 test('Cloudflare config guides use typed worker bindings while Wrangler guides use JSON vars', () => {

@@ -207,6 +207,38 @@ test('missing sending records block production; a missing DMARC record only warn
   assert.equal(noDmarc.ready, true);
 });
 
+test('Forge records make email ready and a missing return-path CNAME blocks it', () => {
+  const forgeDns = {
+    'rsend.example.org CNAME': known(['rsend.forge.rmta.net.']),
+    'send.example.org CNAME': known(['send.forge.rmta.net.']),
+    'resend._domainkey.example.org TXT': known(['"p=MIGfMA0GCSqGSIb3"']),
+    '_dmarc.example.org TXT': known(['"v=DMARC1; p=none;"']),
+  };
+  const forge = (change = () => undefined) =>
+    planAfter(
+      (state) => {
+        state.dns = { ...forgeDns };
+        change(state);
+      },
+      (manifest) => {
+        manifest.email[0].dnsProfile = 'forge';
+      },
+    );
+  const ready = forge();
+  assert.equal(ready.byId('email:example.org:rsend').status, 'ok');
+  assert.equal(ready.byId('email:example.org:send').status, 'ok');
+  assert.equal(ready.ready, true);
+  assert.equal(ready.byId('email:example.org:mx'), undefined);
+
+  const noReturnPath = forge((state) => (state.dns['send.example.org CNAME'] = known([])));
+  assert.equal(noReturnPath.byId('email:example.org:send').status, 'missing');
+  assert.equal(noReturnPath.ready, false);
+
+  const noDmarc = forge((state) => (state.dns['_dmarc.example.org TXT'] = known([])));
+  assert.equal(noDmarc.ready, true);
+  assert.equal(noDmarc.byId('email:example.org:dmarc').level, 'recommended');
+});
+
 test('a forbidden secret on the production Worker fails the check and can be deleted', () => {
   const plan = planAfter((state) => state.worker.value.secrets.push('PREVIEW_ADMIN_KEY'));
   const forbidden = plan.byId('forbidden:PREVIEW_ADMIN_KEY:worker');

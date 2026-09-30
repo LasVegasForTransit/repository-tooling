@@ -36,6 +36,19 @@ test('a cf project can name its canonical config without a Wrangler config', () 
   );
 });
 
+test('email DNS profiles accept Forge explicitly and reject unknown layouts', () => {
+  assert.deepEqual(
+    errorsAfter((manifest) => {
+      manifest.email[0].dnsProfile = 'forge';
+    }),
+    [],
+  );
+  const errors = errorsAfter((manifest) => {
+    manifest.email[0].dnsProfile = 'unknown';
+  });
+  assert.ok(errors.some((error) => error.includes('dnsProfile')));
+});
+
 test('a cf project manifest rejects a config filename cf cannot discover', () => {
   const errors = errorsAfter((manifest) => {
     manifest.cloudflare.cloudflareConfig = 'production.config.ts';

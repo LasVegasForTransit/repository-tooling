@@ -139,12 +139,16 @@ those steps.
 | -------------- | -------- | -------------------------------------------------------------------------------------- |
 | `domain`       | yes      | The domain in the From address.                                                        |
 | `provider`     | yes      | `resend`. The provider decides which DNS records are checked.                          |
+| `dnsProfile`   | no       | `ses` (the default) for legacy MX/SPF records, or `forge` for Resend's CNAME records.  |
 | `region`       | no       | The provider's sending region. Defaults to `us-east-1`.                                |
 | `apiKeySecret` | no       | The Worker secret that carries the provider's API key. It must be listed in `secrets`. |
 
-For Resend, the check looks up the `send` MX and SPF records and the `resend._domainkey` DKIM
-record, which production needs, and the `_dmarc` record, which it recommends. It uses public DNS, so
-it needs no credential.
+Set `dnsProfile` to match the records shown on the domain's Resend page. The default `ses` profile
+checks the legacy `send` MX and SPF records. The `forge` profile checks `rsend` and `send` CNAMEs
+pointing to `rsend.forge.rmta.net` and `send.forge.rmta.net`. Both profiles require the
+`resend._domainkey` DKIM TXT record and recommend `_dmarc` TXT. The check uses public DNS and needs
+no credential. A passing DNS check does not confirm Resend has marked the domain Verified or that a
+message can be delivered; check the domain in Resend and send a test message before launch.
 
 ## `secrets`
 
