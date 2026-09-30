@@ -246,6 +246,10 @@
           "enum": ["resend"],
           "description": "The sending service. It decides which DNS records are checked."
         },
+        "dnsProfile": {
+          "enum": ["ses", "forge"],
+          "description": "The DNS layout Resend shows for this domain. Defaults to the legacy SES MX/SPF layout; choose forge for Resend's rsend and send CNAME records."
+        },
         "region": {
           "type": "string",
           "pattern": "^[a-z]{2}-[a-z]+-[0-9]$",
