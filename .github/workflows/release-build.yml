@@ -1,0 +1,56 @@
+name: Build retained staging release
+
+on:
+  workflow_call:
+    inputs:
+      app-directory:
+        type: string
+        required: true
+      validation-browser-directory:
+        type: string
+        required: false
+      artifact-prefix:
+        type: string
+        required: true
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      LVBT_PRODUCTION_URL: ${{ vars.LVBT_PRODUCTION_URL }}
+      LVBT_PREVIEW_URL: ${{ vars.LVBT_PREVIEW_URL }}
+      LVBT_PREVIEW_BINDINGS: ${{ vars.LVBT_PREVIEW_BINDINGS }}
+      RELEASE_ID: ${{ github.run_id }}
+      APP_DIRECTORY: ${{ inputs.app-directory }}
+      VALIDATION_BROWSER_DIRECTORY: ${{ inputs.validation-browser-directory }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Setup Node + pnpm
+        uses: ./.github/actions/setup-node-pnpm
+      - name: Install validation browser
+        if: inputs.validation-browser-directory != ''
+        run: pnpm --dir "$VALIDATION_BROWSER_DIRECTORY" exec playwright install --with-deps chromium
+      - name: Build and validate the app
+        run: pnpm check
+      - name: Prepare static cf output
+        run: pnpm --dir "$APP_DIRECTORY" exec cf deploy --dry-run
+      - name: Package reviewed release
+        run: >-
+          pnpm exec lvbt release package --directory "$RUNNER_TEMP/release" --commit "$GITHUB_SHA"
+          --release-id "$RELEASE_ID"
+      - name: Retain immutable release
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ${{ inputs.artifact-prefix }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/release/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 90

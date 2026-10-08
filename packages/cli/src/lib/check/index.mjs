@@ -3,8 +3,10 @@ import { checkContract } from './contract.mjs';
 import { checkDebt } from './debt.mjs';
 import { checkFilenames } from './filenames.mjs';
 import { checkPlatform } from './platform.mjs';
+import { checkStandard } from './standard.mjs';
 
 const checks = {
+  standard: checkStandard,
   filenames: checkFilenames,
   contract: checkContract,
   debt: checkDebt,
@@ -15,7 +17,7 @@ const checks = {
  * `lvbt check [name...]`: the repository-shape rules every LVBT repository
  * shares, run together by `pnpm check`. Each result names its fix.
  */
-export function check({ cwd, options }) {
+export async function check({ cwd, options }) {
   const names = options.positional.length > 0 ? options.positional : Object.keys(checks);
   const unknown = names.filter((name) => !(name in checks));
   if (unknown.length > 0) {
@@ -27,7 +29,7 @@ export function check({ cwd, options }) {
 
   let failed = 0;
   for (const name of names) {
-    const result = checks[name]({ cwd, staged: options.staged });
+    const result = await checks[name]({ cwd, staged: options.staged });
     process.stdout.write(`  ${result.ok ? 'ok  ' : 'FAIL'}  ${name}\n`);
     for (const line of result.lines) process.stdout.write(`        ${line}\n`);
     if (!result.ok) {

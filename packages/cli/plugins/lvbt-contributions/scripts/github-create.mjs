@@ -85,8 +85,22 @@ function verifyStored(expected, stored) {
 }
 
 const options = parseArguments(process.argv.slice(2));
+if (options.kind === 'audit') {
+  try {
+    const { reportAudit } = await import('../../../src/lib/audit/report.mjs');
+    const result = await reportAudit({
+      cwd: process.cwd(),
+      input: options.input,
+      dryRun: options.dryRun,
+    });
+    process.stdout.write(`${JSON.stringify(result)}\n`);
+    process.exit(0);
+  } catch (error) {
+    fail(error.message, 2);
+  }
+}
 if (!['issue', 'pr'].includes(options.kind)) {
-  fail('Usage: github-create issue|pr [options]', 2);
+  fail('Usage: github-create issue|pr|audit [options]', 2);
 }
 if (!options.title?.trim()) fail('A non-empty title is required.');
 if (options.title !== options.title.trim()) fail('The title must be trimmed.');
@@ -123,12 +137,23 @@ if (options.kind === 'issue') {
   }
 }
 
+let labels;
+if (options.audit_check || options.audit_target) {
+  if (options.kind !== 'issue' || options.type !== 'bug')
+    fail('Audit ownership requires a bug issue.', 2);
+  if (!['links', 'lighthouse', 'dependencies'].includes(options.audit_check))
+    fail('Invalid audit check.', 2);
+  if (!['local', 'production'].includes(options.audit_target)) fail('Invalid audit target.', 2);
+  labels = [label, 'audit-owned', `audit:${options.audit_check}`, `target:${options.audit_target}`];
+}
+
 const preview = {
   valid: true,
   kind: options.kind,
   title: options.title,
   body,
   ...(label ? { label } : {}),
+  ...(labels ? { labels } : {}),
 };
 if (options.dryRun) {
   process.stdout.write(
@@ -146,11 +171,22 @@ if (options.kind === 'issue') {
     options.title,
     '--body-file',
     options.body_file,
-    '--label',
-    label,
+    ...(labels ?? [label]).flatMap((value) => ['--label', value]),
+    ...(options.repo ? ['--repo', options.repo] : []),
   ]);
-  const stored = JSON.parse(run('gh', ['issue', 'view', url, '--json', 'number,title,body,url']));
+  const stored = JSON.parse(
+    run('gh', [
+      'issue',
+      'view',
+      url,
+      '--json',
+      labels ? 'number,title,body,url,labels' : 'number,title,body,url',
+      ...(options.repo ? ['--repo', options.repo] : []),
+    ]),
+  );
   verifyStored(preview, stored);
+  if (labels && !labels.every((name) => stored.labels?.some((value) => value.name === name)))
+    fail('GitHub stored issue labels differ from the verified preview.', 2);
   preview.number = stored.number;
   preview.url = stored.url;
 } else {

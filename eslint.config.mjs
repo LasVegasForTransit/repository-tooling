@@ -6,6 +6,6 @@ import { config } from '@lasvegasfortransit/eslint-config/base';
 // not a Turborepo workspace, so the env-var rule has no turbo.json to read.
 export default [
   ...config,
-  { ignores: ['examples/**', '**/*.d.ts'] },
+  { ignores: ['examples/**', '**/*.d.ts', '**/*.d.mts'] },
   { rules: { 'turbo/no-undeclared-env-vars': 'off' } },
 ];

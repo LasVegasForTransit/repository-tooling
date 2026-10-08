@@ -1,6 +1,6 @@
 {
   "name": "@lasvegasfortransit/web-platform",
-  "version": "0.6.3",
+  "version": "0.7.0",
   "description": "Provider-neutral deployment, provisioning, and validation primitives for LVBT web repositories.",
   "license": "MIT",
   "type": "module",
@@ -18,7 +18,8 @@
     "./cloudflare": "./src/cloudflare.ts",
     "./github": "./src/github.ts",
     "./provision": "./src/provision.ts",
-    "./release": "./src/release.ts"
+    "./release": "./src/release.ts",
+    "./links": "./src/links.ts"
   },
   "files": [
     "src"
@@ -30,7 +31,9 @@
     "node": ">=24"
   },
   "dependencies": {
-    "zod": "4.5.4"
+    "zod": "4.5.4",
+    "playwright-core": "1.62.1",
+    "jsonc-parser": "3.3.1"
   },
   "devDependencies": {
     "vitest": "4.1.11"

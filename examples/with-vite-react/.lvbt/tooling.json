@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "release": {
+    "appDirectory": "apps/deploy",
+    "artifactSource": "cf-output",
+    "productionWorker": "lvbt-app",
+    "previewWorker": "lvbt-app-preview",
+    "productionUrlEnv": "LVBT_PRODUCTION_URL",
+    "previewUrlEnv": "LVBT_PREVIEW_URL",
+    "artifactPrefix": "app-release",
+    "stagingWorkflow": {
+      "name": "Deploy staging",
+      "path": ".github/workflows/deploy.yml",
+      "branch": "main"
+    },
+    "promotionWorkflow": {
+      "file": "promote.yml",
+      "titlePrefix": "Promote app",
+      "branch": "main"
+    }
+  }
+}

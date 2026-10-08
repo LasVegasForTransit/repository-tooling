@@ -37,5 +37,12 @@
       "cache": false,
       "persistent": true
     }
-  }
+  },
+  "globalPassThroughEnv": [
+    "PLAYWRIGHT_BASE_URL",
+    "CF_ACCESS_CLIENT_ID",
+    "CF_ACCESS_CLIENT_SECRET",
+    "LVBT_PRODUCTION_URL",
+    "LVBT_PREVIEW_URL"
+  ]
 }

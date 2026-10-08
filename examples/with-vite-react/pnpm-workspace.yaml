@@ -68,3 +68,6 @@ catalog:
   cf: 1.0.0-beta.5
   wrangler: 4.141.0
   zod: 4.5.4
+
+# Preflight is read-only; bootstrap validates before installing.
+verifyDepsBeforeRun: false

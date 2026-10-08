@@ -106,6 +106,42 @@ export async function secretValue(context, action) {
   return value;
 }
 
+/** Whether a target already had this value's name before this run. */
+function previouslyStored(context, secret, target) {
+  if (target === 'worker')
+    return context.state.worker.ok && context.state.worker.value.secrets.includes(secret.name);
+  return (
+    context.state.github.ok &&
+    context.state.github.value.secrets[target.slice(7)]?.includes(secret.name) === true
+  );
+}
+
+/**
+ * Instructions for an external consumer follow successful storage on every
+ * target. A generated credential remains hidden unless its maintainer asks
+ * for one copy explicitly, and the offer is never repeated in this run.
+ */
+export async function completeSecretSetup(context, secret, { rotating = false, value } = {}) {
+  const key = `afterSet:${secret.name}`;
+  value ??= context.values.get(secret.name);
+  if (!secret.afterSet || !value || context.handled.has(key)) return;
+  const complete = (secret.targets ?? ['worker']).every(
+    (target) =>
+      context.handled.has(`secret:${secret.name}:${target}`) ||
+      (!rotating && previouslyStored(context, secret, target)),
+  );
+  if (!complete) return;
+  context.handled.add(key);
+  context.io.write(`\n${secret.name}: ${secret.afterSet}\n`);
+  if (
+    await context.io.confirm(
+      `Show ${secret.name} once in this terminal so you can copy it to that external service?`,
+      false,
+    )
+  )
+    context.io.write(`${secret.name} = ${value}\n`);
+}
+
 /** The targets of a rotated secret that this run has not already stored. */
 function rotationTargets(context, secret) {
   const targets = (secret.targets ?? ['worker']).filter(
@@ -151,6 +187,7 @@ async function rotateSecret(context, secret) {
       );
     }
   }
+  await completeSecretSetup(context, secret, { rotating: true, value });
 }
 
 /**

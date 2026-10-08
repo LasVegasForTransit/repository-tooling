@@ -57,9 +57,7 @@ async function rewriteManifest(root: string, file: string): Promise<void> {
       'node .lvbt/web-platform/standards/web-platform-cli.ts check';
     const check = manifest.scripts.check;
     if (!check) throw new Error('The template root must define a check script.');
-    if (!check.startsWith('pnpm standards:check && ')) {
-      manifest.scripts.check = `pnpm standards:check && ${check}`;
-    }
+    manifest.scripts.check = check.replace(/^pnpm standards:check && /, '');
   }
   await writeFile(file, `${JSON.stringify(manifest, null, 2)}\n`);
 }

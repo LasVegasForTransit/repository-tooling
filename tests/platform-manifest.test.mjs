@@ -243,3 +243,27 @@ test('a repository without a manifest passes the platform check', async () => {
     await rm(root, { recursive: true, force: true });
   }
 });
+
+test('public variable names cannot be duplicated in the same GitHub scope', () => {
+  const manifest = sampleManifest();
+  manifest.github.variables = [
+    { name: 'PUBLIC_URL', purpose: 'The public URL.' },
+    { name: 'PUBLIC_URL', purpose: 'A second conflicting URL.' },
+  ];
+  assert.ok(validateManifest(manifest).some((error) => /PUBLIC_URL.*declared.*twice/.test(error)));
+  manifest.github.variables[1].environment = 'production';
+  assert.deepEqual(validateManifest(manifest), []);
+});
+
+test('a public variable cannot specify both a literal value and a manifest-derived value', () => {
+  const manifest = sampleManifest();
+  manifest.github.variables = [
+    {
+      name: 'ACCOUNT_ID',
+      purpose: 'The deploy account.',
+      value: 'wrong-account',
+      from: 'cloudflare.accountId',
+    },
+  ];
+  assert.ok(validateManifest(manifest).some((error) => /ACCOUNT_ID.*value.*from/.test(error)));
+});

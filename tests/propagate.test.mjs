@@ -269,3 +269,10 @@ test('a template repository is regenerated from the example its name gives', () 
   });
   assert.equal(repositoryEntry('labs', false).kind, 'consumer');
 });
+
+test('automated updates stage explicit paths and commit through one atomic chain', async () => {
+  const source = await readFile(path.join(root, 'standards/propagate.ts'), 'utf8');
+  assert.doesNotMatch(source, /runner\('git', \['add', '-A'\]/);
+  assert.doesNotMatch(source, /'--no-verify'/);
+  assert.match(source, /git restore --staged \. && git add/);
+});

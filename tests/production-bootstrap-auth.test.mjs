@@ -21,6 +21,7 @@ test('production bootstrap can reach platform setup without a cf login', async (
         engines: { node: `>=${process.versions.node}` },
       }),
     );
+    await writeFile(path.join(repository, 'pnpm-lock.yaml'), 'lockfileVersion: 9.0\n');
     await writeFile(path.join(repository, '.lvbt/commit-scopes.txt'), 'tooling\n');
     await writeFile(path.join(repository, 'cloudflare.config.ts'), 'export default {};\n');
     const fakePnpm = path.join(bin, 'pnpm');
@@ -37,15 +38,15 @@ test('production bootstrap can reach platform setup without a cf login', async (
       spawnSync(process.execPath, [cli, ...args], { cwd: repository, env, encoding: 'utf8' });
 
     const normal = run('preflight');
-    assert.equal(normal.status, 1);
-    assert.match(normal.stdout, /FAIL\s+Cloudflare cf\s+cf is not signed in/);
+    assert.equal(normal.status, 0);
+    assert.doesNotMatch(normal.stdout, /Cloudflare cf/);
     const invalidToken = spawnSync(process.execPath, [cli, 'preflight'], {
       cwd: repository,
       env: { ...env, CLOUDFLARE_API_TOKEN: 'invalid-test-only' },
       encoding: 'utf8',
     });
-    assert.equal(invalidToken.status, 1);
-    assert.match(invalidToken.stdout, /FAIL\s+Cloudflare cf/);
+    assert.equal(invalidToken.status, 0);
+    assert.doesNotMatch(invalidToken.stdout, /Cloudflare cf/);
 
     const production = run('bootstrap', '--production');
     assert.equal(production.status, 2);

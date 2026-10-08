@@ -3,6 +3,7 @@ import { existsSync } from 'node:fs';
 import { mkdir, readFile, readdir, rename, rm, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
+import { syncSetupEntrypoints } from './setup-entrypoints.ts';
 import { syncAstroTypesBeforeLint } from './astro-sync.ts';
 import {
   AGENT_WORKTREES,
@@ -157,6 +158,7 @@ export async function applyPreset(root: string, bundle: WebPreset, dryRun = fals
     [
       ...new Set([
         ...(await migrateLegacyPackageScope(root, dry)),
+        ...(await syncSetupEntrypoints(root, bundle, dry)),
         ...(await syncConsumerIgnores(root, dry)),
         ...(await syncAstroTypesBeforeLint(root, dry)),
         ...(await seedFiles(root, bundle, dry)),
