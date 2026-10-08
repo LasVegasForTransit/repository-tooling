@@ -30,6 +30,8 @@ const valued = new Set([
   '--repository',
   '--run-file',
   '--artifact-hash',
+  '--attestation-directory',
+  '--candidate-directory',
   '--activation',
   '--verification',
   '--url',

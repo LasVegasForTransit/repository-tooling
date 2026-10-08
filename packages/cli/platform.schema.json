@@ -172,6 +172,11 @@
             "type": "string",
             "pattern": "^[a-z0-9.-]+\\.[a-z]+$"
           }
+        },
+        "environment": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$",
+          "description": "Explicit primary deployment mode for this manifest. Every Worker, binding, var and secret requirement refers to this mode; omission selects production."
         }
       }
     },

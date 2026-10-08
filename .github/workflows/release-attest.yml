@@ -1,0 +1,60 @@
+name: Attest retained release
+on:
+  workflow_call:
+    inputs:
+      app:
+        type: string
+        required: false
+      artifact-prefix:
+        type: string
+        required: true
+permissions:
+  contents: read
+  actions: read
+  packages: read
+  attestations: write
+  id-token: write
+jobs:
+  attest:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      LVBT_RELEASE_APP: ${{ inputs.app }}
+      LVBT_PRODUCTION_URL: ${{ vars.LVBT_PRODUCTION_URL }}
+      LVBT_PREVIEW_URL: ${{ vars.LVBT_PREVIEW_URL }}
+      LVBT_PREVIEW_BINDINGS: ${{ vars.LVBT_PREVIEW_BINDINGS }}
+    steps:
+      - name: Checkout reviewed source
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          lfs: true
+      - name: Setup Node + pnpm
+        uses: ./.github/actions/setup-node-pnpm
+      - name: Download retained release
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: ${{ inputs.artifact-prefix }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/release/
+      - name: Verify identity and construct signed inventory
+        run: >-
+          pnpm exec lvbt release attestation manifest --directory "$RUNNER_TEMP/release"
+          --attestation-directory "$RUNNER_TEMP/attestation" --commit "$GITHUB_SHA" --release-id
+          "$GITHUB_RUN_ID"
+      - name: Sign retained inventory
+        id: attest
+        uses: actions/attest@508db95dd578ae2727ebd6217d5ba78e4fbda05d # v4.0.0
+        with:
+          subject-path: ${{ runner.temp }}/attestation/release-attestation.json
+      - name: Retain signature bundle
+        env:
+          BUNDLE_FILE: ${{ steps.attest.outputs.bundle-path }}
+        run: cp "$BUNDLE_FILE" "$RUNNER_TEMP/attestation/bundle.jsonl"
+      - name: Retain signed release proof
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: attestation-${{ inputs.artifact-prefix }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/attestation/
+          if-no-files-found: error
+          retention-days: 90

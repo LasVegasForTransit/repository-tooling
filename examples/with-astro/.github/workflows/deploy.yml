@@ -17,14 +17,14 @@ concurrency:
 
 jobs:
   build:
-    uses: LasVegasForTransit/repository-tooling/.github/workflows/release-build.yml@2bd5cf25df37c26ee93ced7ae1c2cb19fdaf0010
+    uses: LasVegasForTransit/repository-tooling/.github/workflows/release-build.yml@b49317453a9e1d9ce2feda157a05782f803200d6
     with:
       app-directory: apps/deploy
       artifact-prefix: app-release
     secrets: inherit
   staging:
     needs: build
-    uses: LasVegasForTransit/repository-tooling/.github/workflows/release-publish.yml@2bd5cf25df37c26ee93ced7ae1c2cb19fdaf0010
+    uses: LasVegasForTransit/repository-tooling/.github/workflows/release-publish.yml@b49317453a9e1d9ce2feda157a05782f803200d6
     with:
       target: preview
       release-id: ${{ github.run_id }}

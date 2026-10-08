@@ -33,7 +33,7 @@ export async function releaseEntry(cwd) {
 }
 
 export async function runRelease({ cwd, mode, args = [] }) {
-  if (!readTooling(cwd).release)
+  if (!(mode === 'attestation' && args[0] === 'manifest') && !readTooling(cwd).release)
     throw new CliError('Configure release in .lvbt/tooling.json before releasing.', 2);
   const entry = await releaseEntry(cwd);
   await new Promise((resolve, reject) => {

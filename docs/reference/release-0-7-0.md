@@ -15,8 +15,12 @@ maintain one readable issue per check and target through the contribution helper
 recovery and regression handling. Errors and incomplete checks cannot close issues.
 
 The web-platform package now provides shared saved-release orchestration and `lvbt promote`. Main
-updates staging; production promotion verifies a saved artifact without rebuilding. Previously
-retained website artifacts remain readable. Consumers migrate their application-owned workflows and
-configuration explicitly; updating the vendor snapshot alone does not complete adoption.
+updates staging; production promotion verifies a saved artifact without rebuilding. Signed
+inventories verify the reviewed shared signer and source revision. Named staging supports Durable
+Objects with separate credential environments and immutable same-run acceptance receipts. Draft
+profiles cannot promote, and shared public R2 datasets expose only read capabilities in staging.
+Previously retained website artifacts remain readable. Consumers migrate their application-owned
+workflows and configuration explicitly; updating the vendor snapshot alone does not complete
+adoption.
 
 See [Developer workflow](developer-workflow.md) for the command contract and ownership boundaries.

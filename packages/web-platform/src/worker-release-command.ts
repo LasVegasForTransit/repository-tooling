@@ -1,3 +1,11 @@
+import { productionEndpoint } from './release-path.js';
+import { createCandidateReceipt, verifyCandidateReceipt } from './release-candidate.js';
+import { verifyReleaseAttestation } from './release-attestation.js';
+import {
+  assertNamedPreviewProtection,
+  deployNamedSavedRelease,
+  verifyNamedPreview,
+} from './named-worker-release.js';
 import { verifyWorkerReleaseConfiguration } from './worker-release-configuration.js';
 import { packageCfRelease } from './cf-release-artifact.js';
 import { packageTypedWorkerRelease } from './typed-worker-release-artifact.js';
@@ -31,6 +39,9 @@ interface ReleaseOptions {
   'run-file'?: string;
   repository?: string;
   'run-id'?: string;
+  'attestation-directory'?: string;
+  'candidate-directory'?: string;
+  verification?: string;
 }
 async function sourceRelease(config: ReleaseConfiguration, values: ReleaseOptions): Promise<void> {
   if (!values.repository || values.repository !== config.repository)
@@ -55,6 +66,7 @@ async function sourceRelease(config: ReleaseConfiguration, values: ReleaseOption
                 );
               return await readReleaseIdentity(config.previewUrl, {
                 credentials,
+                app: config.profile,
               });
             },
             getRun: async (id) =>
@@ -74,7 +86,7 @@ async function sourceRelease(config: ReleaseConfiguration, values: ReleaseOption
     });
   process.stdout.write(`${JSON.stringify(source)}\n`);
 }
-async function uploadRelease(
+async function uploadVersionRelease(
   config: ReleaseConfiguration,
   directory: string,
   release: WebsiteRelease,
@@ -90,6 +102,8 @@ async function uploadRelease(
     // Wrangler may write cache files; its working copy cannot modify the saved release.
     const copy = path.join(temporary, 'release');
     await cp(directory, copy, { recursive: true });
+    if ((await verifyRelease(copy)).artifactHash !== release.artifactHash)
+      throw new Error('Saved release changed while preparing upload.');
     const receiptPath = path.join(temporary, 'receipt.jsonl');
     await execute(
       'pnpm',
@@ -138,10 +152,11 @@ async function uploadRelease(
     await rm(temporary, { recursive: true, force: true });
   }
 }
-async function activateRelease(
+async function activateVersionRelease(
   config: ReleaseConfiguration,
   values: ReleaseOptions,
   directory: string,
+  release: WebsiteRelease,
 ): Promise<void> {
   const target = values.target;
   if (target !== 'preview' && target !== 'production')
@@ -153,6 +168,8 @@ async function activateRelease(
   try {
     const copy = path.join(temporary, 'release');
     await cp(directory, copy, { recursive: true });
+    if ((await verifyRelease(copy)).artifactHash !== release.artifactHash)
+      throw new Error('Saved release changed while preparing activation.');
     const { stdout } = await execute(
       'pnpm',
       [
@@ -176,6 +193,41 @@ async function activateRelease(
     await rm(temporary, { recursive: true, force: true });
   }
 }
+async function namedOperation(
+  config: ReleaseConfiguration,
+  directory: string,
+  release: WebsiteRelease,
+  operation: { values: ReleaseOptions; upload: boolean },
+): Promise<void> {
+  const { values, upload } = operation;
+  await verifyWorkerReleaseConfiguration(directory, config);
+  if (upload) await assertNamedPreviewProtection(config);
+  else if (values['candidate-directory'])
+    await verifyCandidateReceipt(config, release, values['candidate-directory']);
+  else await verifyNamedPreview(config, release);
+  const receipt =
+    !upload && values.target === 'preview'
+      ? { version: values.version }
+      : await deployNamedSavedRelease(
+          config,
+          directory,
+          release,
+          upload ? 'preview' : 'production',
+        );
+  const origin =
+    upload || values.target === 'preview' ? config.previewUrl : productionEndpoint(config);
+  const protectedPreview = upload || values.target === 'preview';
+  const output = process.env.GITHUB_OUTPUT;
+  if (output)
+    await writeFile(
+      output,
+      `url=${origin}\nversion=${receipt.version ?? ''}\nartifact-hash=${release.artifactHash}\nprotected=${protectedPreview}\n`,
+      { flag: 'a' },
+    );
+  process.stdout.write(
+    `${JSON.stringify({ ...receipt, url: origin, protected: protectedPreview, artifactHash: release.artifactHash })}\n`,
+  );
+}
 function verifySelectedIdentity(release: WebsiteRelease, values: ReleaseOptions): void {
   if (values.commit && release.commit !== values.commit)
     throw new Error('Release commit does not match the selected Actions run.');
@@ -188,7 +240,11 @@ async function packageSelectedRelease(
   values: ReleaseOptions,
 ): Promise<WebsiteRelease> {
   if (!values.commit || !values['release-id']) throw new Error('Pass --commit and --release-id.');
-  const identity = { commit: values.commit, releaseId: values['release-id'] };
+  const identity = {
+    commit: values.commit,
+    releaseId: values['release-id'],
+    ...(config.profile ? { app: config.profile } : {}),
+  };
   if (config.artifactSource === 'typed-worker')
     return await packageTypedWorkerRelease(process.cwd(), directory, identity, config);
   if (config.artifactSource === 'cf-output')
@@ -211,11 +267,18 @@ export async function runWorkerRelease(
       'run-file': { type: 'string' },
       repository: { type: 'string' },
       'run-id': { type: 'string' },
+      'attestation-directory': { type: 'string' },
+      'candidate-directory': { type: 'string' },
+      verification: { type: 'string' },
     },
   });
+  if (
+    process.env.LVBT_RELEASE_PUBLICATION_MODE &&
+    process.env.LVBT_RELEASE_PUBLICATION_MODE !== (config.publicationMode ?? 'version')
+  )
+    throw new Error('Workflow publication mode does not match the selected release configuration.');
   const command = positionals[0];
   const directory = values.directory ? path.resolve(values.directory) : undefined;
-  const target = values.target;
   if (command === 'source') {
     await sourceRelease(config, values);
     return;
@@ -225,19 +288,44 @@ export async function runWorkerRelease(
     printRelease(await packageSelectedRelease(config, directory, values));
     return;
   }
-  if (command !== 'verify' && command !== 'upload' && command !== 'activate')
+  if (!['verify', 'upload', 'activate', 'candidate'].includes(command ?? ''))
     throw new Error('Use source, package, verify, upload, or activate.');
+  await runSavedOperation(config, values, directory, command);
+}
+async function runSavedOperation(
+  config: ReleaseConfiguration,
+  values: ReleaseOptions,
+  directory: string,
+  command: string | undefined,
+): Promise<void> {
   const release = await verifyRelease(directory);
   verifySelectedIdentity(release, values);
-  if (command === 'activate') {
-    await activateRelease(config, values, directory);
+  if (release.app !== config.profile) throw new Error('Saved release belongs to another app.');
+  if (command === 'candidate') {
+    if (!values['candidate-directory'] || !values.version)
+      throw new Error('Pass --candidate-directory and --version.');
+    await verifyReleaseAttestation(config, directory, values['attestation-directory']);
+    await verifyNamedPreview(config, release);
+    await createCandidateReceipt(config, release, {
+      directory: values['candidate-directory'],
+      version: values.version,
+      browser: values.verification ?? '',
+    });
     return;
   }
   if (command === 'verify') {
+    await verifyReleaseAttestation(config, directory, values['attestation-directory']);
     printRelease(release);
     return;
   }
+  const target = values.target;
   if (target !== 'preview' && target !== 'production')
     throw new Error('Pass --target preview or production.');
-  await uploadRelease(config, directory, release, target);
+  if (target === 'production' && config.previewOnly)
+    throw new Error('Preview-only apps cannot publish production releases.');
+  await verifyReleaseAttestation(config, directory, values['attestation-directory']);
+  if (config.publicationMode === 'named-staging')
+    await namedOperation(config, directory, release, { values, upload: command === 'upload' });
+  else if (command === 'activate') await activateVersionRelease(config, values, directory, release);
+  else await uploadVersionRelease(config, directory, release, target);
 }

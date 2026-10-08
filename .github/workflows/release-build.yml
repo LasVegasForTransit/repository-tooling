@@ -15,6 +15,10 @@ on:
         type: boolean
         required: false
         default: false
+      build-environment:
+        description: Existing environment containing public application build variables
+        type: string
+        required: false
       app-directory:
         type: string
         required: true
@@ -31,9 +35,10 @@ permissions:
 
 jobs:
   build:
+    if: inputs.build-environment == ''
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    env:
+    env: &build-environment
       LVBT_RELEASE_APP: ${{ inputs.app }}
       PUBLIC_LVBT_INSTAGRAM: ${{ vars.PUBLIC_LVBT_INSTAGRAM }}
       PUBLIC_LVBT_LINKEDIN: ${{ vars.PUBLIC_LVBT_LINKEDIN }}
@@ -43,6 +48,8 @@ jobs:
       PUBLIC_LVBT_MEMBERSHIP_FORM_URL: ${{ vars.PUBLIC_LVBT_MEMBERSHIP_FORM_URL }}
       PUBLIC_LVBT_NEWSLETTER_URL: ${{ vars.PUBLIC_LVBT_NEWSLETTER_URL }}
       PUBLIC_LVBT_NEWSLETTER_FEED_URL: ${{ vars.PUBLIC_LVBT_NEWSLETTER_FEED_URL }}
+      PUBLIC_LVBT_LABS_CWA_TOKEN: ${{ vars.PUBLIC_LVBT_LABS_CWA_TOKEN }}
+      COMPARE_PUBLISHED: ${{ vars.COMPARE_PUBLISHED }}
       PUBLIC_LVBT_CWA_TOKEN: ${{ vars.PUBLIC_LVBT_CWA_TOKEN }}
       LVBT_REQUIRE_ANALYTICS: ${{ inputs.require-analytics && '1' || '' }}
       LVBT_PRODUCTION_URL: ${{ vars.LVBT_PRODUCTION_URL }}
@@ -59,25 +66,27 @@ jobs:
           lfs: true
       - name: Setup Node + pnpm
         uses: ./.github/actions/setup-node-pnpm
-      - name: Install validation browser
-        if: inputs.validation-browser-directory != ''
-        run: pnpm --dir "$VALIDATION_BROWSER_DIRECTORY" exec playwright install --with-deps chromium
-      - name: Build and validate the app
-        run: pnpm check
-      - name: Build reviewed assets
-        run: pnpm build
-      - name: Prepare static cf output
-        if: inputs.artifact-source == 'cf-output'
-        run: pnpm --dir "$APP_DIRECTORY" exec cf deploy --dry-run
-      - name: Package reviewed release
-        run: >-
-          pnpm exec lvbt release package --directory "$RUNNER_TEMP/release" --commit "$GITHUB_SHA"
-          --release-id "$RELEASE_ID"
-      - name: Retain immutable release
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - name: Build and retain reviewed release
+        uses: ./.lvbt/web-platform/packages/web-platform/actions/release-build
         with:
-          name: ${{ inputs.artifact-prefix }}-${{ github.run_id }}
-          path: ${{ runner.temp }}/release/
-          include-hidden-files: true
-          if-no-files-found: error
-          retention-days: 90
+          artifact-source: ${{ inputs.artifact-source }}
+          artifact-prefix: ${{ inputs.artifact-prefix }}
+  build-with-environment:
+    if: inputs.build-environment != ''
+    environment: ${{ inputs.build-environment }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env: *build-environment
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          lfs: true
+      - name: Setup Node + pnpm
+        uses: ./.github/actions/setup-node-pnpm
+      - name: Build and retain reviewed release
+        uses: ./.lvbt/web-platform/packages/web-platform/actions/release-build
+        with:
+          artifact-source: ${{ inputs.artifact-source }}
+          artifact-prefix: ${{ inputs.artifact-prefix }}

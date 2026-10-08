@@ -7,6 +7,10 @@ const digest = z.string().regex(/^[a-f0-9]{64}$/);
 const identitySchema = z
   .object({
     commit: z.string().regex(/^[a-f0-9]{40}$/),
+    app: z
+      .string()
+      .regex(/^[a-z0-9][a-z0-9-]*$/)
+      .optional(),
     releaseId: z.string().regex(/^[a-z0-9][a-z0-9-]{0,63}$/),
   })
   .strict();
@@ -19,7 +23,7 @@ const releaseSchema = identitySchema
   })
   .strict();
 export type WebsiteRelease = z.infer<typeof releaseSchema>;
-type Identity = z.infer<typeof identitySchema>;
+export type SavedReleaseIdentity = z.infer<typeof identitySchema>;
 
 function hash(value: string | Uint8Array): string {
   return createHash('sha256').update(value).digest('hex');
@@ -40,7 +44,7 @@ async function inventory(directory: string, relative = ''): Promise<[string, str
 }
 
 function artifactHash(
-  identity: Identity & { artifactKind?: 'worker' | undefined; formatVersion?: 1 | 2 },
+  identity: SavedReleaseIdentity & { artifactKind?: 'worker' | undefined; formatVersion?: 1 | 2 },
   files: [string, string][],
 ): string {
   return hash(
@@ -48,6 +52,7 @@ function artifactHash(
       formatVersion: identity.formatVersion ?? 1,
       commit: identity.commit,
       releaseId: identity.releaseId,
+      ...(identity.app ? { app: identity.app } : {}),
       ...(identity.artifactKind ? { artifactKind: identity.artifactKind } : {}),
       files,
     }),
@@ -88,7 +93,7 @@ export interface SavedReleaseOptions extends ArtifactAcceptance {
 export async function packageRelease(
   source: string,
   destination: string,
-  identity: Identity,
+  identity: SavedReleaseIdentity,
   acceptance: SavedReleaseOptions = {},
 ): Promise<WebsiteRelease> {
   identitySchema.parse(identity);
@@ -114,7 +119,7 @@ export async function packageRelease(
 
 export async function sealSavedRelease(
   directory: string,
-  identity: Identity,
+  identity: SavedReleaseIdentity,
   artifactKind?: 'worker',
   formatVersion: 1 | 2 = 1,
 ): Promise<WebsiteRelease> {

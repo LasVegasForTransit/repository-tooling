@@ -1,3 +1,4 @@
+import { productionEndpoint } from './release-path.js';
 import type { ReleaseConfiguration } from './release-config.js';
 import { randomUUID } from 'node:crypto';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
@@ -14,6 +15,7 @@ export async function runPromote(
   config: ReleaseConfiguration,
   args: string[] = process.argv.slice(2),
 ): Promise<void> {
+  if (config.previewOnly) throw new Error('Preview-only apps cannot request production promotion.');
   const { values } = parseArgs({
     args,
     options: { 'run-id': { type: 'string' }, help: { type: 'boolean' } },
@@ -89,13 +91,15 @@ async function verifyPublication(config: ReleaseConfiguration, run: PromotionRun
     const receipt = publicationSchema.parse(
       JSON.parse(await readFile(path.join(directory, 'publication.json'), 'utf8')),
     );
-    if (receipt.url !== config.productionUrl)
+    if (receipt.url !== productionEndpoint(config) || receipt.release.app !== config.profile)
       throw new Error(
         `Publication receipt targets another site. Inspect ${run.html_url}; do not redispatch.`,
       );
     process.stdout.write(`${JSON.stringify({ run: run.html_url, ...receipt }, null, 2)}\n`);
     if (receipt.activation === 'confirmed')
-      await waitForReleaseIdentity(receipt.url, receipt.release);
+      await waitForReleaseIdentity(config.productionUrl, receipt.release, {
+        publicPath: config.publicPath,
+      });
     if (
       run.conclusion !== 'success' ||
       receipt.activation !== 'confirmed' ||

@@ -1,14 +1,21 @@
 import { z } from 'zod';
+import { releaseMarkerPath } from './release-path.js';
 import { accessHeaders, type AccessCredentials } from './access-auth.js';
 
 const identitySchema = z
   .object({
     commit: z.string().regex(/^[a-f0-9]{40}$/),
+    app: z
+      .string()
+      .regex(/^[a-z0-9][a-z0-9-]*$/)
+      .optional(),
     releaseId: z.string().regex(/^[1-9][0-9]*$/),
   })
   .strict();
 export type ReleaseIdentity = z.infer<typeof identitySchema>;
 interface ReadOptions {
+  publicPath?: string | undefined;
+  app?: string | undefined;
   credentials?: AccessCredentials;
   request?: (
     url: string,
@@ -22,7 +29,7 @@ export async function readReleaseIdentity(
   origin: string,
   options: ReadOptions = {},
 ): Promise<ReleaseIdentity> {
-  const url = `${new URL(origin).origin}/lvbt-release.json`;
+  const url = `${new URL(origin).origin}${releaseMarkerPath(options.publicPath)}`;
   let response: Response;
   try {
     response = await (options.request ?? fetch)(url, {
@@ -50,9 +57,18 @@ export async function readReleaseIdentity(
   }
   const identity = identitySchema.safeParse(value);
   if (!identity.success) throw new Error('Release marker has an invalid identity.');
+  if (options.app && identity.data.app !== options.app)
+    throw new Error('Release marker belongs to another app.');
   return identity.data;
 }
 
+function sameIdentity(actual: ReleaseIdentity, expected: ReleaseIdentity): boolean {
+  return (
+    actual.commit === expected.commit &&
+    actual.releaseId === expected.releaseId &&
+    actual.app === expected.app
+  );
+}
 export async function waitForReleaseIdentity(
   origin: string,
   expected: ReleaseIdentity,
@@ -72,6 +88,7 @@ export async function waitForReleaseIdentity(
     try {
       const actual = await readReleaseIdentity(origin, {
         ...options,
+        ...(expected.app ? { app: expected.app } : {}),
         requestTimeoutMs: Math.max(
           1,
           Math.min(
@@ -80,8 +97,7 @@ export async function waitForReleaseIdentity(
           ),
         ),
       });
-      if (actual.commit === expected.commit && actual.releaseId === expected.releaseId)
-        return actual;
+      if (sameIdentity(actual, expected)) return actual;
       last = `observed release ${actual.releaseId} at ${actual.commit}`;
     } catch (error) {
       if (!(error instanceof TransientMarkerError)) throw error;

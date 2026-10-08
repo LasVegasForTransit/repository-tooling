@@ -66,3 +66,28 @@ test('every profile is validated and cannot reuse another app artifact or provid
     );
   }
 });
+
+test('nested public paths share one reviewed origin while keeping profile namespaces and endpoints distinct', async () => {
+  await configuration(
+    {
+      ...common,
+      apps: {
+        home,
+        second: { ...second, productionUrl: home.productionUrl, publicPath: '/second/' },
+      },
+    },
+    async (root) => {
+      expect(await readReleaseConfiguration(root, {}, 'second')).toMatchObject({
+        publicPath: '/second/',
+      });
+    },
+  );
+  for (const publicPath of ['//foreign/', '/second/../', '/second', '/second/?query', '/%2e%2e/']) {
+    await configuration(
+      { ...common, apps: { home, second: { ...second, publicPath } } },
+      async (root) => {
+        await expect(readReleaseConfiguration(root, {}, 'home')).rejects.toThrow();
+      },
+    );
+  }
+});

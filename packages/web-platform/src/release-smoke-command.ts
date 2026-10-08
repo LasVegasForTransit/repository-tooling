@@ -4,6 +4,7 @@ import type { BrowserType } from 'playwright-core';
 import { accessCredentials, accessFetch } from './access-auth.js';
 import { runWorkerReleaseSmoke, validateWorkerSmokeOrigin } from './worker-release-smoke.js';
 import { scopeBrowserAccess } from './release-browser.js';
+import { productionEndpoint } from './release-path.js';
 import { waitForReleaseIdentity } from './release-identity.js';
 import type { ReleaseConfiguration } from './release-config.js';
 
@@ -60,14 +61,20 @@ export async function runReleaseSmoke(
     throw new Error('Pass both --commit and --release-id.');
   await waitForReleaseIdentity(
     origin,
-    { commit: values.commit, releaseId: values['release-id'] },
+    {
+      commit: values.commit,
+      releaseId: values['release-id'],
+      ...(config.profile ? { app: config.profile } : {}),
+    },
     {
       ...(credentials ? { credentials } : {}),
+      publicPath: origin === config.productionUrl ? config.publicPath : '/',
       timeoutMs: values['wait-for-propagation'] ? 180_000 : 0,
     },
   );
   await renderReleaseSmoke(chromium, {
     origin,
+    endpoint: origin === config.productionUrl ? productionEndpoint(config) : origin,
     credentials,
     protectedOrigin: values.protected,
     releaseId: values['release-id'],
@@ -78,11 +85,13 @@ async function renderReleaseSmoke(
   chromium: Pick<BrowserType, 'launch'>,
   {
     origin,
+    endpoint,
     credentials,
     protectedOrigin,
     releaseId,
   }: {
     origin: string;
+    endpoint: string;
     credentials: ReturnType<typeof accessCredentials>;
     protectedOrigin: boolean;
     releaseId: string;
@@ -94,7 +103,7 @@ async function renderReleaseSmoke(
     try {
       await scopeBrowserAccess(context, origin, credentials);
       const page = await context.newPage();
-      const response = await page.goto(origin, { waitUntil: 'networkidle' });
+      const response = await page.goto(endpoint, { waitUntil: 'networkidle' });
       assert.equal(response?.status(), 200, 'The app did not render.');
       assert.equal(new URL(page.url()).origin, origin, 'The browser left the configured origin.');
       assert.ok(await page.locator('main').isVisible(), 'The app main content is not visible.');

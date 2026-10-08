@@ -1,3 +1,4 @@
+import { publicPathSchema, productionEndpoint } from './release-path.js';
 import { workerSmokeSchema } from './worker-release-smoke.js';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -28,6 +29,24 @@ export const releaseConfigurationSchema = z
       .regex(/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/)
       .optional(),
     profile: worker.optional(),
+    publicPath: publicPathSchema.optional(),
+    attestation: z
+      .strictObject({
+        signerWorkflow: z.literal(
+          'LasVegasForTransit/repository-tooling/.github/workflows/release-attest.yml',
+        ),
+        signerCommit: z.string().regex(/^[a-f0-9]{40}$/),
+      })
+      .optional(),
+    previewOnly: z.boolean().optional(),
+    publicationMode: z.enum(['version', 'named-staging']).optional(),
+    previewReadOnlyBindings: z
+      .array(z.string().regex(/^[A-Z][A-Z0-9_]*$/))
+      .refine(
+        (names) => new Set(names).size === names.length,
+        'Declare unique preview read-only bindings.',
+      )
+      .optional(),
     smoke: workerSmokeSchema.optional(),
     previewBindings: z.record(z.string(), z.unknown()).optional(),
     artifactSource: z.enum(['legacy-worker', 'cf-output', 'typed-worker']).optional(),
@@ -149,7 +168,7 @@ function assertProfiles(configs: ReleaseConfiguration[]): void {
   for (const fields of [
     configs.map((config) => config.artifactPrefix),
     configs.flatMap((config) => [config.productionWorker, config.previewWorker]),
-    configs.flatMap((config) => [config.productionUrl, config.previewUrl]),
+    configs.flatMap((config) => [productionEndpoint(config), config.previewUrl]),
   ])
     if (new Set(fields).size !== fields.length)
       throw new Error('Release apps require distinct artifacts, Worker namespaces, and origins.');

@@ -2,6 +2,7 @@ import { cp, lstat, mkdir, readFile, realpath, rm, writeFile } from 'node:fs/pro
 import path from 'node:path';
 import { z } from 'zod';
 import type { ReleaseConfiguration } from './release-config.js';
+import { configuredReleaseIdentity, workerReleaseEntry } from './worker-release-entry.js';
 import { sealSavedRelease, type WebsiteRelease } from './saved-release-artifact.js';
 
 const dataset = z.strictObject({
@@ -98,13 +99,6 @@ function wranglerBindings(values: Bindings): Record<string, unknown> {
   }
   return { analytics_engine_datasets, ratelimits };
 }
-function identityEntry(
-  mainModule: string,
-  identity: { commit: string; releaseId: string },
-): string {
-  const module = JSON.stringify(`./bundle/${mainModule}`);
-  return `import application from ${module};\nexport * from ${module};\nconst identity=${JSON.stringify(identity)};\nexport default {...application, async fetch(request,env,ctx) {\n  if (new URL(request.url).pathname === '/lvbt-release.json') return Response.json(identity, {headers:{'Cache-Control':'no-store'}});\n  if (typeof application.fetch !== 'function') throw new Error('Packaged Worker has no fetch handler.');\n  return application.fetch(request,env,ctx);\n}};\n`;
-}
 async function copyModules(
   source: string,
   destination: string,
@@ -158,6 +152,7 @@ export async function packageWorkerCfRelease(
   identity: { commit: string; releaseId: string },
   config: WorkerReleaseConfiguration,
 ): Promise<WebsiteRelease> {
+  identity = configuredReleaseIdentity(identity, config);
   const directory = path.join(source, '.cloudflare/output/v0/workers/default');
   const file = path.join(directory, 'worker.config.json');
   if (!(await lstat(file)).isFile()) throw new Error('Worker descriptor must be a regular file.');
@@ -179,7 +174,7 @@ export async function packageWorkerCfRelease(
     );
     await writeFile(
       path.join(destination, '.wrangler/worker/index.js'),
-      identityEntry(built.manifest.mainModule, identity),
+      workerReleaseEntry(`./bundle/${built.manifest.mainModule}`, identity, config),
     );
     await writeFile(path.join(destination, 'lvbt-release.json'), `${JSON.stringify(identity)}\n`);
     await writeFile(

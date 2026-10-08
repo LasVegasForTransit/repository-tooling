@@ -3,6 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { z } from 'zod';
 import type { ReleaseConfiguration } from './release-config.js';
+import { configuredReleaseIdentity, workerReleaseEntry } from './worker-release-entry.js';
 import { packageWorkerCfRelease } from './cf-worker-release-artifact.js';
 import { packageRelease, type WebsiteRelease } from './saved-release-artifact.js';
 
@@ -20,16 +21,7 @@ const staticWorker = z.strictObject({
   previewUrls: z.boolean().optional(),
   workersDev: z.boolean().optional(),
 });
-const assetWorker = `export default {
-  async fetch(request, env) {
-    const response = await env.ASSETS.fetch(request);
-    if (env.LVBT_DEPLOYMENT_ENV !== 'preview') return response;
-    const headers = new Headers(response.headers);
-    headers.set('X-Robots-Tag', 'noindex, nofollow, noarchive');
-    headers.set('Cache-Control', 'private, no-store');
-    return new Response(response.body, {status: response.status, statusText: response.statusText, headers});
-  }
-};\n`;
+const assetWorker = 'export default {fetch(request,env){return env.ASSETS.fetch(request)}};\n';
 
 export async function packageCfRelease(
   source: string,
@@ -37,6 +29,7 @@ export async function packageCfRelease(
   identity: { commit: string; releaseId: string },
   config: ReleaseConfiguration,
 ): Promise<WebsiteRelease> {
+  identity = configuredReleaseIdentity(identity, config);
   const worker = path.join(source, '.cloudflare/output/v0/workers/default');
   const descriptor = path.join(worker, 'worker.config.json');
   if ((await lstat(descriptor)).isSymbolicLink()) throw new Error('Invalid cf Worker descriptor.');
@@ -50,7 +43,11 @@ export async function packageCfRelease(
   try {
     await cp(path.join(worker, 'assets'), path.join(temporary, 'dist'), { recursive: true });
     await mkdir(path.join(temporary, '.wrangler/worker'), { recursive: true });
-    await writeFile(path.join(temporary, '.wrangler/worker/index.js'), assetWorker);
+    await writeFile(path.join(temporary, '.wrangler/worker/assets.js'), assetWorker);
+    await writeFile(
+      path.join(temporary, '.wrangler/worker/index.js'),
+      workerReleaseEntry('./assets.js', identity, config),
+    );
     const assets = {
       directory: './dist',
       binding: 'ASSETS',

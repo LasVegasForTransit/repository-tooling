@@ -34,7 +34,7 @@ function satisfies(version, range) {
 const WRANGLER_FILES = ['wrangler.jsonc', 'wrangler.json', 'wrangler.toml'];
 const CF_FILE = 'cloudflare.config.ts';
 
-export function wranglerDeployArguments(commit, dryRun) {
+export function wranglerDeployArguments(commit, dryRun, environment) {
   if (!/^[a-f0-9]{40}$/.test(commit))
     throw new CliError('deploy: provenance requires a full Git commit.', 2);
   return [
@@ -44,11 +44,12 @@ export function wranglerDeployArguments(commit, dryRun) {
     '--strict',
     '--message',
     `Commit ${commit}`,
+    ...(environment ? ['--env', environment] : []),
     ...(dryRun ? ['--dry-run'] : []),
   ];
 }
 
-export function cfDeployArguments(commit, dryRun) {
+export function cfDeployArguments(commit, dryRun, environment) {
   if (!/^[a-f0-9]{40}$/.test(commit))
     throw new CliError('deploy: provenance requires a full Git commit.', 2);
   return [
@@ -57,6 +58,7 @@ export function cfDeployArguments(commit, dryRun) {
     'deploy',
     '--message',
     `Commit ${commit}`,
+    ...(environment ? ['--mode', environment] : []),
     ...(dryRun ? ['--dry-run'] : []),
   ];
 }
@@ -81,26 +83,29 @@ async function wranglerConfig(directory) {
   return undefined;
 }
 
+async function canonicalDeployable(cwd, directory, canonical, scope) {
+  const configFile = path.resolve(directory, canonical);
+  if (path.basename(configFile) !== CF_FILE)
+    throw new CliError(`deploy: canonical cf config must be named ${CF_FILE}.`, 2);
+  if (!(await exists(configFile)))
+    throw new CliError(`deploy: canonical cf config ${configFile} is missing.`, 2);
+  const target = path.relative(cwd, path.dirname(configFile)) || '.';
+  if (target.startsWith('..') || path.isAbsolute(target))
+    throw new CliError('deploy: canonical cf config must be inside this repository.', 2);
+  return { directory: target, tool: 'cf', source: path.relative(cwd, directory) || '.', ...scope };
+}
+
 async function deployable(cwd, directory) {
   const manifestPath = path.join(directory, 'platform.json');
-  if (await exists(manifestPath)) {
-    const manifest = await readJson(manifestPath);
-    const canonical = manifest.cloudflare?.cloudflareConfig;
-    if (canonical) {
-      const configFile = path.resolve(directory, canonical);
-      if (path.basename(configFile) !== CF_FILE)
-        throw new CliError(`deploy: canonical cf config must be named ${CF_FILE}.`, 2);
-      if (!(await exists(configFile)))
-        throw new CliError(`deploy: canonical cf config ${configFile} is missing.`, 2);
-      const target = path.relative(cwd, path.dirname(configFile)) || '.';
-      if (target.startsWith('..') || path.isAbsolute(target))
-        throw new CliError('deploy: canonical cf config must be inside this repository.', 2);
-      return { directory: target, tool: 'cf', source: path.relative(cwd, directory) || '.' };
-    }
-  }
+  const manifest = (await exists(manifestPath)) ? await readJson(manifestPath) : {};
+  const environment = manifest.cloudflare?.environment;
+  const scope = environment ? { environment } : {};
+  const canonical = manifest.cloudflare?.cloudflareConfig;
+  if (canonical) return await canonicalDeployable(cwd, directory, canonical, scope);
   const relative = path.relative(cwd, directory) || '.';
-  if (await exists(path.join(directory, CF_FILE))) return { directory: relative, tool: 'cf' };
-  if (await wranglerConfig(directory)) return { directory: relative, tool: 'wrangler' };
+  if (await exists(path.join(directory, CF_FILE)))
+    return { directory: relative, tool: 'cf', ...scope };
+  if (await wranglerConfig(directory)) return { directory: relative, tool: 'wrangler', ...scope };
   return undefined;
 }
 
@@ -378,8 +383,8 @@ export async function deploy({ cwd, options }) {
       throw new CliError('deploy: repository changed after the production build.', 2);
     const args =
       target.tool === 'cf'
-        ? cfDeployArguments(commit, options.dryRun)
-        : wranglerDeployArguments(commit, options.dryRun);
+        ? cfDeployArguments(commit, options.dryRun, target.environment)
+        : wranglerDeployArguments(commit, options.dryRun, target.environment);
     process.stdout.write(`${target.directory}: pnpm ${args.join(' ')}\n`);
     const result = spawnSync('pnpm', args, {
       cwd: path.join(cwd, target.directory),

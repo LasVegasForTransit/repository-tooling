@@ -1,3 +1,5 @@
+import { isDeepStrictEqual } from 'node:util';
+
 /**
  * The subset of JSON Schema that platform.schema.json uses, interpreted
  * directly so the schema file stays the one definition of a valid manifest.
@@ -19,6 +21,7 @@ export const SUPPORTED_KEYWORDS = new Set([
   'minimum',
   'maximum',
   'minItems',
+  'uniqueItems',
   'items',
   'properties',
   'required',
@@ -56,16 +59,23 @@ function checkString(schema, value, at, errors) {
 function checkArray(walker, schema, value, at) {
   if (schema.minItems !== undefined && value.length < schema.minItems)
     walker.errors.push(`${at}: needs at least ${schema.minItems} item(s).`);
+  if (
+    schema.uniqueItems &&
+    value.some((item, i) => value.slice(0, i).some((other) => isDeepStrictEqual(item, other)))
+  )
+    walker.errors.push(`${at}: items must be unique.`);
   if (schema.items)
     value.forEach((item, index) => visit(walker, schema.items, item, `${at}[${index}]`));
 }
 
 function checkObject(walker, schema, value, at) {
   for (const key of schema.required ?? []) {
-    if (!(key in value)) walker.errors.push(`${at}: "${key}" is required.`);
+    if (!Object.hasOwn(value, key)) walker.errors.push(`${at}: "${key}" is required.`);
   }
   for (const [key, child] of Object.entries(value)) {
-    const property = schema.properties?.[key];
+    const property = Object.hasOwn(schema.properties ?? {}, key)
+      ? schema.properties[key]
+      : undefined;
     if (property) visit(walker, property, child, `${at}.${key}`);
     else if (schema.additionalProperties === false)
       walker.errors.push(`${at}: "${key}" is not a known field.`);

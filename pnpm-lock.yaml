@@ -256,6 +256,9 @@ importers:
 
   packages/web-platform:
     dependencies:
+      acorn:
+        specifier: 8.18.0
+        version: 8.18.0
       jsonc-parser:
         specifier: 3.3.1
         version: 3.3.1

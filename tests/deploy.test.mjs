@@ -122,3 +122,32 @@ test('deploy rejects a cf config filename that cf would not discover', async () 
     await rm(root, { recursive: true, force: true });
   }
 });
+
+test('deploy preserves declared preview modes for canonical and Wrangler projects', async () => {
+  assert.deepEqual(cfDeployArguments(commit, true, 'preview').slice(-3), [
+    '--mode',
+    'preview',
+    '--dry-run',
+  ]);
+  assert.deepEqual(wranglerDeployArguments(commit, true, 'preview').slice(-3), [
+    '--env',
+    'preview',
+    '--dry-run',
+  ]);
+  const root = await mkdtemp(path.join(os.tmpdir(), 'lvbt-preview-deploy-'));
+  try {
+    await mkdir(path.join(root, 'apps/site'), { recursive: true });
+    await writeFile(path.join(root, 'apps/site/cloudflare.config.ts'), 'export default {};');
+    await writeFile(
+      path.join(root, 'apps/site/platform.json'),
+      JSON.stringify({
+        cloudflare: { cloudflareConfig: 'cloudflare.config.ts', environment: 'preview' },
+      }),
+    );
+    assert.deepEqual(await deployables(root), [
+      { directory: 'apps/site', tool: 'cf', source: 'apps/site', environment: 'preview' },
+    ]);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});

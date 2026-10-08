@@ -149,3 +149,21 @@ test('mode factories retain the deployed SQLite Durable Object class and isolate
     }),
   ).toThrow('namespace');
 });
+
+test('public account context is retained and draft profiles cannot invent published routes', () => {
+  const accountId = '2'.repeat(32);
+  const draft = { ...config, publicPath: '/draft/', previewOnly: true };
+  const unpublished = { ...worker, domains: [], triggers: [] };
+  expect(typedWorkerConfiguration({ accountId, worker: unpublished }, draft)).toMatchObject({
+    account_id: accountId,
+  });
+  expect(() =>
+    typedWorkerConfiguration({ worker: unpublished }, { ...draft, previewOnly: false }),
+  ).toThrow('public path');
+  expect(() =>
+    typedWorkerConfiguration(
+      { worker: { ...worker, domains: ['participant.example.org'] } },
+      { ...config, publicPath: '/nested/' },
+    ),
+  ).toThrow('public path');
+});

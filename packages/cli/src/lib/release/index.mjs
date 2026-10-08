@@ -12,6 +12,8 @@ const flags = [
   'run-id',
   'run-file',
   'artifact-hash',
+  'attestation-directory',
+  'candidate-directory',
   'activation',
   'verification',
   'url',
@@ -21,7 +23,7 @@ export async function release({ cwd, options = {} }) {
   if (options.dryRun || options.production || options.staged)
     throw new CliError('Select an explicit release operation and target.', 2);
   const positionals = options.positional ?? [];
-  const mode = ['publication', 'smoke', 'migrate'].includes(positionals[0])
+  const mode = ['publication', 'smoke', 'migrate', 'attestation'].includes(positionals[0])
     ? positionals[0]
     : 'worker-release';
   const args = mode !== 'worker-release' ? positionals.slice(1) : [...positionals];

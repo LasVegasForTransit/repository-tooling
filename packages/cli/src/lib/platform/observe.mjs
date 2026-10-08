@@ -238,7 +238,9 @@ async function observeConfig(manifest, directory) {
     cfConfig ?? manifest.cloudflare.wranglerConfig ?? 'wrangler.jsonc',
   );
   const production = await attempt(() =>
-    cfConfig ? readCloudflareConfig(configFile) : readWranglerConfig(configFile),
+    cfConfig
+      ? readCloudflareConfig(configFile, { mode: manifest.cloudflare.environment })
+      : readWranglerConfig(configFile, { environment: manifest.cloudflare.environment }),
   );
   if (!production.ok) return production;
   const modes = new Set(

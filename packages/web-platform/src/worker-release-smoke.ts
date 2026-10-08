@@ -17,6 +17,7 @@ interface SmokeInput {
   origin: string;
   identity: ReleaseIdentity;
   smoke: WorkerSmoke;
+  publicPath?: string | undefined;
   protected?: boolean;
   credentials?: AccessCredentials | undefined;
   request?: Request;
@@ -49,6 +50,7 @@ export async function verifyWorkerReleaseSmoke(
   const identity = await waitForReleaseIdentity(input.origin, input.identity, {
     ...(input.credentials ? { credentials: input.credentials } : {}),
     request,
+    publicPath: input.publicPath,
     timeoutMs: input.timeoutMs ?? 0,
   });
   const response = await request(url, {
@@ -65,6 +67,25 @@ export async function verifyWorkerReleaseSmoke(
     throw new Error(`API smoke ${smoke.path} response body differs from the declared behavior.`);
   return { origin: input.origin, path: smoke.path, identity };
 }
+function customOrigin(url: URL, value: string): boolean {
+  return (
+    url.hostname !== 'workers.dev' &&
+    !url.hostname.endsWith('.workers.dev') &&
+    url.origin === value &&
+    url.protocol === 'https:'
+  );
+}
+function validWorkerLabel(input: {
+  workerLabel: string;
+  prefix: string;
+  worker: string;
+  configured: boolean;
+}): boolean {
+  return (
+    (input.configured && input.workerLabel === input.worker) ||
+    (/^[a-f0-9]{8}$/.test(input.prefix) && input.workerLabel === `${input.prefix}-${input.worker}`)
+  );
+}
 export function validateWorkerSmokeOrigin(
   value: string,
   config: Pick<
@@ -75,8 +96,9 @@ export function validateWorkerSmokeOrigin(
 ): void {
   const configuredOrigin = protectedPreview ? config.previewUrl : config.productionUrl;
   const worker = protectedPreview ? config.previewWorker : config.productionWorker;
-  if (value === configuredOrigin) return;
   const url = new URL(value);
+  const configured = value === configuredOrigin;
+  if (configured && customOrigin(url, value)) return;
   const labels = url.hostname.split('.');
   const workerLabel = labels[0] ?? '';
   const prefix = workerLabel.slice(0, 8);
@@ -88,8 +110,7 @@ export function validateWorkerSmokeOrigin(
     labels[1] !== config.workersDevSubdomain ||
     labels[2] !== 'workers' ||
     labels[3] !== 'dev' ||
-    !/^[a-f0-9]{8}$/.test(prefix) ||
-    workerLabel !== `${prefix}-${worker}`
+    !validWorkerLabel({ workerLabel, prefix, worker, configured })
   )
     throw new Error(
       `Checks require the configured ${protectedPreview ? 'preview' : 'production'} Worker origin.`,
@@ -120,8 +141,19 @@ export async function runWorkerReleaseSmoke(
   validateWorkerSmokeOrigin(values.url, config, values.protected);
   const verified = await verifyWorkerReleaseSmoke({
     origin: values.url,
-    identity: { commit: values.commit, releaseId: values['release-id'] },
-    smoke: config.smoke,
+    identity: {
+      commit: values.commit,
+      releaseId: values['release-id'],
+      ...(config.profile ? { app: config.profile } : {}),
+    },
+    publicPath: values.url === config.productionUrl ? config.publicPath : '/',
+    smoke: {
+      ...config.smoke,
+      path:
+        values.url === config.productionUrl
+          ? `${config.publicPath ?? '/'}${config.smoke.path.slice(1)}`
+          : config.smoke.path,
+    },
     protected: values.protected,
     credentials: values.protected ? accessCredentials(process.env) : undefined,
     timeoutMs: values['wait-for-propagation'] ? 180_000 : 0,

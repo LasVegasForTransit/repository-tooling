@@ -3,6 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import type { ReleaseConfiguration } from './release-config.js';
 import { packageRelease, type WebsiteRelease } from './saved-release-artifact.js';
+import { configuredReleaseIdentity } from './worker-release-entry.js';
 import { retainReleaseMigrations } from './saved-release-migrations.js';
 
 export async function packageLegacyWorkerRelease(
@@ -11,6 +12,11 @@ export async function packageLegacyWorkerRelease(
   identity: { commit: string; releaseId: string },
   config: ReleaseConfiguration,
 ): Promise<WebsiteRelease> {
+  identity = configuredReleaseIdentity(identity, config);
+  if (config.profile || (config.publicPath && config.publicPath !== '/'))
+    throw new Error(
+      'Nested app releases require a canonical typed-worker or cf-output artifact source.',
+    );
   if (!config.migrations?.length)
     return await packageRelease(source, destination, identity, {
       ...config.artifactAcceptance,
