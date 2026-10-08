@@ -8,6 +8,7 @@ import { syncCommunityPublication } from './community-publication.ts';
 import { rejectSymlinkDestination } from './paths.ts';
 import { syncAstroTypesBeforeLint } from './astro-sync.ts';
 import { syncTurboCache } from './turbo-cache.ts';
+import { syncWorkspaceOverrides } from './workspace-policy.ts';
 import {
   AGENT_WORKTREES,
   consumerIgnoreWarnings,
@@ -165,6 +166,7 @@ export async function applyPreset(root: string, bundle: WebPreset, dryRun = fals
         ...(await syncConsumerIgnores(root, dry)),
         ...(await syncAstroTypesBeforeLint(root, dry)),
         ...(await syncTurboCache(root, bundle, dry)),
+        ...(await syncWorkspaceOverrides(root, bundle, dry)),
         ...(await seedFiles(root, bundle, dry)),
         ...(await syncOwnedFiles(root, bundle, dry)),
         ...(await syncPluginRef(root, bundle, dry)),

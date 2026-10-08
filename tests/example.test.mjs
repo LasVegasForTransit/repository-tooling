@@ -3,6 +3,7 @@ import { spawnSync } from 'node:child_process';
 import { mkdir, readFile, rename, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import test from 'node:test';
+import { scalarSection } from '../packages/cli/src/lib/check/workspace-policy.mjs';
 import {
   sourceRoot,
   sharedPackages,
@@ -329,6 +330,7 @@ test('source manifests use one published version rather than a development prere
 });
 
 test('source and generated repositories pin audited transitive fixes', async () => {
+  const { overrides } = await json(path.join(sourceRoot, 'packages/cli/catalog.json'));
   for (const directory of [
     '.',
     'examples/basic',
@@ -339,10 +341,7 @@ test('source and generated repositories pin audited transitive fixes', async () 
       path.join(sourceRoot, directory, 'pnpm-workspace.yaml'),
       'utf8',
     );
-    assert.match(
-      workspace,
-      /^overrides:\n {2}brace-expansion: 5\.0\.12\n {2}fast-uri: 3\.1\.8\n {2}sharp: 0\.35\.4\n {2}'undici@\^7\.0\.0': 7\.29\.1\n {2}'undici@\^8\.0\.0': 8\.10\.2\n {2}smol-toml: 1\.8\.0\n {2}svgo: 4\.1\.0$/m,
-    );
+    assert.deepEqual(scalarSection(workspace, 'overrides').entries, overrides);
   }
 });
 

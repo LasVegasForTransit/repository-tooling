@@ -5,11 +5,19 @@ import path from 'node:path';
 import test from 'node:test';
 
 import { checkContract } from '../packages/cli/src/lib/check/contract.mjs';
+import { updateOverrides } from '../packages/cli/src/lib/check/workspace-policy.mjs';
+
+const { overrides } = JSON.parse(
+  await readFile(new URL('../packages/cli/catalog.json', import.meta.url), 'utf8'),
+);
 
 async function fixture(run) {
   const root = await mkdtemp(path.join(os.tmpdir(), 'lvbt-vendor-contract-'));
   try {
-    await writeFile(path.join(root, 'pnpm-workspace.yaml'), 'packages:\n  - apps/*\n');
+    await writeFile(
+      path.join(root, 'pnpm-workspace.yaml'),
+      updateOverrides('packages:\n  - apps/*\n', overrides),
+    );
     await mkdir(path.join(root, 'apps/app'), { recursive: true });
     await mkdir(path.join(root, '.lvbt/web-platform/packages/cli'), { recursive: true });
     await writeFile(
@@ -59,7 +67,10 @@ test('a repository may add catalog entries and is warned when it re-pins a share
       await readFile(new URL('../packages/cli/catalog.json', import.meta.url), 'utf8'),
     ).catalog;
     const workspace = (eslint) =>
-      `packages:\n  - apps/*\ncatalog:\n  eslint: ${eslint}\n  left-pad: 1.3.0\n`;
+      updateOverrides(
+        `packages:\n  - apps/*\ncatalog:\n  eslint: ${eslint}\n  left-pad: 1.3.0\n`,
+        overrides,
+      );
     await writeFile(path.join(root, 'pnpm-workspace.yaml'), workspace(standard.eslint));
     assert.deepEqual(checkContract({ cwd: root }).lines, []);
     await writeFile(path.join(root, 'pnpm-workspace.yaml'), workspace('^9.0.0'));

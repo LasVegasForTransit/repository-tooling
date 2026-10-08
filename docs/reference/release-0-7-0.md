@@ -14,6 +14,13 @@ tasks. Missing inputs warn in 0.7 and fail from adopted 0.8 releases. Template p
 the selected release's own updater, so repeated publication cannot inherit a different running
 standard's policy.
 
+Audited transitive overrides now come from the shared CLI catalog and update through the same
+incoming updater, preserving application-only pins. Missing shared pins warn in 0.7 and become
+required in 0.8. The security baseline selects Sharp 0.35.5 and an exact reviewed temporary Braces
+depth-guard backport. See [Dependency policy](dependency-policy.md) for provenance and replacement
+criteria. Templates preserve their full dependency audit and full-history secret scan as uncached
+parts of `pnpm check`.
+
 `lvbt audit` runs shared link, Lighthouse, and dependency adapters. Trusted scheduled reports
 maintain one readable issue per check and target through the contribution helper, including verified
 recovery and regression handling. Errors and incomplete checks cannot close issues. The reporter
