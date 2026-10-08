@@ -430,6 +430,38 @@
         "workersDevSubdomain": {
           "type": "string",
           "pattern": "^[a-z0-9][a-z0-9-]*$"
+        },
+        "publicationMode": {
+          "enum": ["version", "named-staging"]
+        },
+        "publicPath": {
+          "type": "string",
+          "pattern": "^/(?:[a-z0-9-]+/)*$"
+        },
+        "previewReadOnlyBindings": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "pattern": "^[A-Z][A-Z0-9_]*$"
+          }
+        },
+        "attestation": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "signerWorkflow": {
+              "const": "LasVegasForTransit/repository-tooling/.github/workflows/release-attest.yml"
+            },
+            "signerCommit": {
+              "type": "string",
+              "pattern": "^[a-f0-9]{40}$"
+            }
+          },
+          "required": ["signerWorkflow", "signerCommit"]
+        },
+        "previewOnly": {
+          "type": "boolean"
         }
       },
       "required": []
@@ -498,6 +530,21 @@
         },
         "workersDevSubdomain": {
           "$ref": "#/properties/release/properties/workersDevSubdomain"
+        },
+        "publicationMode": {
+          "$ref": "#/properties/release/properties/publicationMode"
+        },
+        "publicPath": {
+          "$ref": "#/properties/release/properties/publicPath"
+        },
+        "previewReadOnlyBindings": {
+          "$ref": "#/properties/release/properties/previewReadOnlyBindings"
+        },
+        "attestation": {
+          "$ref": "#/properties/release/properties/attestation"
+        },
+        "previewOnly": {
+          "$ref": "#/properties/release/properties/previewOnly"
         }
       }
     }

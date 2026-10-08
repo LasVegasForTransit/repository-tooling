@@ -34,3 +34,5 @@ export * from './saved-release-migrations.js';
 export * from './legacy-worker-release-artifact.js';
 export * from './typed-worker-compatibility.js';
 export { isolatedPreviewBindings, type WorkerBindings } from './worker-bindings.js';
+export * from './release-path.js';
+export * from './release-attestation.js';

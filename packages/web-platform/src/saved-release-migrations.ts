@@ -16,6 +16,9 @@ import { parseArgs, promisify } from 'node:util';
 import { parse, type ParseError } from 'jsonc-parser';
 import { z } from 'zod';
 import type { ReleaseConfiguration } from './release-config.js';
+import { verifyReleaseAttestation } from './release-attestation.js';
+import { verifyCandidateReceipt } from './release-candidate.js';
+import { verifyNamedPreview, assertNamedPreviewProtection } from './named-worker-release.js';
 import { verifyRelease } from './saved-release-artifact.js';
 import { verifyWorkerReleaseConfiguration } from './worker-release-configuration.js';
 
@@ -246,6 +249,25 @@ async function applyMigrations(
   }
 }
 
+async function verifyMigrationAuthority(
+  config: ReleaseConfiguration,
+  input: {
+    directory: string;
+    target: string;
+    attestation?: string | undefined;
+    candidate?: string | undefined;
+  },
+  release: Awaited<ReturnType<typeof verifyRelease>>,
+): Promise<void> {
+  await verifyReleaseAttestation(config, input.directory, input.attestation);
+  await verifyWorkerReleaseConfiguration(input.directory, config);
+  if (input.target === 'production' && config.previewOnly)
+    throw new Error('Preview-only apps cannot migrate production.');
+  if (config.publicationMode !== 'named-staging') return;
+  if (input.target === 'preview') await assertNamedPreviewProtection(config);
+  else if (input.candidate) await verifyCandidateReceipt(config, release, input.candidate);
+  else await verifyNamedPreview(config, release);
+}
 /** Apply only SQL and database identities contained in a verified saved release. */
 export async function runReleaseMigrations(
   config: ReleaseConfiguration,
@@ -258,6 +280,8 @@ export async function runReleaseMigrations(
       target: { type: 'string' },
       commit: { type: 'string' },
       'release-id': { type: 'string' },
+      'attestation-directory': { type: 'string' },
+      'candidate-directory': { type: 'string' },
     },
   });
   if (!values.directory) throw new Error('Pass --directory with the saved release.');
@@ -265,11 +289,21 @@ export async function runReleaseMigrations(
     throw new Error('Pass --target preview or production.');
   const directory = path.resolve(values.directory);
   const release = await verifyRelease(directory);
+  if (release.app !== config.profile) throw new Error('Saved release belongs to another app.');
   if (values.commit && release.commit !== values.commit)
     throw new Error('Release commit does not match the selected Actions run.');
   if (values['release-id'] && release.releaseId !== values['release-id'])
     throw new Error('Release ID does not match the selected Actions run.');
-  await verifyWorkerReleaseConfiguration(directory, config);
+  await verifyMigrationAuthority(
+    config,
+    {
+      directory,
+      target: values.target,
+      attestation: values['attestation-directory'],
+      candidate: values['candidate-directory'],
+    },
+    release,
+  );
   if (!release.files.some(([file]) => file === manifestFile)) {
     // Original retained releases did not carry SQL. Preserve their reviewed no-migration behavior.
     if (release.formatVersion === 1) return;

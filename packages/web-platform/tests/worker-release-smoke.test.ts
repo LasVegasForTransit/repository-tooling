@@ -179,3 +179,80 @@ it('version candidates require the reviewed account before protected credentials
     vi.unstubAllEnvs();
   }
 });
+
+it('exact configured workers.dev origins enforce the declared account before any Access request', async () => {
+  const config = {
+    repository: 'Example/collector',
+    appDirectory: 'apps/collector',
+    previewUrl: 'https://collector-preview.unrelated.workers.dev',
+    previewWorker: 'collector-preview',
+    productionUrl: 'https://events.example.test',
+    productionWorker: 'collector',
+    workersDevSubdomain: 'account',
+    artifactPrefix: 'collector-release',
+    stagingWorkflow: { name: 'Stage', path: '.github/workflows/stage.yml', branch: 'main' },
+    promotionWorkflow: { file: 'promote.yml', titlePrefix: 'Promote', branch: 'main' },
+    smoke: { path: '/health', status: 200, body: 'ok' },
+  };
+  const request = vi.fn(() => Promise.reject(new Error('No request permitted.')));
+  vi.stubGlobal('fetch', request);
+  vi.stubEnv('CF_ACCESS_CLIENT_ID', 'fixture-id');
+  vi.stubEnv('CF_ACCESS_CLIENT_SECRET', 'fixture-secret');
+  try {
+    const { workersDevSubdomain: _subdomain, ...missingAccount } = {
+      ...config,
+      previewUrl: 'https://collector-preview.account.workers.dev',
+    };
+    for (const declaration of [
+      config,
+      missingAccount,
+      { ...config, previewUrl: 'https://workers.dev' },
+    ]) {
+      await expect(
+        smoke.runWorkerReleaseSmoke(declaration, [
+          '--url',
+          declaration.previewUrl,
+          '--commit',
+          identity.commit,
+          '--release-id',
+          identity.releaseId,
+          '--protected',
+        ]),
+      ).rejects.toThrow(/configured.*preview|subdomain/i);
+      expect(request).not.toHaveBeenCalled();
+    }
+    expect(() =>
+      smoke.validateWorkerSmokeOrigin(
+        'https://collector-preview.account.workers.dev',
+        {
+          ...config,
+          previewUrl: 'https://collector-preview.account.workers.dev',
+        },
+        true,
+      ),
+    ).not.toThrow();
+    expect(() =>
+      smoke.validateWorkerSmokeOrigin(
+        'https://collector.unrelated.workers.dev',
+        {
+          ...config,
+          productionUrl: 'https://collector.unrelated.workers.dev',
+        },
+        false,
+      ),
+    ).toThrow(/production/);
+    expect(() =>
+      smoke.validateWorkerSmokeOrigin(
+        'https://custom.example.test',
+        {
+          ...config,
+          previewUrl: 'https://custom.example.test',
+        },
+        true,
+      ),
+    ).not.toThrow();
+  } finally {
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+  }
+});

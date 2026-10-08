@@ -4,7 +4,17 @@ const simple = z.strictObject({
   period: z.union([z.literal(10), z.literal(60)]),
 });
 const binding = z.discriminatedUnion('type', [
-  z.strictObject({ type: z.literal('d1'), name: z.string().min(1), id: z.string().min(1) }),
+  z.strictObject({
+    type: z.literal('d1'),
+    name: z.string().min(1),
+    id: z
+      .string()
+      .min(1)
+      .refine(
+        (id) => id !== '00000000-0000-0000-0000-000000000000',
+        'Initialize the selected D1 database before releasing.',
+      ),
+  }),
   z.strictObject({ type: z.literal('r2'), name: z.string().min(1) }),
   z.strictObject({
     type: z.literal('durable-object'),
@@ -38,13 +48,22 @@ function isolated(value: WorkerBindings[string], candidate: WorkerBindings[strin
 export function isolatedPreviewBindings(
   production: WorkerBindings,
   input: unknown,
+  readonlyBindings: string[] = [],
 ): WorkerBindings {
   const preview = workerBindingsSchema.parse(input);
   if (Object.keys(preview).sort().join(',') !== Object.keys(production).sort().join(','))
     throw new Error('Declare every isolated preview binding explicitly.');
+  if (new Set(readonlyBindings).size !== readonlyBindings.length)
+    throw new Error('Duplicate preview read-only bindings.');
+  for (const name of readonlyBindings) {
+    const value = production[name],
+      candidate = preview[name];
+    if (value?.type !== 'r2' || candidate?.type !== 'r2' || value.name !== candidate.name)
+      throw new Error('Preview read-only capabilities require an explicitly shared R2 binding.');
+  }
   for (const [name, value] of Object.entries(production)) {
     const candidate = preview[name];
-    if (!candidate || !isolated(value, candidate))
+    if (!candidate || (!readonlyBindings.includes(name) && !isolated(value, candidate)))
       throw new Error(`Preview binding ${name} must retain its type and use isolated resources.`);
   }
   return preview;

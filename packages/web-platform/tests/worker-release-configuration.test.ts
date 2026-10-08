@@ -61,3 +61,35 @@ test('preview uploads cannot share writable photo buckets or enable production s
     ),
   ).toThrow('schedule');
 });
+
+test('saved Worker declarations reject shared Durable Object namespaces, counters, and uninitialized database IDs', () => {
+  const production = {
+    name: 'app',
+    durable_objects: { bindings: [{ name: 'GATE', class_name: 'Gate', script_name: 'app' }] },
+    ratelimits: [{ name: 'LIMIT', namespace_id: '1001', simple: { limit: 10, period: 60 } }],
+    d1_databases: [{ binding: 'DB', database_id: 'production-id' }],
+    env: {
+      preview: {
+        name: 'app-preview',
+        durable_objects: {
+          bindings: [{ name: 'GATE', class_name: 'Gate', script_name: 'app-preview' }],
+        },
+        ratelimits: [{ name: 'LIMIT', namespace_id: '2001', simple: { limit: 10, period: 60 } }],
+        d1_databases: [{ binding: 'DB', database_id: 'preview-id' }],
+      },
+    },
+  };
+  const expected = { productionWorker: 'app', previewWorker: 'app-preview' };
+  expect(() => assertWorkerReleaseConfiguration(production, expected)).not.toThrow();
+  for (const override of [
+    { durable_objects: production.durable_objects },
+    { ratelimits: production.ratelimits },
+    { d1_databases: [{ binding: 'DB', database_id: '00000000-0000-0000-0000-000000000000' }] },
+  ])
+    expect(() =>
+      assertWorkerReleaseConfiguration(
+        { ...production, env: { preview: { ...production.env.preview, ...override } } },
+        expected,
+      ),
+    ).toThrow();
+});

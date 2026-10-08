@@ -21,7 +21,12 @@ export function account(context) {
 }
 
 export function wrangler(context, args, options = {}) {
-  return context.run('pnpm', ['exec', 'wrangler', ...args], {
+  const environment = context.manifest.cloudflare.environment;
+  const scoped =
+    environment && !args.includes('--env') && (args[0] === 'secret' || args.includes('--remote'))
+      ? ['--env', environment]
+      : [];
+  return context.run('pnpm', ['exec', 'wrangler', ...args, ...scoped], {
     cwd: context.directory,
     env: {
       CLOUDFLARE_ACCOUNT_ID: context.manifest.cloudflare.accountId,
@@ -34,7 +39,9 @@ export function wrangler(context, args, options = {}) {
 export function cf(context, args, options = {}) {
   const config = context.manifest.cloudflare.cloudflareConfig;
   if (!config) throw new Error('cf requires cloudflare.cloudflareConfig in platform.json');
-  return context.run('pnpm', ['exec', 'cf', ...args], {
+  const environment = context.manifest.cloudflare.environment;
+  const scoped = environment && !args.includes('--mode') ? ['--mode', environment] : [];
+  return context.run('pnpm', ['exec', 'cf', ...args, ...scoped], {
     cwd: path.resolve(context.directory, path.dirname(config)),
     env: { CLOUDFLARE_ACCOUNT_ID: context.manifest.cloudflare.accountId },
     ...options,

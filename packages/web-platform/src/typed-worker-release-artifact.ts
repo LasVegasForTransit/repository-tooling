@@ -7,15 +7,13 @@ import { promisify } from 'node:util';
 import { z } from 'zod';
 import type { ReleaseConfiguration } from './release-config.js';
 import { packageRelease, sealSavedRelease, type WebsiteRelease } from './saved-release-artifact.js';
+import { configuredReleaseIdentity, workerReleaseEntry } from './worker-release-entry.js';
 import { readTypedWorkerConfiguration, reviewedReleasePath } from './typed-worker-input.js';
 import type { ArtifactAcceptance } from './saved-release-artifact.js';
 import { retainReleaseMigrations } from './saved-release-migrations.js';
+import { verifyReadOnlyWorkerModules } from './read-only-worker-modules.js';
 const execute = promisify(execFile);
 
-function identityEntry(main: string, identity: { commit: string; releaseId: string }): string {
-  const module = JSON.stringify(main);
-  return `import application from ${module};\nexport * from ${module};\nconst identity=${JSON.stringify(identity)};\nexport default {...application, async fetch(request,env,ctx) {\n  let response;\n  if (new URL(request.url).pathname === '/lvbt-release.json') response=Response.json(identity, {headers:{'Cache-Control':'no-store'}});\n  else response=await application.fetch(request,env,ctx);\n  if (env.LVBT_DEPLOYMENT_ENV !== 'preview') return response;\n  const headers=new Headers(response.headers);\n  headers.set('X-Robots-Tag','noindex, nofollow, noarchive');\n  headers.set('Cache-Control','private, no-store');\n  return new Response(response.body,{status:response.status,statusText:response.statusText,headers});\n}};\n`;
-}
 async function retainedConfiguration(
   generated: Record<string, unknown>,
   temporary: string,
@@ -81,6 +79,10 @@ async function retainSourceDeclarations(
   input: { canonical: string; config: ReleaseConfiguration },
 ): Promise<void> {
   await writeFile(
+    path.join(temporary, '.wrangler/worker/preview-capabilities.json'),
+    JSON.stringify({ readOnlyBindings: input.config.previewReadOnlyBindings ?? [] }),
+  );
+  await writeFile(
     path.join(temporary, '.wrangler/worker/config-source.json'),
     JSON.stringify({
       path: input.config.typedConfig,
@@ -97,12 +99,24 @@ async function retainSourceDeclarations(
     JSON.stringify({ production, preview: input.config.previewBindings }, null, 2),
   );
 }
+function typedEntry(
+  main: string,
+  identity: { commit: string; releaseId: string },
+  generated: Record<string, unknown>,
+  config: ReleaseConfiguration,
+): string {
+  return workerReleaseEntry(main, identity, {
+    ...config,
+    durableExports: Object.keys(z.record(z.string(), z.unknown()).parse(generated.exports ?? {})),
+  });
+}
 export async function packageTypedWorkerRelease(
   source: string,
   destination: string,
   identity: { commit: string; releaseId: string },
   config: ReleaseConfiguration,
 ): Promise<WebsiteRelease> {
+  identity = configuredReleaseIdentity(identity, config);
   const { canonical, imported, generated } = await readTypedWorkerConfiguration(source, config);
   const main = await reviewedReleasePath(
     source,
@@ -117,7 +131,10 @@ export async function packageTypedWorkerRelease(
   const temporary = await mkdtemp(path.join(os.tmpdir(), 'lvbt-typed-worker-'));
   try {
     await mkdir(path.join(temporary, '.wrangler/worker'), { recursive: true });
-    await writeFile(path.join(temporary, 'index.ts'), identityEntry(main, identity));
+    await writeFile(
+      path.join(temporary, 'index.ts'),
+      typedEntry(main, identity, generated, config),
+    );
     const assetSettings = assets
       ? { ...z.record(z.string(), z.unknown()).parse(generated.assets), directory: assets }
       : undefined;
@@ -160,6 +177,7 @@ export async function packageTypedWorkerRelease(
     );
     await retainedConfiguration(generated, temporary, assets);
     await retainSourceDeclarations(temporary, imported, { canonical, config });
+    if (config.previewReadOnlyBindings?.length) await verifyReadOnlyWorkerModules(temporary);
     if (config.migrations?.length) await retainReleaseMigrations(source, temporary, config);
     return await sealTypedBuild(temporary, destination, {
       identity,

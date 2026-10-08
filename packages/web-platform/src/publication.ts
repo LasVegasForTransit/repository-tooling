@@ -3,10 +3,13 @@ import type { ReleaseIdentity } from './release-identity.js';
 
 export const publicationSchema = z.object({
   release: z.object({
+    app: z.string().optional(),
     releaseId: z.string().regex(/^[1-9][0-9]*$/),
     commit: z.string().regex(/^[a-f0-9]{40}$/),
   }),
-  baseline: z.object({ releaseId: z.string(), commit: z.string() }).nullable(),
+  baseline: z
+    .object({ releaseId: z.string(), commit: z.string(), app: z.string().optional() })
+    .nullable(),
   artifactHash: z
     .string()
     .regex(/^[a-f0-9]{64}$/)

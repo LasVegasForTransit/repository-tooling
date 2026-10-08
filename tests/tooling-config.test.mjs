@@ -52,3 +52,36 @@ test('release profiles reuse field constraints and reject nested or unknown sett
   ])
     assert.ok(validateTooling({ version: 1, release: { apps: { site: invalid } } }).length);
 });
+
+test('release extensions use the same constraints in common config and named profiles', () => {
+  const valid = {
+    publicationMode: 'named-staging',
+    previewOnly: true,
+    publicPath: '/transit-funding/',
+    previewReadOnlyBindings: ['GTFS_ARCHIVES'],
+    attestation: {
+      signerWorkflow: 'LasVegasForTransit/repository-tooling/.github/workflows/release-attest.yml',
+      signerCommit: 'a'.repeat(40),
+    },
+  };
+  for (const release of [valid, { apps: { site: valid } }])
+    assert.deepEqual(validateTooling({ version: 1, release }), []);
+  for (const field of [
+    { publicationMode: 'custom-deployer' },
+    { previewOnly: 'false' },
+    { publicPath: '//outside/' },
+    { publicPath: '/../outside/' },
+    { publicPath: '/missing-trailing-slash' },
+    { previewReadOnlyBindings: ['GTFS_ARCHIVES', 'GTFS_ARCHIVES'] },
+    { previewReadOnlyBindings: ['lower-case'] },
+    { attestation: { ...valid.attestation, signerCommit: 'main' } },
+    { attestation: { ...valid.attestation, signerWorkflow: 'untrusted/workflow' } },
+  ])
+    for (const release of [field, { apps: { site: field } }])
+      assert.ok(validateTooling({ version: 1, release }).length);
+});
+
+test('prototype property names cannot bypass unknown-field configuration diagnostics', () => {
+  for (const key of ['__proto__', 'constructor', 'toString'])
+    assert.ok(validateTooling(JSON.parse(`{"version":1,"${key}":{}}`)).length);
+});

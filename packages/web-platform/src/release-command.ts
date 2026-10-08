@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { runReleaseAttestation } from './release-attestation.js';
 import { readReleaseConfiguration } from './release-config.js';
 import { runPromote } from './promote-command.js';
 import { runWorkerRelease } from './worker-release-command.js';
@@ -15,15 +16,20 @@ if (appIndex >= 0) {
   if (!app || app.startsWith('--')) throw new Error('Pass --app with a named release profile.');
   args.splice(appIndex, 2);
 }
-const config = await readReleaseConfiguration(
-  root,
-  process.env,
-  app ?? process.env.LVBT_RELEASE_APP,
-);
-process.chdir(path.resolve(root, config.appDirectory));
-if (command === 'promote') await runPromote(config, args);
-else if (command === 'worker-release') await runWorkerRelease(config, args);
-else if (command === 'publication') await runPublication(config, args);
-else if (command === 'smoke') await runWorkerReleaseSmoke(config, args);
-else if (command === 'migrate') await runReleaseMigrations(config, args);
-else throw new Error('Use promote, worker-release, publication, smoke, or migrate.');
+if (command === 'attestation' && args[0] === 'manifest') {
+  await runReleaseAttestation(undefined, args);
+} else {
+  const config = await readReleaseConfiguration(
+    root,
+    process.env,
+    app ?? process.env.LVBT_RELEASE_APP,
+  );
+  process.chdir(path.resolve(root, config.appDirectory));
+  if (command === 'promote') await runPromote(config, args);
+  else if (command === 'worker-release') await runWorkerRelease(config, args);
+  else if (command === 'publication') await runPublication(config, args);
+  else if (command === 'smoke') await runWorkerReleaseSmoke(config, args);
+  else if (command === 'attestation') await runReleaseAttestation(config, args);
+  else if (command === 'migrate') await runReleaseMigrations(config, args);
+  else throw new Error('Use promote, worker-release, publication, smoke, or migrate.');
+}

@@ -1,3 +1,4 @@
+import { productionEndpoint } from './release-path.js';
 import type { ReleaseConfiguration } from './release-config.js';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
@@ -5,6 +6,13 @@ import { parseArgs } from 'node:util';
 import { readReleaseIdentity, type ReleaseIdentity } from './release-identity.js';
 import { publicationReceipt } from './publication.js';
 
+function selectedIdentity(
+  config: ReleaseConfiguration,
+  commit: string,
+  releaseId: string,
+): ReleaseIdentity {
+  return { commit, releaseId, ...(config.profile ? { app: config.profile } : {}) };
+}
 export async function runPublication(
   config: ReleaseConfiguration,
   args: string[] = process.argv.slice(2),
@@ -26,7 +34,10 @@ export async function runPublication(
   await mkdir(values.directory, { recursive: true });
   const baselinePath = path.join(values.directory, 'baseline.json');
   if (positionals[0] === 'baseline') {
-    const identity = await readReleaseIdentity(config.productionUrl);
+    const identity = await readReleaseIdentity(config.productionUrl, {
+      publicPath: config.publicPath,
+      app: config.profile,
+    });
     await writeFile(baselinePath, `${JSON.stringify(identity, null, 2)}\n`);
   } else if (positionals[0] === 'record') {
     if (!values.commit || !values['release-id']) throw new Error('Pass --commit and --release-id.');
@@ -37,8 +48,8 @@ export async function runPublication(
       /* Baseline step may have failed; still retain the outcome. */
     }
     const receipt = publicationReceipt({
-      url: config.productionUrl,
-      release: { commit: values.commit, releaseId: values['release-id'] },
+      url: productionEndpoint(config),
+      release: selectedIdentity(config, values.commit, values['release-id']),
       baseline,
       artifactHash: values['artifact-hash'],
       version: values.version,

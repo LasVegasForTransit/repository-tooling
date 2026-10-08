@@ -319,16 +319,18 @@ export function readWranglerConfig(file, { environment } = {}) {
   };
 }
 
+function configMode(mode) {
+  return { mode, isPreview: mode !== undefined && mode !== 'production' };
+}
+
 /** Read a cf project's canonical config, including its typed binding builders. */
 export async function readCloudflareConfig(file, { mode } = {}) {
   const module = await import(pathToFileURL(file).href);
   const project =
-    typeof module.default === 'function'
-      ? await module.default({ mode, isPreview: mode !== undefined })
-      : module.default;
+    typeof module.default === 'function' ? await module.default(configMode(mode)) : module.default;
   const worker =
     typeof project?.worker === 'function'
-      ? await project.worker({ mode, isPreview: mode !== undefined })
+      ? await project.worker(configMode(mode))
       : project?.worker;
   if (!worker?.name || !worker.env)
     throw new Error(`${file} must declare a Worker with a name and env bindings.`);

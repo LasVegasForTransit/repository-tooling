@@ -82,24 +82,36 @@ function durableNamespaces(
       );
   }
 }
+const canonical = z.strictObject({
+  worker,
+  accountId: z
+    .string()
+    .regex(/^[a-f0-9]{32}$/)
+    .optional(),
+});
+function matchesPublicRoute(built: z.infer<typeof worker>, config: ReleaseConfiguration): boolean {
+  const hostname = new URL(config.productionUrl).hostname;
+  const prefix = config.publicPath ?? '/';
+  if (prefix !== '/' && built.domains.includes(hostname)) return false;
+  if (prefix === '/' && built.domains.includes(hostname)) return true;
+  const routePrefix = hostname + prefix;
+  return built.triggers.some(
+    (item) =>
+      item.type === 'fetch' &&
+      (item.pattern === routePrefix.slice(0, -1) || item.pattern.startsWith(routePrefix)),
+  );
+}
 function canonicalWorkers(value: unknown, config: ReleaseConfiguration, previewValue: unknown) {
-  const built = z.strictObject({ worker }).parse(value).worker;
-  const candidate =
-    previewValue === undefined ? built : z.strictObject({ worker }).parse(previewValue).worker;
+  const built = canonical.parse(value).worker;
+  const candidate = previewValue === undefined ? built : canonical.parse(previewValue).worker;
   if (previewValue !== undefined && candidate.name !== config.previewWorker)
     throw new Error('Canonical preview config does not identify the configured preview Worker.');
   if (built.name !== config.productionWorker)
     throw new Error('Canonical config does not identify the configured production Worker.');
-  const hostname = new URL(config.productionUrl).hostname;
-  if (
-    !built.domains.includes(hostname) &&
-    !built.triggers.some(
-      (item) =>
-        item.type === 'fetch' &&
-        (item.pattern === hostname || item.pattern.startsWith(`${hostname}/`)),
-    )
-  )
-    throw new Error('Canonical routes do not identify the configured production origin.');
+  if (!config.previewOnly && !matchesPublicRoute(built, config))
+    throw new Error(
+      'Canonical routes do not identify the configured production origin and public path.',
+    );
   return { built, candidate };
 }
 export function typedWorkerConfiguration(
@@ -108,7 +120,11 @@ export function typedWorkerConfiguration(
   previewValue?: unknown,
 ): Record<string, unknown> {
   const { built, candidate } = canonicalWorkers(value, config, previewValue);
-  const preview = isolatedPreviewBindings(built.env, config.previewBindings);
+  const preview = isolatedPreviewBindings(
+    built.env,
+    config.previewBindings,
+    config.previewReadOnlyBindings,
+  );
   durableNamespaces(built, preview, config);
   const assetNames = Object.entries(built.env)
     .filter(([, binding]) => binding.type === 'assets')
@@ -125,6 +141,7 @@ export function typedWorkerConfiguration(
   const productionBindings = wranglerBindings(built.env);
   const previewBindings = wranglerBindings(preview);
   return {
+    account_id: canonical.parse(value).accountId,
     name: built.name,
     main: built.entrypoint,
     compatibility_date: built.compatibilityDate,
@@ -133,7 +150,7 @@ export function typedWorkerConfiguration(
     logpush: built.logpush,
     tail_consumers: snakeSettings(built.tailConsumers),
     workers_dev: built.workersDev ?? false,
-    preview_urls: true,
+    preview_urls: config.publicationMode !== 'named-staging',
     assets,
     exports: built.exports,
     routes: [
@@ -159,9 +176,11 @@ export function typedWorkerConfiguration(
         logpush: candidate.logpush,
         tail_consumers: previewValue === undefined ? [] : snakeSettings(candidate.tailConsumers),
         unsafe: candidate.unsafe ?? unsafe,
-        workers_dev: false,
-        preview_urls: true,
-        routes: [{ pattern: new URL(config.previewUrl).hostname, custom_domain: true }],
+        workers_dev: new URL(config.previewUrl).hostname.endsWith('.workers.dev'),
+        preview_urls: config.publicationMode !== 'named-staging',
+        routes: new URL(config.previewUrl).hostname.endsWith('.workers.dev')
+          ? []
+          : [{ pattern: new URL(config.previewUrl).hostname, custom_domain: true }],
         triggers: { crons: [] },
         ...previewBindings,
         vars: {

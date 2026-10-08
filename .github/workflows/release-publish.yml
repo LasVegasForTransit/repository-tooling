@@ -3,6 +3,13 @@ name: Verify and activate retained release
 on:
   workflow_call:
     inputs:
+      publication-mode:
+        type: string
+        required: false
+        default: version
+      attestation-prefix:
+        type: string
+        required: false
       app:
         type: string
         required: false
@@ -53,12 +60,17 @@ permissions:
   deployments: write
   packages: read
 
+concurrency:
+  group: lvbt-publish-${{ github.repository }}-${{ inputs.app || 'default' }}
+  cancel-in-progress: false
+
 jobs:
   publish:
     name: Verify and publish selected release
     if: >-
       github.ref == 'refs/heads/main' && (inputs.target == 'preview' || (inputs.target ==
-      'production' && github.event_name == 'workflow_dispatch'))
+      'production' && github.event_name == 'workflow_dispatch')) && !(inputs.target == 'production'
+      && inputs.publication-mode == 'named-staging')
     runs-on: ubuntu-latest
     timeout-minutes: 25
     # Existing production credential environment; dispatch is the explicit publish action.
@@ -68,13 +80,17 @@ jobs:
         inputs.production-environment }}
       url: ${{ inputs.url }}
     env:
+      GH_TOKEN: ${{ github.token }}
+      LVBT_RELEASE_PUBLICATION_MODE: ${{ inputs.publication-mode }}
+      ATTESTATION_PREFIX: ${{ inputs.attestation-prefix }}
       LVBT_RELEASE_APP: ${{ inputs.app }}
       LVBT_PRODUCTION_URL: ${{ vars.LVBT_PRODUCTION_URL }}
       LVBT_PREVIEW_URL: ${{ vars.LVBT_PREVIEW_URL }}
       LVBT_PREVIEW_BINDINGS: ${{ vars.LVBT_PREVIEW_BINDINGS }}
       CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID || secrets.CLOUDFLARE_ACCOUNT_ID }}
       CLOUDFLARE_API_TOKEN:
-        ${{ secrets.CLOUDFLARE_WORKERS_API_TOKEN || secrets.CLOUDFLARE_API_TOKEN }}
+        ${{ inputs.target == 'preview' && secrets.CLOUDFLARE_PREVIEW_API_TOKEN ||
+        secrets.CLOUDFLARE_WORKERS_API_TOKEN || secrets.CLOUDFLARE_API_TOKEN }}
       CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
       CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
       TARGET: ${{ inputs.target }}
@@ -107,30 +123,48 @@ jobs:
           run-id: ${{ inputs.release-id }}
           name: ${{ inputs.artifact-prefix }}-${{ inputs.release-id }}
           path: ${{ runner.temp }}/website-release
+      - name: Download signed release proof
+        if: inputs.attestation-prefix != ''
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.release-id }}
+          name: ${{ inputs.attestation-prefix }}-${{ inputs.release-id }}
+          path: ${{ runner.temp }}/release-attestation
       - name: Verify artifact identity and files
-        run: >-
-          pnpm exec lvbt release verify --directory "$RUNNER_TEMP/website-release" --commit
-          "$RELEASE_COMMIT" --release-id "$RELEASE_ID"
+        run: |
+          proof=()
+          if [ -n "$ATTESTATION_PREFIX" ]; then proof=(--attestation-directory "$RUNNER_TEMP/release-attestation"); fi
+          pnpm exec lvbt release verify --directory "$RUNNER_TEMP/website-release" --commit "$RELEASE_COMMIT" --release-id "$RELEASE_ID" "${proof[@]}"
       - name: Install Chromium
         if: inputs.browser-script != 'none'
         run: pnpm --dir "$ACCEPTANCE_DIRECTORY" exec playwright install --with-deps chromium
+      - name: Apply retained preview schema
+        if: inputs.target == 'preview'
+        run: |
+          proof=()
+          if [ -n "$ATTESTATION_PREFIX" ]; then proof=(--attestation-directory "$RUNNER_TEMP/release-attestation"); fi
+          pnpm exec lvbt release migrate --directory "$RUNNER_TEMP/website-release" --commit "$RELEASE_COMMIT" --release-id "$RELEASE_ID" --target preview "${proof[@]}"
       - name: Upload candidate without rebuilding
         id: upload
-        run: >-
-          pnpm exec lvbt release upload --directory "$RUNNER_TEMP/website-release" --target
-          "$TARGET"
+        run: |
+          proof=()
+          if [ -n "$ATTESTATION_PREFIX" ]; then proof=(--attestation-directory "$RUNNER_TEMP/release-attestation"); fi
+          pnpm exec lvbt release upload --directory "$RUNNER_TEMP/website-release" --target "$TARGET" "${proof[@]}"
       - name: Verify candidate
+        id: smoke
         env:
           PREVIEW_URL: ${{ steps.upload.outputs.url }}
         run: |
-          if [ "$TARGET" = preview ]; then protection=--protected; else protection=; fi
+          if [ "$TARGET" = preview ] || [ "${{ steps.upload.outputs.protected }}" = true ]; then protection=--protected; else protection=; fi
           if [ "$SMOKE_SCRIPT" = api ]; then
-            if [ "$TARGET" = production ]; then protection=--public; fi
+            if [ -z "$protection" ]; then protection=--public; fi
             pnpm exec lvbt release smoke --url "$PREVIEW_URL" --commit "$RELEASE_COMMIT" --release-id "$RELEASE_ID" $protection
           else
             pnpm --dir "$ACCEPTANCE_DIRECTORY" "$SMOKE_SCRIPT" --url "$PREVIEW_URL" --commit "$RELEASE_COMMIT" --release-id "$RELEASE_ID" $protection
           fi
       - name: Browser acceptance
+        id: browser
         if: inputs.browser-script != 'none'
         env:
           PLAYWRIGHT_BASE_URL: ${{ steps.upload.outputs.url }}
@@ -141,17 +175,20 @@ jobs:
           else
             pnpm --dir "$ACCEPTANCE_DIRECTORY" "$BROWSER_SCRIPT"
           fi
-      - name: Apply retained schema to selected target
-        run: >-
-          pnpm exec lvbt release migrate --directory "$RUNNER_TEMP/website-release" --commit
-          "$RELEASE_COMMIT" --release-id "$RELEASE_ID" --target "$TARGET"
+      - name: Apply retained production schema
+        if: inputs.target == 'production'
+        run: |
+          proof=()
+          if [ -n "$ATTESTATION_PREFIX" ]; then proof=(--attestation-directory "$RUNNER_TEMP/release-attestation"); fi
+          pnpm exec lvbt release migrate --directory "$RUNNER_TEMP/website-release" --commit "$RELEASE_COMMIT" --release-id "$RELEASE_ID" --target production "${proof[@]}"
       - name: Activate verified version
         id: activate
         env:
           VERSION_ID: ${{ steps.upload.outputs.version }}
-        run: >-
-          pnpm exec lvbt release activate --directory "$RUNNER_TEMP/website-release" --commit
-          "$RELEASE_COMMIT" --release-id "$RELEASE_ID" --target "$TARGET" --version "$VERSION_ID"
+        run: |
+          proof=()
+          if [ -n "$ATTESTATION_PREFIX" ]; then proof=(--attestation-directory "$RUNNER_TEMP/release-attestation"); fi
+          pnpm exec lvbt release activate --directory "$RUNNER_TEMP/website-release" --commit "$RELEASE_COMMIT" --release-id "$RELEASE_ID" --target "$TARGET" --version "$VERSION_ID" "${proof[@]}"
       - name: Verify activated origin
         id: public
         run: |
@@ -176,8 +213,246 @@ jobs:
       - name: Record publication outcome
         if: always() && inputs.target == 'production' && steps.setup.outcome == 'success'
         env:
-          VERSION_ID: ${{ steps.upload.outputs.version }}
+          VERSION_ID: ${{ steps.activate.outputs.version || steps.upload.outputs.version }}
           ARTIFACT_HASH: ${{ steps.upload.outputs.artifact-hash }}
+          ACTIVATION: ${{ steps.activate.outcome }}
+          VERIFICATION: ${{ steps.public.outcome }}
+        run: >-
+          pnpm exec lvbt release publication record --directory "$RUNNER_TEMP/publication"
+          --release-id "$RELEASE_ID" --commit "$RELEASE_COMMIT" --version "$VERSION_ID"
+          --artifact-hash "$ARTIFACT_HASH" --activation "$ACTIVATION" --verification "$VERIFICATION"
+      - name: Retain publication receipt
+        if: always() && inputs.target == 'production'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name:
+            publication-${{ github.run_id }}-${{ github.run_attempt }}${{ inputs.app != '' &&
+            format('-{0}', inputs.app) || '' }}
+          path: ${{ runner.temp }}/publication/
+          if-no-files-found: warn
+          retention-days: 90
+  named-candidate:
+    name: Verify named release candidate
+    if: >-
+      github.ref == 'refs/heads/main' && inputs.target == 'production' && inputs.publication-mode ==
+      'named-staging' && github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    # Existing production credential environment; dispatch is the explicit publish action.
+    environment:
+      name: ${{ inputs.preview-environment }}
+      url: ${{ inputs.url }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+      LVBT_RELEASE_PUBLICATION_MODE: ${{ inputs.publication-mode }}
+      ATTESTATION_PREFIX: ${{ inputs.attestation-prefix }}
+      LVBT_RELEASE_APP: ${{ inputs.app }}
+      LVBT_PRODUCTION_URL: ${{ vars.LVBT_PRODUCTION_URL }}
+      LVBT_PREVIEW_URL: ${{ vars.LVBT_PREVIEW_URL }}
+      LVBT_PREVIEW_BINDINGS: ${{ vars.LVBT_PREVIEW_BINDINGS }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID || secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN:
+        ${{ secrets.CLOUDFLARE_PREVIEW_API_TOKEN || secrets.CLOUDFLARE_WORKERS_API_TOKEN ||
+        secrets.CLOUDFLARE_API_TOKEN }}
+      CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
+      CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
+      TARGET: ${{ inputs.target }}
+      APP_DIRECTORY: ${{ inputs.app-directory }}
+      SMOKE_SCRIPT: ${{ inputs.smoke-script }}
+      BROWSER_SCRIPT: ${{ inputs.browser-script }}
+      ACCEPTANCE_DIRECTORY: ${{ inputs.acceptance-directory || inputs.app-directory }}
+      BROWSER_PROJECT: ${{ inputs.browser-project }}
+      RELEASE_URL: ${{ inputs.url }}
+      RELEASE_ID: ${{ inputs.release-id }}
+      RELEASE_COMMIT: ${{ inputs.commit }}
+    steps:
+      - name: Checkout release verification tools
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          lfs: true
+      - name: Setup Node + pnpm
+        id: setup
+        uses: ./.github/actions/setup-node-pnpm
+      - name: Download selected immutable release
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.release-id }}
+          name: ${{ inputs.artifact-prefix }}-${{ inputs.release-id }}
+          path: ${{ runner.temp }}/website-release
+      - name: Download signed release proof
+        if: inputs.attestation-prefix != ''
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.release-id }}
+          name: ${{ inputs.attestation-prefix }}-${{ inputs.release-id }}
+          path: ${{ runner.temp }}/release-attestation
+      - name: Verify artifact identity and files
+        run: |
+          proof=()
+          if [ -n "$ATTESTATION_PREFIX" ]; then proof=(--attestation-directory "$RUNNER_TEMP/release-attestation"); fi
+          pnpm exec lvbt release verify --directory "$RUNNER_TEMP/website-release" --commit "$RELEASE_COMMIT" --release-id "$RELEASE_ID" "${proof[@]}"
+      - name: Install Chromium
+        if: inputs.browser-script != 'none'
+        run: pnpm --dir "$ACCEPTANCE_DIRECTORY" exec playwright install --with-deps chromium
+      - name: Apply retained preview schema
+        run: |
+          proof=()
+          if [ -n "$ATTESTATION_PREFIX" ]; then proof=(--attestation-directory "$RUNNER_TEMP/release-attestation"); fi
+          pnpm exec lvbt release migrate --directory "$RUNNER_TEMP/website-release" --commit "$RELEASE_COMMIT" --release-id "$RELEASE_ID" --target preview "${proof[@]}"
+      - name: Upload candidate without rebuilding
+        id: upload
+        run: |
+          proof=()
+          if [ -n "$ATTESTATION_PREFIX" ]; then proof=(--attestation-directory "$RUNNER_TEMP/release-attestation"); fi
+          pnpm exec lvbt release upload --directory "$RUNNER_TEMP/website-release" --target "$TARGET" "${proof[@]}"
+      - name: Verify candidate
+        id: smoke
+        if: steps.upload.outputs.protected == 'true'
+        env:
+          PREVIEW_URL: ${{ steps.upload.outputs.url }}
+        run: |
+          if [ "$TARGET" = preview ] || [ "${{ steps.upload.outputs.protected }}" = true ]; then protection=--protected; else protection=; fi
+          if [ "$SMOKE_SCRIPT" = api ]; then
+            if [ -z "$protection" ]; then protection=--public; fi
+            pnpm exec lvbt release smoke --url "$PREVIEW_URL" --commit "$RELEASE_COMMIT" --release-id "$RELEASE_ID" $protection
+          else
+            pnpm --dir "$ACCEPTANCE_DIRECTORY" "$SMOKE_SCRIPT" --url "$PREVIEW_URL" --commit "$RELEASE_COMMIT" --release-id "$RELEASE_ID" $protection
+          fi
+      - name: Browser acceptance
+        id: browser
+        if: inputs.browser-script != 'none'
+        env:
+          PLAYWRIGHT_BASE_URL: ${{ steps.upload.outputs.url }}
+        run: |
+          cp -R "$RUNNER_TEMP/website-release/dist" "$ACCEPTANCE_DIRECTORY/dist"
+          if [ -n "$BROWSER_PROJECT" ]; then
+            pnpm --dir "$ACCEPTANCE_DIRECTORY" "$BROWSER_SCRIPT" --project="$BROWSER_PROJECT"
+          else
+            pnpm --dir "$ACCEPTANCE_DIRECTORY" "$BROWSER_SCRIPT"
+          fi
+      - name: Record accepted named candidate
+        env:
+          VERSION_ID: ${{ steps.upload.outputs.version }}
+          BROWSER_OUTCOME: ${{ steps.browser.outcome }}
+        run: |
+          proof=()
+          if [ -n "$ATTESTATION_PREFIX" ]; then proof=(--attestation-directory "$RUNNER_TEMP/release-attestation"); fi
+          pnpm exec lvbt release candidate --directory "$RUNNER_TEMP/website-release" --candidate-directory "$RUNNER_TEMP/candidate-proof" --version "$VERSION_ID" --verification "$BROWSER_OUTCOME" "${proof[@]}"
+      - name: Retain accepted candidate proof
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name:
+            candidate-${{ github.run_id }}-${{ github.run_attempt }}${{ inputs.app != '' &&
+            format('-{0}', inputs.app) || '' }}
+          path: ${{ runner.temp }}/candidate-proof/candidate.json
+          if-no-files-found: error
+          retention-days: 90
+  named-production:
+    name: Activate accepted named release
+    needs: named-candidate
+    if: >-
+      github.ref == 'refs/heads/main' && inputs.target == 'production' && inputs.publication-mode ==
+      'named-staging' && github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    # Existing production credential environment; dispatch is the explicit publish action.
+    environment:
+      name:
+        ${{ inputs.target == 'preview' && inputs.preview-environment ||
+        inputs.production-environment }}
+      url: ${{ inputs.url }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+      LVBT_RELEASE_PUBLICATION_MODE: ${{ inputs.publication-mode }}
+      ATTESTATION_PREFIX: ${{ inputs.attestation-prefix }}
+      LVBT_RELEASE_APP: ${{ inputs.app }}
+      LVBT_PRODUCTION_URL: ${{ vars.LVBT_PRODUCTION_URL }}
+      LVBT_PREVIEW_URL: ${{ vars.LVBT_PREVIEW_URL }}
+      LVBT_PREVIEW_BINDINGS: ${{ vars.LVBT_PREVIEW_BINDINGS }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID || secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN:
+        ${{ inputs.target == 'preview' && secrets.CLOUDFLARE_PREVIEW_API_TOKEN ||
+        secrets.CLOUDFLARE_WORKERS_API_TOKEN || secrets.CLOUDFLARE_API_TOKEN }}
+      TARGET: ${{ inputs.target }}
+      APP_DIRECTORY: ${{ inputs.app-directory }}
+      SMOKE_SCRIPT: ${{ inputs.smoke-script }}
+      BROWSER_SCRIPT: ${{ inputs.browser-script }}
+      ACCEPTANCE_DIRECTORY: ${{ inputs.acceptance-directory || inputs.app-directory }}
+      BROWSER_PROJECT: ${{ inputs.browser-project }}
+      RELEASE_URL: ${{ inputs.url }}
+      RELEASE_ID: ${{ inputs.release-id }}
+      RELEASE_COMMIT: ${{ inputs.commit }}
+    steps:
+      - name: Checkout release verification tools
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          lfs: true
+      - name: Setup Node + pnpm
+        id: setup
+        uses: ./.github/actions/setup-node-pnpm
+      - name: Record current production identity
+        if: inputs.target == 'production'
+        run: >-
+          pnpm exec lvbt release publication baseline --directory "$RUNNER_TEMP/publication"
+      - name: Download selected immutable release
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.release-id }}
+          name: ${{ inputs.artifact-prefix }}-${{ inputs.release-id }}
+          path: ${{ runner.temp }}/website-release
+      - name: Download signed release proof
+        if: inputs.attestation-prefix != ''
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.release-id }}
+          name: ${{ inputs.attestation-prefix }}-${{ inputs.release-id }}
+          path: ${{ runner.temp }}/release-attestation
+      - name: Verify artifact identity and files
+        run: |
+          proof=()
+          if [ -n "$ATTESTATION_PREFIX" ]; then proof=(--attestation-directory "$RUNNER_TEMP/release-attestation"); fi
+          pnpm exec lvbt release verify --directory "$RUNNER_TEMP/website-release" --commit "$RELEASE_COMMIT" --release-id "$RELEASE_ID" "${proof[@]}"
+      - name: Download current-run accepted candidate
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name:
+            candidate-${{ github.run_id }}-${{ github.run_attempt }}${{ inputs.app != '' &&
+            format('-{0}', inputs.app) || '' }}
+          path: ${{ runner.temp }}/candidate-proof
+      - name: Apply retained production schema
+        if: inputs.target == 'production'
+        run: |
+          proof=()
+          if [ -n "$ATTESTATION_PREFIX" ]; then proof=(--attestation-directory "$RUNNER_TEMP/release-attestation"); fi
+          pnpm exec lvbt release migrate --directory "$RUNNER_TEMP/website-release" --commit "$RELEASE_COMMIT" --release-id "$RELEASE_ID" --target production --candidate-directory "$RUNNER_TEMP/candidate-proof" "${proof[@]}"
+      - name: Activate verified version
+        id: activate
+        run: |
+          proof=()
+          if [ -n "$ATTESTATION_PREFIX" ]; then proof=(--attestation-directory "$RUNNER_TEMP/release-attestation"); fi
+          pnpm exec lvbt release activate --directory "$RUNNER_TEMP/website-release" --commit "$RELEASE_COMMIT" --release-id "$RELEASE_ID" --target "$TARGET" --candidate-directory "$RUNNER_TEMP/candidate-proof" "${proof[@]}"
+      - name: Verify activated origin
+        id: public
+        run: |
+          if [ "$TARGET" = preview ]; then protection=--protected; else protection=--public; fi
+          if [ "$SMOKE_SCRIPT" = api ]; then
+            pnpm exec lvbt release smoke --url "$RELEASE_URL" --commit "$RELEASE_COMMIT" --release-id "$RELEASE_ID" --wait-for-propagation $protection
+          else
+            pnpm --dir "$ACCEPTANCE_DIRECTORY" "$SMOKE_SCRIPT" --url "$RELEASE_URL" --commit "$RELEASE_COMMIT" --release-id "$RELEASE_ID" --wait-for-propagation $protection
+          fi
+      - name: Record publication outcome
+        if: always() && inputs.target == 'production' && steps.setup.outcome == 'success'
+        env:
+          VERSION_ID: ${{ steps.activate.outputs.version }}
+          ARTIFACT_HASH: ${{ steps.activate.outputs.artifact-hash }}
           ACTIVATION: ${{ steps.activate.outcome }}
           VERIFICATION: ${{ steps.public.outcome }}
         run: >-
