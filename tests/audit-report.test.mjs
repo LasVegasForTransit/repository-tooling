@@ -343,3 +343,16 @@ test('an audit-owned result cannot mutate a pull request or another automation o
   });
   await assert.rejects(audit.reportAudit({ ...ambiguous, config: {}, dryRun: true }), /ownership/i);
 });
+test('quoted run identifiers cannot make actual older audit evidence appear stale', async () => {
+  const issue = {
+    number: 7,
+    body: 'The finding quoted Verified run: 99999 (attempt 1).\n\nVerified run: 88888 (attempt 1).\n\nAudit owner: LVBT shared audit automation.\n\nVerified run: 99 (attempt 1).\n\nWorkflow: previous.',
+    state: 'OPEN',
+    labels: ['audit-owned', 'audit:links', 'target:production'].map((name) => ({ name })),
+  };
+  const setup = await fixture(report(), { issues: [issue] });
+  assert.equal(
+    (await audit.reportAudit({ ...setup, config: {}, dryRun: true })).actions[0].action,
+    'update',
+  );
+});

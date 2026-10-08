@@ -1,3 +1,4 @@
+import { verifyExpectedProductionVersion } from './expected-production-version.js';
 import { productionEndpoint } from './release-path.js';
 import { createCandidateReceipt, verifyCandidateReceipt } from './release-candidate.js';
 import { verifyReleaseAttestation } from './release-attestation.js';
@@ -41,6 +42,7 @@ interface ReleaseOptions {
   'run-id'?: string;
   'attestation-directory'?: string;
   'candidate-directory'?: string;
+  'expected-version'?: string;
   verification?: string;
 }
 async function sourceRelease(config: ReleaseConfiguration, values: ReleaseOptions): Promise<void> {
@@ -269,6 +271,7 @@ export async function runWorkerRelease(
       'run-id': { type: 'string' },
       'attestation-directory': { type: 'string' },
       'candidate-directory': { type: 'string' },
+      'expected-version': { type: 'string' },
       verification: { type: 'string' },
     },
   });
@@ -324,6 +327,8 @@ async function runSavedOperation(
   if (target === 'production' && config.previewOnly)
     throw new Error('Preview-only apps cannot publish production releases.');
   await verifyReleaseAttestation(config, directory, values['attestation-directory']);
+  if (target === 'production')
+    await verifyExpectedProductionVersion(config, values['expected-version'], directory);
   if (config.publicationMode === 'named-staging')
     await namedOperation(config, directory, release, { values, upload: command === 'upload' });
   else if (command === 'activate') await activateVersionRelease(config, values, directory, release);

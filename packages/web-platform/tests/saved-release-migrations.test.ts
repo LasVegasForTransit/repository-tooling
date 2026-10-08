@@ -279,3 +279,54 @@ test.each(['shared-database', 'escaped-path', 'missing-inventory', 'wrong-worker
     }
   },
 );
+
+test('a changed production baseline prevents SQL, candidate upload, and activation before any provider write', async () => {
+  const { runWorkerRelease } = await import('../src/worker-release-command.js');
+  const f = await fixture();
+  try {
+    await seal(f.source, f.directory);
+    const requests = path.join(f.root, 'requests.jsonl');
+    vi.stubEnv('VERSION_GUARD_CAPTURE', requests);
+    await writeFile(
+      path.join(f.root, 'bin/pnpm'),
+      `#!/usr/bin/env node
+const fs=require('node:fs'),args=process.argv.slice(2);
+fs.appendFileSync(process.env.VERSION_GUARD_CAPTURE,JSON.stringify(args)+'\\n');
+if(args[2]!=='deployments'||args[3]!=='list')throw new Error('A production write was attempted');
+process.stdout.write(JSON.stringify([{created_on:'2026-09-05T00:00:00Z',versions:[{version_id:'2ae50b24-3d42-48d2-a784-627b60841961',percentage:100}]}]));
+`,
+      { mode: 0o755 },
+    );
+    const guarded = [
+      '--directory',
+      f.directory,
+      '--target',
+      'production',
+      '--expected-version',
+      '1c4deaba-ee53-4c3f-ba65-176ae596cad5',
+    ];
+    await expect(runReleaseMigrations(config, guarded)).rejects.toThrow(
+      /production version changed/,
+    );
+    await expect(runWorkerRelease(config, ['upload', ...guarded])).rejects.toThrow(
+      /production version changed/,
+    );
+    await expect(
+      runWorkerRelease(config, [
+        'activate',
+        ...guarded,
+        '--version',
+        '1c4deaba-ee53-4c3f-ba65-176ae596cad5',
+      ]),
+    ).rejects.toThrow(/production version changed/);
+    const commands = (await readFile(requests, 'utf8'))
+      .trim()
+      .split('\n')
+      .map((line) => JSON.parse(line) as string[]);
+    expect(commands).toHaveLength(3);
+    expect(commands.every((args) => args[2] === 'deployments' && args[3] === 'list')).toBe(true);
+  } finally {
+    vi.unstubAllEnvs();
+    await rm(f.root, { recursive: true, force: true });
+  }
+});

@@ -6,6 +6,7 @@ import { execute } from '../audit/index.mjs';
 import { idNumber, successful, verifiedRun } from './trusted-report.mjs';
 import { applyRecurring } from './recurring-apply.mjs';
 import { ownershipLabel, foreignOwnership } from './ownership.mjs';
+import { latestIssueEvidence } from './issue-evidence.mjs';
 import { verifyExecutor, verifySourceConfiguration } from './trusted-configuration.mjs';
 
 const helper = new URL(
@@ -100,7 +101,7 @@ function legacyIssue(issues, declaration, runStartedAt) {
       !issue.pull_request &&
       issue.title === declaration.title &&
       declaration.labels.every((name) =>
-        issue.labels?.some((label) => label.name.toLowerCase() === name),
+        issue.labels?.some((label) => label.name.toLowerCase() === name.toLowerCase()),
       ),
   );
   if (matches.length > 1)
@@ -133,7 +134,7 @@ function ownedIssue(issues, key, context) {
   const issue = matches[0] ?? legacyIssue(issues, declaration, runStartedAt);
   if (issue && foreignOwnership(issue.labels, ['recurring-owned', `recurring:${key}`]))
     throw new Error('Recurring issue has ambiguous foreign automation ownership.');
-  const previous = issue?.body?.match(/Verified run: (\d+) \(attempt (\d+)\)\./);
+  const previous = latestIssueEvidence(issue?.body);
   if (
     previous &&
     (idNumber(previous[1]) > idNumber(report.run.id) ||

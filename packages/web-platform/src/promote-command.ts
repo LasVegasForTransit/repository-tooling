@@ -18,13 +18,18 @@ export async function runPromote(
   if (config.previewOnly) throw new Error('Preview-only apps cannot request production promotion.');
   const { values } = parseArgs({
     args,
-    options: { 'run-id': { type: 'string' }, help: { type: 'boolean' } },
+    options: {
+      'run-id': { type: 'string' },
+      'expected-version': { type: 'string' },
+      help: { type: 'boolean' },
+    },
   });
   if (values.help) {
     process.stdout.write(
       'Usage: pnpm promote [--run-id <successful staging Actions run ID>]\nPromotes current preview by default, using GitHub environment credentials. Requires gh authentication with Actions write access.\n',
     );
   } else {
+    if (values['expected-version']) z.uuid().parse(values['expected-version']);
     const repository = config.repository;
     const repo = z
       .object({ nameWithOwner: z.literal(repository) })
@@ -54,6 +59,8 @@ export async function runPromote(
         ];
         if (releaseId) args.push('-f', `inputs[run_id]=${releaseId}`);
         if (config.profile) args.push('-f', `inputs[app]=${config.profile}`);
+        if (values['expected-version'])
+          args.push('-f', `inputs[expected_version]=${values['expected-version']}`);
         await github(args);
       },
       listRuns: async () =>

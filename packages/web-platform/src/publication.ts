@@ -1,3 +1,4 @@
+import { baselineEvidenceSchema, type BaselineEvidence } from './publication-baseline.js';
 import { z } from 'zod';
 import type { ReleaseIdentity } from './release-identity.js';
 
@@ -10,6 +11,7 @@ export const publicationSchema = z.object({
   baseline: z
     .object({ releaseId: z.string(), commit: z.string(), app: z.string().optional() })
     .nullable(),
+  baselineEvidence: baselineEvidenceSchema.optional(),
   artifactHash: z
     .string()
     .regex(/^[a-f0-9]{64}$/)
@@ -23,6 +25,7 @@ export const publicationSchema = z.object({
 export function publicationReceipt(input: {
   release: ReleaseIdentity;
   baseline: ReleaseIdentity | null;
+  baselineEvidence?: BaselineEvidence | undefined;
   artifactHash?: string | undefined;
   version?: string | undefined;
   activation: string;

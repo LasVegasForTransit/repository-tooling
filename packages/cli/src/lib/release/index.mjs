@@ -14,6 +14,7 @@ const flags = [
   'version',
   'repository',
   'run-id',
+  'expected-version',
   'run-file',
   'artifact-hash',
   'attestation-directory',

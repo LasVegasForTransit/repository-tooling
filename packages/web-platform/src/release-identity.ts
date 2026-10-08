@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { releaseMarkerPath } from './release-path.js';
 import { accessHeaders, type AccessCredentials } from './access-auth.js';
 
-const identitySchema = z
+export const releaseIdentitySchema = z
   .object({
     commit: z.string().regex(/^[a-f0-9]{40}$/),
     app: z
@@ -12,7 +12,7 @@ const identitySchema = z
     releaseId: z.string().regex(/^[1-9][0-9]*$/),
   })
   .strict();
-export type ReleaseIdentity = z.infer<typeof identitySchema>;
+export type ReleaseIdentity = z.infer<typeof releaseIdentitySchema>;
 interface ReadOptions {
   publicPath?: string | undefined;
   app?: string | undefined;
@@ -55,7 +55,7 @@ export async function readReleaseIdentity(
       cause: error,
     });
   }
-  const identity = identitySchema.safeParse(value);
+  const identity = releaseIdentitySchema.safeParse(value);
   if (!identity.success) throw new Error('Release marker has an invalid identity.');
   if (options.app && identity.data.app !== options.app)
     throw new Error('Release marker belongs to another app.');
@@ -79,7 +79,7 @@ export async function waitForReleaseIdentity(
     sleep?: (ms: number) => Promise<void>;
   } = {},
 ): Promise<ReleaseIdentity> {
-  identitySchema.parse(expected);
+  releaseIdentitySchema.parse(expected);
   const now = options.now ?? Date.now;
   const sleep = options.sleep ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms)));
   const deadline = now() + (options.timeoutMs ?? 0);

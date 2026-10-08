@@ -8,6 +8,7 @@ import {
   verifySourceConfiguration,
 } from '../contributions/trusted-configuration.mjs';
 import { foreignOwnership } from '../contributions/ownership.mjs';
+import { latestIssueEvidence } from '../contributions/issue-evidence.mjs';
 import { idNumber, successful, verifiedRun } from '../contributions/trusted-report.mjs';
 
 const helper = new URL(
@@ -89,7 +90,7 @@ function ownedIssue(issues, labels, result, report) {
   if (!issue) return undefined;
   if (foreignOwnership(issue.labels, labels.slice(1)))
     throw new Error('Audit issue has ambiguous foreign automation ownership.');
-  const previous = issue.body.match(/Verified run: (\d+) \(attempt (\d+)\)\./);
+  const previous = latestIssueEvidence(issue.body);
   if (
     previous &&
     (idNumber(previous[1]) > idNumber(report.run.id) ||

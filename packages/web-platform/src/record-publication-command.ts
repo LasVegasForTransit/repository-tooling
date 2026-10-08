@@ -1,9 +1,14 @@
+import {
+  readProductionBaseline,
+  baselineEvidenceSchema,
+  type BaselineEvidence,
+} from './publication-baseline.js';
 import { productionEndpoint } from './release-path.js';
 import type { ReleaseConfiguration } from './release-config.js';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
-import { readReleaseIdentity, type ReleaseIdentity } from './release-identity.js';
+import { type ReleaseIdentity } from './release-identity.js';
 import { publicationReceipt } from './publication.js';
 
 function selectedIdentity(
@@ -12,6 +17,25 @@ function selectedIdentity(
   releaseId: string,
 ): ReleaseIdentity {
   return { commit, releaseId, ...(config.profile ? { app: config.profile } : {}) };
+}
+async function savedBaseline(
+  file: string,
+): Promise<{ baseline: ReleaseIdentity | null; baselineEvidence?: BaselineEvidence }> {
+  let baseline: ReleaseIdentity | null = null;
+  let baselineEvidence: BaselineEvidence | undefined;
+  try {
+    const stored = JSON.parse(await readFile(file, 'utf8')) as {
+      identity?: ReleaseIdentity | null;
+      evidence?: unknown;
+      releaseId?: string;
+      commit?: string;
+    };
+    baseline = stored.identity ?? (stored.releaseId ? (stored as ReleaseIdentity) : null);
+    if (stored.evidence) baselineEvidence = baselineEvidenceSchema.parse(stored.evidence);
+  } catch {
+    /* Baseline step may have failed; still retain the outcome. */
+  }
+  return { baseline, ...(baselineEvidence ? { baselineEvidence } : {}) };
 }
 export async function runPublication(
   config: ReleaseConfiguration,
@@ -22,6 +46,7 @@ export async function runPublication(
     allowPositionals: true,
     options: {
       directory: { type: 'string' },
+      'expected-version': { type: 'string' },
       commit: { type: 'string' },
       'release-id': { type: 'string' },
       'artifact-hash': { type: 'string' },
@@ -34,23 +59,16 @@ export async function runPublication(
   await mkdir(values.directory, { recursive: true });
   const baselinePath = path.join(values.directory, 'baseline.json');
   if (positionals[0] === 'baseline') {
-    const identity = await readReleaseIdentity(config.productionUrl, {
-      publicPath: config.publicPath,
-      app: config.profile,
-    });
-    await writeFile(baselinePath, `${JSON.stringify(identity, null, 2)}\n`);
+    const baseline = await readProductionBaseline(config, values['expected-version']);
+    await writeFile(baselinePath, `${JSON.stringify(baseline, null, 2)}\n`);
   } else if (positionals[0] === 'record') {
     if (!values.commit || !values['release-id']) throw new Error('Pass --commit and --release-id.');
-    let baseline: ReleaseIdentity | null = null;
-    try {
-      baseline = JSON.parse(await readFile(baselinePath, 'utf8')) as ReleaseIdentity;
-    } catch {
-      /* Baseline step may have failed; still retain the outcome. */
-    }
+    const { baseline, baselineEvidence } = await savedBaseline(baselinePath);
     const receipt = publicationReceipt({
       url: productionEndpoint(config),
       release: selectedIdentity(config, values.commit, values['release-id']),
       baseline,
+      ...(baselineEvidence ? { baselineEvidence } : {}),
       artifactHash: values['artifact-hash'],
       version: values.version,
       activation: values.activation ?? '',

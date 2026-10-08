@@ -120,7 +120,9 @@ function packagedFixture() {
     },
   );
   calls.deploy.mockResolvedValue({ version: '12345678-1234-4234-8234-123456789abc' });
-  calls.smoke.mockResolvedValue({});
+  calls.smoke.mockImplementation(({ origin, smoke, identity }) =>
+    Promise.resolve({ origin, path: smoke.path, identity }),
+  );
 }
 
 test('named PR deployment retains preview data, removes routes, retargets DOs, and destroys its private artifact', async () => {
