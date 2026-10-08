@@ -465,9 +465,19 @@
                 "type": "object",
                 "additionalProperties": false,
                 "properties": {
-                  "runId": { "type": "string", "pattern": "^[1-9][0-9]*$" },
-                  "sourceCommit": { "type": "string", "pattern": "^[a-f0-9]{40}$" },
-                  "artifactId": { "type": "integer", "minimum": 1, "maximum": 9007199254740991 },
+                  "runId": {
+                    "type": "string",
+                    "pattern": "^[1-9][0-9]*$"
+                  },
+                  "sourceCommit": {
+                    "type": "string",
+                    "pattern": "^[a-f0-9]{40}$"
+                  },
+                  "artifactId": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 9007199254740991
+                  },
                   "expiresAt": {
                     "type": "string",
                     "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d+)?Z$"
@@ -481,6 +491,10 @@
         },
         "previewOnly": {
           "type": "boolean"
+        },
+        "workersDevSubdomainEnv": {
+          "type": "string",
+          "pattern": "^[A-Z_][A-Z0-9_]*$"
         }
       },
       "required": []
@@ -613,6 +627,9 @@
         },
         "previewOnly": {
           "$ref": "#/properties/release/properties/previewOnly"
+        },
+        "workersDevSubdomainEnv": {
+          "$ref": "#/properties/release/properties/workersDevSubdomainEnv"
         }
       }
     }

@@ -1,10 +1,9 @@
 # LVBT package repository
 
-A Turborepo workspace following the LVBT repository standard. It was created with:
-
-```bash
-npx create-turbo@latest --example https://github.com/LasVegasForTransit/repository-tooling/tree/main/examples/basic
-```
+A Turborepo workspace following the LVBT repository standard. Create a repository with
+[LasVegasForTransit/template-basic](https://github.com/LasVegasForTransit/template-basic) using
+**Use this template**, then clone your new repository. The generated standard is vendored, so local
+setup does not need GitHub Packages authentication.
 
 ## Getting started
 

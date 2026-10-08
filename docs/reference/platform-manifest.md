@@ -70,7 +70,8 @@ The complete lvwwd.org manifest in `LasVegasForTransit/week-without-driving` at
 | `accountId`        | one of these | The 32-character ID of the account that owns the Worker and the zone.                                  |
 | `accountIdEnv`     | one of these | Set to `CLOUDFLARE_ACCOUNT_ID` to read that ID from the environment at production check or setup time. |
 | `zone.name`        | yes          | The zone, such as `lvwwd.org`.                                                                         |
-| `zone.id`          | yes          | The zone's 32-character ID, from the zone's Overview page in the dashboard.                            |
+| `zone.id`          | one of these | The zone's 32-character ID, from the zone's Overview page in the dashboard.                            |
+| `zone.idEnv`       | one of these | Environment variable containing that verified public zone ID, such as `LVBT_ZONE_ID`.                  |
 | `worker`           | yes          | The production Worker's name. It must equal the configured Worker name.                                |
 | `cloudflareConfig` | no           | Canonical `cloudflare.config.ts`, relative to the manifest. Selects cf deployment.                     |
 | `wranglerConfig`   | no           | Legacy production Wrangler config, relative to the manifest. Defaults to `wrangler.jsonc`.             |
@@ -84,6 +85,10 @@ Use exactly one of `accountId` and `accountIdEnv`. The environment form keeps th
 out of the manifest. Set `CLOUDFLARE_ACCOUNT_ID` to a 32-character account ID before running
 `pnpm preflight --production` or `pnpm bootstrap --production`. The latter can still copy that ID to
 a declared GitHub deploy secret.
+
+Use exactly one of `zone.id` and `zone.idEnv`. Production readiness resolves and validates a
+declared environment value before contacting the provider; unset or malformed IDs stop the
+operation. Local development needs neither identifier.
 
 ## `d1` and `r2`
 

@@ -84,6 +84,7 @@ jobs:
       LVBT_PREVIEW_URL: ${{ vars.LVBT_PREVIEW_URL }}
       LVBT_PRODUCTION_URL: ${{ vars.LVBT_PRODUCTION_URL }}
       LVBT_PREVIEW_BINDINGS: ${{ vars.LVBT_PREVIEW_BINDINGS }}
+      LVBT_WORKERS_DEV_SUBDOMAIN: ${{ vars.LVBT_WORKERS_DEV_SUBDOMAIN }}
       PUBLIC_LVBT_INSTAGRAM: ${{ vars.PUBLIC_LVBT_INSTAGRAM }}
       PUBLIC_LVBT_LINKEDIN: ${{ vars.PUBLIC_LVBT_LINKEDIN }}
       PUBLIC_LVBT_BLUESKY: ${{ vars.PUBLIC_LVBT_BLUESKY }}
@@ -199,8 +200,8 @@ jobs:
           PREVIEW_URL: ${{ steps.upload.outputs.url }}
         with:
           script: |
-            const marker = '<!-- lvbt-worker-preview -->';
-            const body = `${marker}\nWorker candidate: ${process.env.PREVIEW_URL}\n\nPR preview only; production uses a separately retained staging release.`;
+            const { prPreviewComment } = await import(`${process.env.GITHUB_WORKSPACE}/.lvbt/web-platform/packages/web-platform/src/pr-preview-comment.mjs`);
+            const { marker, body } = prPreviewComment(process.env.LVBT_RELEASE_APP || '', process.env.PREVIEW_URL);
             const comments = await github.paginate(github.rest.issues.listComments, {
               owner: context.repo.owner, repo: context.repo.repo, issue_number: context.issue.number,
             });
@@ -227,6 +228,7 @@ jobs:
       LVBT_PREVIEW_URL: ${{ vars.LVBT_PREVIEW_URL }}
       LVBT_PRODUCTION_URL: ${{ vars.LVBT_PRODUCTION_URL }}
       LVBT_PREVIEW_BINDINGS: ${{ vars.LVBT_PREVIEW_BINDINGS }}
+      LVBT_WORKERS_DEV_SUBDOMAIN: ${{ vars.LVBT_WORKERS_DEV_SUBDOMAIN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID || secrets.CLOUDFLARE_ACCOUNT_ID }}
       CLOUDFLARE_API_TOKEN:
         ${{ secrets.CLOUDFLARE_PREVIEW_API_TOKEN || secrets.CLOUDFLARE_WORKERS_API_TOKEN ||
@@ -245,7 +247,7 @@ jobs:
         if: steps.credentials.outputs.configured == 'true'
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
-          ref: ${{ github.sha }}
+          ref: ${{ github.event.repository.default_branch }}
           persist-credentials: false
       - name: Setup Node + pnpm
         if: steps.credentials.outputs.configured == 'true'

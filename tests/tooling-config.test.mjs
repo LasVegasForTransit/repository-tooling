@@ -102,6 +102,7 @@ test('release extensions use the same constraints in common config and named pro
     previewOnly: true,
     publicPath: '/transit-funding/',
     previewReadOnlyBindings: ['GTFS_ARCHIVES'],
+    workersDevSubdomainEnv: 'LVBT_WORKERS_DEV_SUBDOMAIN',
     attestation: {
       signerWorkflow: 'LasVegasForTransit/repository-tooling/.github/workflows/release-attest.yml',
       signerCommit: 'a'.repeat(40),
@@ -112,6 +113,7 @@ test('release extensions use the same constraints in common config and named pro
   for (const field of [
     { publicationMode: 'custom-deployer' },
     { previewOnly: 'false' },
+    { workersDevSubdomainEnv: 'not-an-env-name' },
     { publicPath: '//outside/' },
     { publicPath: '/../outside/' },
     { publicPath: '/missing-trailing-slash' },
