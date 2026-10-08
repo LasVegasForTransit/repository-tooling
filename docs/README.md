@@ -7,6 +7,7 @@ reference pages record facts and contracts, and explanation gives the reasoning.
 
 - [Create a repository](how-to/create-a-repository.md)
 - [Adopt the standard in an existing repository](how-to/adopt-in-an-existing-repository.md)
+- [Migrate the 0.7 process contract](how-to/migrate-the-process-contract.md)
 - [Set up a repository's production platform](how-to/set-up-production.md)
 - [Publish a tooling release](how-to/publish-a-release.md)
 

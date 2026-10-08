@@ -69,7 +69,7 @@ export function validateWorkerSmokeOrigin(
   value: string,
   config: Pick<
     ReleaseConfiguration,
-    'previewUrl' | 'previewWorker' | 'productionUrl' | 'productionWorker'
+    'previewUrl' | 'previewWorker' | 'productionUrl' | 'productionWorker' | 'workersDevSubdomain'
   >,
   protectedPreview: boolean,
 ): void {
@@ -85,6 +85,7 @@ export function validateWorkerSmokeOrigin(
     Boolean(url.port) ||
     url.origin !== value ||
     labels.length !== 4 ||
+    labels[1] !== config.workersDevSubdomain ||
     labels[2] !== 'workers' ||
     labels[3] !== 'dev' ||
     !/^[a-f0-9]{8}$/.test(prefix) ||

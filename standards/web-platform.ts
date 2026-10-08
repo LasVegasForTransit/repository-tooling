@@ -4,13 +4,15 @@ import { mkdir, readFile, readdir, rename, rm, stat, writeFile } from 'node:fs/p
 import path from 'node:path';
 
 import { syncSetupEntrypoints } from './setup-entrypoints.ts';
+import { syncCommunityPublication } from './community-publication.ts';
+import { rejectSymlinkDestination } from './paths.ts';
 import { syncAstroTypesBeforeLint } from './astro-sync.ts';
 import {
   AGENT_WORKTREES,
   consumerIgnoreWarnings,
   syncConsumerIgnores,
 } from './consumer-ignores.ts';
-import { seedFiles, syncPluginRef } from './owned-files.ts';
+import { seedFiles, syncOwnedFiles, syncPluginRef } from './owned-files.ts';
 
 export interface WebPreset {
   formatVersion: number;
@@ -162,11 +164,15 @@ export async function applyPreset(root: string, bundle: WebPreset, dryRun = fals
         ...(await syncConsumerIgnores(root, dry)),
         ...(await syncAstroTypesBeforeLint(root, dry)),
         ...(await seedFiles(root, bundle, dry)),
+        ...(await syncOwnedFiles(root, bundle, dry)),
         ...(await syncPluginRef(root, bundle, dry)),
+        ...(await syncCommunityPublication(root, bundle, dry)),
       ]),
     ].sort();
   // Planning first means a consumer file a migration can't read stops the update before any write.
   const consumerChanged = await migrate(true);
+  for (const file of ['.lvbt/web-platform', '.lvbt/web-platform.json', ...consumerChanged])
+    await rejectSymlinkDestination(root, file);
   for (const warning of await consumerIgnoreWarnings(root))
     process.stderr.write(`warning: ${warning}\n`);
   if (!dryRun) {

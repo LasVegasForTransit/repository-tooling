@@ -22,9 +22,25 @@ export const releaseConfigurationSchema = z
     productionWorker: worker,
     previewWorker: worker,
     artifactPrefix: worker,
+    workersDevSubdomain: z
+      .string()
+      .max(63)
+      .regex(/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/)
+      .optional(),
+    profile: worker.optional(),
     smoke: workerSmokeSchema.optional(),
     previewBindings: z.record(z.string(), z.unknown()).optional(),
-    artifactSource: z.enum(['legacy-worker', 'cf-output']).optional(),
+    artifactSource: z.enum(['legacy-worker', 'cf-output', 'typed-worker']).optional(),
+    typedConfig: z.string().min(1).optional(),
+    assetsDirectory: z.string().min(1).optional(),
+    migrations: z
+      .array(
+        z.strictObject({
+          binding: z.string().regex(/^[A-Z][A-Z0-9_]*$/),
+          directory: z.string().min(1),
+        }),
+      )
+      .optional(),
     artifactAcceptance: z
       .object({
         forbiddenPaths: z.array(z.string().min(1)).optional(),
@@ -49,6 +65,10 @@ export const releaseConfigurationSchema = z
       config.productionWorker !== config.previewWorker &&
       config.productionUrl !== config.previewUrl,
     'Staging and production require separate Workers and origins.',
+  )
+  .refine(
+    (config) => config.artifactSource !== 'typed-worker' || Boolean(config.typedConfig),
+    'Typed Worker releases require the canonical typedConfig.',
   );
 export type ReleaseConfiguration = z.infer<typeof releaseConfigurationSchema>;
 function configuredUrl(
@@ -89,14 +109,11 @@ async function repositoryOrigin(
     throw new Error('Configure a GitHub origin or an explicit release repository.');
   return url.pathname.slice(1).replace(/\.git$/, '');
 }
-export async function readReleaseConfiguration(
+async function resolveConfiguration(
   cwd: string,
-  env: Record<string, string | undefined> = process.env,
+  value: Record<string, unknown>,
+  env: Record<string, string | undefined>,
 ): Promise<ReleaseConfiguration> {
-  const tooling = z
-    .object({ version: z.literal(1), release: z.record(z.string(), z.unknown()) })
-    .parse(JSON.parse(await readFile(path.join(cwd, '.lvbt/tooling.json'), 'utf8')));
-  const value = tooling.release;
   const productionUrl = configuredUrl(value, 'productionUrl', env);
   const previewUrl = configuredUrl(value, 'previewUrl', env);
   const repository = value.repository ?? (await repositoryOrigin(cwd, env));
@@ -126,4 +143,46 @@ export async function readReleaseConfiguration(
     previewUrl,
     ...(previewBindings ? { previewBindings } : {}),
   });
+}
+
+function assertProfiles(configs: ReleaseConfiguration[]): void {
+  for (const fields of [
+    configs.map((config) => config.artifactPrefix),
+    configs.flatMap((config) => [config.productionWorker, config.previewWorker]),
+    configs.flatMap((config) => [config.productionUrl, config.previewUrl]),
+  ])
+    if (new Set(fields).size !== fields.length)
+      throw new Error('Release apps require distinct artifacts, Worker namespaces, and origins.');
+}
+
+export async function readReleaseConfiguration(
+  cwd: string,
+  env: Record<string, string | undefined> = process.env,
+  app: string | undefined = env.LVBT_RELEASE_APP,
+): Promise<ReleaseConfiguration> {
+  const tooling = z
+    .object({ version: z.literal(1), release: z.record(z.string(), z.unknown()) })
+    .parse(JSON.parse(await readFile(path.join(cwd, '.lvbt/tooling.json'), 'utf8')));
+  const { apps, ...common } = tooling.release;
+  if (apps === undefined) {
+    if (app) throw new Error(`Unknown release app: ${app}.`);
+    return await resolveConfiguration(cwd, common, env);
+  }
+  const profiles = z.record(worker, z.record(z.string(), z.unknown())).parse(apps);
+  const configs = await Promise.all(
+    Object.entries(profiles).map(async ([profile, values]) => {
+      if (
+        ['repository', 'stagingWorkflow', 'promotionWorkflow', 'profile', 'apps'].some(
+          (key) => key in values,
+        )
+      )
+        throw new Error('Release apps cannot override the repository or workflow identity.');
+      return await resolveConfiguration(cwd, { ...common, ...values, profile }, env);
+    }),
+  );
+  assertProfiles(configs);
+  if (!app) throw new Error('Select --app with a named release profile.');
+  const selected = configs.find((config) => config.profile === app);
+  if (!selected) throw new Error(`Unknown release app: ${app}.`);
+  return selected;
 }

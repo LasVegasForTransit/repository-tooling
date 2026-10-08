@@ -1,3 +1,4 @@
+import { secretTargets } from './secret-scope.mjs';
 import {
   configVarEntry,
   configVarLocation,
@@ -41,6 +42,7 @@ export function secretSource(secret, manifest) {
       value: manifest.cloudflare.accountId,
       from: 'the Cloudflare account ID',
     };
+  if (!secretTargets(secret).includes('worker')) return { type: 'prompt' };
   const widget = (manifest.turnstile ?? []).find((candidate) => candidate.secret === secret.name);
   if (widget) return { type: 'turnstile', widget, from: `the ${widget.name} Turnstile widget` };
   for (const app of manifest.access ?? []) {

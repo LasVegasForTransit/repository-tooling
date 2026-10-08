@@ -1,4 +1,4 @@
-import { expect, it } from 'vitest';
+import { expect, it, vi } from 'vitest';
 import * as smoke from '../src/worker-release-smoke';
 const identity = { commit: 'a'.repeat(40), releaseId: '100' };
 it('API smoke requires the saved release identity and declared health behavior', async () => {
@@ -85,6 +85,7 @@ it('protected candidate origins identify the configured preview Worker and rejec
     previewWorker: 'collector-preview',
     productionUrl: 'https://events.example.test',
     productionWorker: 'collector',
+    workersDevSubdomain: 'account',
   };
   expect(() =>
     smoke.validateWorkerSmokeOrigin(
@@ -115,6 +116,66 @@ it('protected candidate origins identify the configured preview Worker and rejec
     'https://deadbeef-collector-preview.account.workers.dev/path',
     'https://collector-preview.account.workers.dev',
     'https://deadbeef-collector-preview.account.workers.dev:8443',
+    'https://deadbeef-collector-preview.unrelated.workers.dev',
   ])
     expect(() => smoke.validateWorkerSmokeOrigin(url, config, true)).toThrow(/preview/);
+});
+
+it('version candidates require the reviewed account before protected credentials or requests', async () => {
+  const config = {
+    repository: 'Example/collector',
+    appDirectory: 'apps/collector',
+    previewUrl: 'https://staging.example.test',
+    previewWorker: 'collector-preview',
+    productionUrl: 'https://events.example.test',
+    productionWorker: 'collector',
+    workersDevSubdomain: 'account',
+    artifactPrefix: 'collector-release',
+    stagingWorkflow: { name: 'Stage', path: '.github/workflows/stage.yml', branch: 'main' },
+    promotionWorkflow: { file: 'promote.yml', titlePrefix: 'Promote', branch: 'main' },
+    smoke: { path: '/health', status: 200, body: 'ok' },
+  };
+  const request = vi.fn((url: string, options: { headers: Record<string, string> }) => {
+    if (!Object.keys(options.headers).length)
+      return Promise.resolve(new Response('', { status: 403 }));
+    return Promise.resolve(
+      url.endsWith('/lvbt-release.json') ? Response.json(identity) : new Response('ok'),
+    );
+  });
+  vi.stubGlobal('fetch', request);
+  vi.stubEnv('CF_ACCESS_CLIENT_ID', 'fixture-id');
+  vi.stubEnv('CF_ACCESS_CLIENT_SECRET', 'fixture-secret');
+  try {
+    const { workersDevSubdomain: _subdomain, ...missingAccount } = config;
+    for (const [declaration, url] of [
+      [config, 'https://deadbeef-collector-preview.unrelated.workers.dev'],
+      [missingAccount, 'https://deadbeef-collector-preview.account.workers.dev'],
+    ] as const) {
+      await expect(
+        smoke.runWorkerReleaseSmoke(declaration, [
+          '--url',
+          url,
+          '--commit',
+          identity.commit,
+          '--release-id',
+          identity.releaseId,
+          '--protected',
+        ]),
+      ).rejects.toThrow(/configured.*preview|subdomain/i);
+      expect(request).not.toHaveBeenCalled();
+    }
+    expect(() =>
+      smoke.validateWorkerSmokeOrigin(
+        'https://deadbeef-collector.unrelated.workers.dev',
+        config,
+        false,
+      ),
+    ).toThrow(/production/);
+    expect(() =>
+      smoke.validateWorkerSmokeOrigin(missingAccount.previewUrl, missingAccount, true),
+    ).not.toThrow();
+  } finally {
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+  }
 });

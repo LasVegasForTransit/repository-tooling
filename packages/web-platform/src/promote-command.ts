@@ -51,6 +51,7 @@ export async function runPromote(
           `inputs[request_id]=${id}`,
         ];
         if (releaseId) args.push('-f', `inputs[run_id]=${releaseId}`);
+        if (config.profile) args.push('-f', `inputs[app]=${config.profile}`);
         await github(args);
       },
       listRuns: async () =>
@@ -76,7 +77,7 @@ async function verifyPublication(config: ReleaseConfiguration, run: PromotionRun
         '--repo',
         config.repository,
         '--name',
-        `publication-${run.id}-${run.run_attempt}`,
+        `publication-${run.id}-${run.run_attempt}${config.profile ? `-${config.profile}` : ''}`,
         '--dir',
         directory,
       ]);

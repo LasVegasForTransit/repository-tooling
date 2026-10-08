@@ -3,6 +3,18 @@ name: Build retained staging release
 on:
   workflow_call:
     inputs:
+      app:
+        type: string
+        required: false
+      artifact-source:
+        description: cf-output, typed-worker, or legacy-worker, matching the selected release config
+        type: string
+        required: false
+        default: cf-output
+      require-analytics:
+        type: boolean
+        required: false
+        default: false
       app-directory:
         type: string
         required: true
@@ -22,6 +34,17 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
+      LVBT_RELEASE_APP: ${{ inputs.app }}
+      PUBLIC_LVBT_INSTAGRAM: ${{ vars.PUBLIC_LVBT_INSTAGRAM }}
+      PUBLIC_LVBT_LINKEDIN: ${{ vars.PUBLIC_LVBT_LINKEDIN }}
+      PUBLIC_LVBT_BLUESKY: ${{ vars.PUBLIC_LVBT_BLUESKY }}
+      PUBLIC_LVBT_DISCORD: ${{ vars.PUBLIC_LVBT_DISCORD }}
+      PUBLIC_LVBT_DONATE_URL: ${{ vars.PUBLIC_LVBT_DONATE_URL }}
+      PUBLIC_LVBT_MEMBERSHIP_FORM_URL: ${{ vars.PUBLIC_LVBT_MEMBERSHIP_FORM_URL }}
+      PUBLIC_LVBT_NEWSLETTER_URL: ${{ vars.PUBLIC_LVBT_NEWSLETTER_URL }}
+      PUBLIC_LVBT_NEWSLETTER_FEED_URL: ${{ vars.PUBLIC_LVBT_NEWSLETTER_FEED_URL }}
+      PUBLIC_LVBT_CWA_TOKEN: ${{ vars.PUBLIC_LVBT_CWA_TOKEN }}
+      LVBT_REQUIRE_ANALYTICS: ${{ inputs.require-analytics && '1' || '' }}
       LVBT_PRODUCTION_URL: ${{ vars.LVBT_PRODUCTION_URL }}
       LVBT_PREVIEW_URL: ${{ vars.LVBT_PREVIEW_URL }}
       LVBT_PREVIEW_BINDINGS: ${{ vars.LVBT_PREVIEW_BINDINGS }}
@@ -33,6 +56,7 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
+          lfs: true
       - name: Setup Node + pnpm
         uses: ./.github/actions/setup-node-pnpm
       - name: Install validation browser
@@ -40,7 +64,10 @@ jobs:
         run: pnpm --dir "$VALIDATION_BROWSER_DIRECTORY" exec playwright install --with-deps chromium
       - name: Build and validate the app
         run: pnpm check
+      - name: Build reviewed assets
+        run: pnpm build
       - name: Prepare static cf output
+        if: inputs.artifact-source == 'cf-output'
         run: pnpm --dir "$APP_DIRECTORY" exec cf deploy --dry-run
       - name: Package reviewed release
         run: >-

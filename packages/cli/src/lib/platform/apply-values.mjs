@@ -1,3 +1,4 @@
+import { secretValueKey } from './secret-scope.mjs';
 import { accessAppGuide, teamDomainGuide, turnstileGuide } from './guides.mjs';
 import { findApp, findWidget, isSensitive, secretSource } from './plan.mjs';
 import { paint } from './terminal.mjs';
@@ -91,7 +92,8 @@ async function knownValue(context, source) {
 
 export async function secretValue(context, action) {
   const { secret, source } = action;
-  if (context.values.has(secret.name)) return context.values.get(secret.name);
+  const key = secretValueKey(context.manifest, secret);
+  if (context.values.has(key)) return context.values.get(key);
   let value;
   if (source.type === 'generate') {
     // The plan offers this only when no target holds a value yet, so every
@@ -102,7 +104,7 @@ export async function secretValue(context, action) {
     value = await knownValue(context, source);
   }
   if (!value) value = await promptValue(context, secret, fedGuide(context, source));
-  if (value) context.values.set(secret.name, value);
+  if (value) context.values.set(key, value);
   return value;
 }
 
@@ -122,8 +124,9 @@ function previouslyStored(context, secret, target) {
  * for one copy explicitly, and the offer is never repeated in this run.
  */
 export async function completeSecretSetup(context, secret, { rotating = false, value } = {}) {
-  const key = `afterSet:${secret.name}`;
-  value ??= context.values.get(secret.name);
+  const scope = secretValueKey(context.manifest, secret);
+  const key = `afterSet:${scope}`;
+  value ??= context.values.get(scope);
   if (!secret.afterSet || !value || context.handled.has(key)) return;
   const complete = (secret.targets ?? ['worker']).every(
     (target) =>
@@ -198,9 +201,7 @@ async function rotateSecret(context, secret) {
  * its value is new. Nothing is replaced without that flag.
  */
 export async function rotateSecrets(context, names) {
-  for (const name of names)
-    await rotateSecret(
-      context,
-      context.manifest.secrets.find((secret) => secret.name === name),
-    );
+  const selected = new Set(names);
+  for (const secret of context.manifest.secrets)
+    if (selected.has(secret.name)) await rotateSecret(context, secret);
 }

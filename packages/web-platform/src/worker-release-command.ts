@@ -1,5 +1,7 @@
 import { verifyWorkerReleaseConfiguration } from './worker-release-configuration.js';
 import { packageCfRelease } from './cf-release-artifact.js';
+import { packageTypedWorkerRelease } from './typed-worker-release-artifact.js';
+import { packageLegacyWorkerRelease } from './legacy-worker-release-artifact.js';
 import type { ReleaseConfiguration } from './release-config.js';
 import { execFile } from 'node:child_process';
 import { cp, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
@@ -7,7 +9,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { parseArgs, promisify } from 'node:util';
 import { previewUploadReceipt } from './pr-preview-config.js';
-import { packageRelease, verifyRelease, type WebsiteRelease } from './saved-release-artifact.js';
+import { verifyRelease, type WebsiteRelease } from './saved-release-artifact.js';
 import { releaseSource } from './release-source.js';
 import { accessCredentials } from './access-auth.js';
 import { readReleaseIdentity } from './release-identity.js';
@@ -78,6 +80,10 @@ async function uploadRelease(
   release: WebsiteRelease,
   target: string,
 ): Promise<void> {
+  if (!config.workersDevSubdomain)
+    throw new Error(
+      'Configure the reviewed workersDevSubdomain before uploading a release candidate.',
+    );
   await verifyWorkerReleaseConfiguration(directory, config);
   const temporary = await mkdtemp(path.join(os.tmpdir(), 'lvbt-release-upload-'));
   try {
@@ -116,6 +122,7 @@ async function uploadRelease(
     const receipt = previewUploadReceipt(
       await readFile(receiptPath, 'utf8'),
       target === 'preview' ? config.previewWorker : config.productionWorker,
+      config.workersDevSubdomain,
     );
     const output = process.env.GITHUB_OUTPUT;
     if (output)
@@ -134,35 +141,59 @@ async function uploadRelease(
 async function activateRelease(
   config: ReleaseConfiguration,
   values: ReleaseOptions,
+  directory: string,
 ): Promise<void> {
   const target = values.target;
   if (target !== 'preview' && target !== 'production')
     throw new Error('Pass --target preview or production.');
   if (!values.version || !/^[a-f0-9-]{36}$/.test(values.version))
     throw new Error('Pass an explicit Worker version ID.');
-  const { stdout } = await execute(
-    'pnpm',
-    [
-      'exec',
-      'wrangler',
-      'versions',
-      'deploy',
-      `${values.version}@100%`,
-      '--name',
-      target === 'preview' ? config.previewWorker : config.productionWorker,
-      '--env',
-      target === 'preview' ? 'preview' : '',
-      '--yes',
-    ],
-    { maxBuffer: 16 * 1024 * 1024 },
-  );
-  process.stdout.write(stdout);
+  await verifyWorkerReleaseConfiguration(directory, config);
+  const temporary = await mkdtemp(path.join(os.tmpdir(), 'lvbt-release-activate-'));
+  try {
+    const copy = path.join(temporary, 'release');
+    await cp(directory, copy, { recursive: true });
+    const { stdout } = await execute(
+      'pnpm',
+      [
+        'exec',
+        'wrangler',
+        'versions',
+        'deploy',
+        `${values.version}@100%`,
+        '--name',
+        target === 'preview' ? config.previewWorker : config.productionWorker,
+        '--config',
+        path.join(copy, 'wrangler.jsonc'),
+        '--env',
+        target === 'preview' ? 'preview' : '',
+        '--yes',
+      ],
+      { maxBuffer: 16 * 1024 * 1024 },
+    );
+    process.stdout.write(stdout);
+  } finally {
+    await rm(temporary, { recursive: true, force: true });
+  }
 }
 function verifySelectedIdentity(release: WebsiteRelease, values: ReleaseOptions): void {
   if (values.commit && release.commit !== values.commit)
     throw new Error('Release commit does not match the selected Actions run.');
   if (values['release-id'] && release.releaseId !== values['release-id'])
     throw new Error('Release ID does not match the selected Actions run.');
+}
+async function packageSelectedRelease(
+  config: ReleaseConfiguration,
+  directory: string,
+  values: ReleaseOptions,
+): Promise<WebsiteRelease> {
+  if (!values.commit || !values['release-id']) throw new Error('Pass --commit and --release-id.');
+  const identity = { commit: values.commit, releaseId: values['release-id'] };
+  if (config.artifactSource === 'typed-worker')
+    return await packageTypedWorkerRelease(process.cwd(), directory, identity, config);
+  if (config.artifactSource === 'cf-output')
+    return await packageCfRelease(process.cwd(), directory, identity, config);
+  return await packageLegacyWorkerRelease(process.cwd(), directory, identity, config);
 }
 export async function runWorkerRelease(
   config: ReleaseConfiguration,
@@ -189,37 +220,19 @@ export async function runWorkerRelease(
     await sourceRelease(config, values);
     return;
   }
-  if (command === 'activate') {
-    await activateRelease(config, values);
-    return;
-  }
   if (!directory) throw new Error('Pass --directory.');
   if (command === 'package') {
-    if (!values.commit || !values['release-id']) throw new Error('Pass --commit and --release-id.');
-    printRelease(
-      await (config.artifactSource === 'cf-output'
-        ? packageCfRelease(
-            process.cwd(),
-            directory,
-            { commit: values.commit, releaseId: values['release-id'] },
-            config,
-          )
-        : packageRelease(
-            process.cwd(),
-            directory,
-            {
-              commit: values.commit,
-              releaseId: values['release-id'],
-            },
-            config.artifactAcceptance,
-          )),
-    );
+    printRelease(await packageSelectedRelease(config, directory, values));
     return;
   }
-  if (command !== 'verify' && command !== 'upload')
+  if (command !== 'verify' && command !== 'upload' && command !== 'activate')
     throw new Error('Use source, package, verify, upload, or activate.');
   const release = await verifyRelease(directory);
   verifySelectedIdentity(release, values);
+  if (command === 'activate') {
+    await activateRelease(config, values, directory);
+    return;
+  }
   if (command === 'verify') {
     printRelease(release);
     return;

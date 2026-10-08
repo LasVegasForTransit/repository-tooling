@@ -8,6 +8,7 @@ const config = {
   productionWorker: 'app',
   previewWorker: 'app-preview',
   artifactPrefix: 'app-release',
+  workersDevSubdomain: 'example',
   stagingWorkflow: {
     name: 'Deploy staging',
     path: '.github/workflows/staging.yml',

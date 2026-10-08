@@ -190,3 +190,137 @@ test('inventory evaluates preview config separately and migrates the preview dat
     await rm(directory, { recursive: true, force: true });
   }
 });
+
+function scopedR2() {
+  const context = scoped();
+  context.manifest.r2.push({
+    binding: 'PHOTOS',
+    name: 'example-photos-preview',
+    environment: 'preview',
+  });
+  context.state.config.value.environments.preview.value.r2 = [
+    { binding: 'PHOTOS', name: 'example-photos-preview' },
+  ];
+  context.state.r2.value.push('example-photos-preview');
+  return context;
+}
+
+test('R2 readiness uses the explicitly declared deployment environment', () => {
+  const context = scopedR2();
+  assert.deepEqual(validateManifest(context.manifest), []);
+  const plan = planPlatform(context);
+  assert.equal(plan.find((entry) => entry.id === 'r2:example-photos').status, 'ok');
+  assert.equal(plan.find((entry) => entry.id === 'r2:example-photos-preview').status, 'ok');
+  context.manifest.r2[0].environment = 'production';
+  context.state.config.value.environments.production = known({ r2: context.state.config.value.r2 });
+  assert.deepEqual(validateManifest(context.manifest), []);
+  assert.equal(
+    planPlatform(context).find((entry) => entry.id === 'r2:example-photos').status,
+    'ok',
+  );
+  context.manifest.r2[1].environment = '../preview';
+  assert.ok(validateManifest(context.manifest).length);
+});
+
+test('R2 preview config never borrows a ready production binding', () => {
+  const context = scopedR2();
+  context.state.config.value.environments.preview.value.r2[0].name = 'example-photos';
+  const mismatch = planPlatform(context).find((entry) => entry.id === 'r2:example-photos-preview');
+  assert.equal(mismatch.status, 'mismatch');
+  assert.match(mismatch.next, /preview/);
+  delete context.state.config.value.environments.preview;
+  const missingConfig = planPlatform(context).find(
+    (entry) => entry.id === 'r2:example-photos-preview',
+  );
+  assert.equal(missingConfig.status, 'unknown');
+  assert.equal(missingConfig.action, undefined);
+  context.state.r2.value.pop();
+  const missingBucket = planPlatform(context).find(
+    (entry) => entry.id === 'r2:example-photos-preview',
+  );
+  assert.equal(missingBucket.status, 'missing');
+  assert.deepEqual(missingBucket.action, { type: 'r2.create', name: 'example-photos-preview' });
+});
+
+test('R2-only inventories read preview config in both cf and Wrangler modes with no provider writes', async () => {
+  const { observePlatform } = await import('../packages/cli/src/lib/platform/observe.mjs');
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'lvbt-preview-r2-'));
+  try {
+    for (const format of ['cf', 'wrangler']) {
+      const context = scopedR2();
+      context.manifest.r2[0].environment = 'production';
+      context.manifest.d1 = [];
+      context.manifest.github = undefined;
+      context.manifest.secrets = [];
+      context.manifest.turnstile = [];
+      context.manifest.access = [];
+      context.manifest.email = [];
+      let file;
+      if (format === 'cf') {
+        file = 'cloudflare.config.mjs';
+        context.manifest.cloudflare.cloudflareConfig = file;
+        await writeFile(
+          path.join(directory, file),
+          "export default ({mode})=>({worker:{name:mode==='preview'?'example-preview':'example',env:{PHOTOS:{type:'r2',name:mode==='preview'?'example-photos-preview':'example-photos'}}}});",
+        );
+      } else {
+        file = 'wrangler.jsonc';
+        context.manifest.cloudflare.wranglerConfig = file;
+        await writeFile(
+          path.join(directory, file),
+          JSON.stringify({
+            name: 'example',
+            r2_buckets: [{ binding: 'PHOTOS', bucket_name: 'example-photos' }],
+            env: {
+              production: {
+                name: 'example',
+                r2_buckets: [{ binding: 'PHOTOS', bucket_name: 'example-photos' }],
+              },
+              preview: {
+                name: 'example-preview',
+                r2_buckets: [{ binding: 'PHOTOS', bucket_name: 'example-photos-preview' }],
+              },
+            },
+          }),
+        );
+      }
+      const calls = [];
+      const state = await observePlatform({
+        manifest: context.manifest,
+        directory,
+        apis: {
+          wrangler: {
+            get: async (endpoint) => {
+              calls.push(endpoint);
+              return [];
+            },
+          },
+        },
+        run: () => {
+          throw new Error('no command or provider mutations');
+        },
+        resolve: async () => [],
+      });
+      assert.equal(state.config.value.environments.production.value.r2[0].name, 'example-photos');
+      assert.equal(
+        state.config.value.environments.preview.value.r2[0].name,
+        'example-photos-preview',
+      );
+      assert.equal(
+        planPlatform({ ...context, state, configPath: file }).find(
+          (entry) => entry.id === 'r2:example-photos-preview',
+        ).status,
+        'ok',
+      );
+      assert.deepEqual(
+        calls.filter((endpoint) => endpoint.includes('/r2/')),
+        [
+          `accounts/${context.manifest.cloudflare.accountId}/r2/buckets/example-photos`,
+          `accounts/${context.manifest.cloudflare.accountId}/r2/buckets/example-photos-preview`,
+        ],
+      );
+    }
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});

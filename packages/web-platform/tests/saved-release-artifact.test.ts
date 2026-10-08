@@ -120,3 +120,19 @@ test('pure Workers use the same sealed inventory without requiring fabricated HT
     await rm(root, { recursive: true, force: true });
   }
 });
+
+test('new artifacts bind format version into identity while legacy hashes remain unchanged', async () => {
+  const f = await fixture();
+  try {
+    const release = await packageRelease(f.source, f.release, identity, { formatVersion: 2 });
+    assert.equal(release.formatVersion, 2);
+    assert.deepEqual(await verifyRelease(f.release), release);
+    await writeFile(
+      path.join(f.release, 'release.json'),
+      JSON.stringify({ ...release, formatVersion: 1 }),
+    );
+    await assert.rejects(verifyRelease(f.release), /identity or files/);
+  } finally {
+    await rm(f.root, { recursive: true, force: true });
+  }
+});

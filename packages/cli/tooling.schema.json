@@ -337,7 +337,7 @@
           "required": ["file", "titlePrefix", "branch"]
         },
         "artifactSource": {
-          "enum": ["cf-output", "legacy-worker"]
+          "enum": ["cf-output", "legacy-worker", "typed-worker"]
         },
         "productionUrlEnv": {
           "type": "string",
@@ -395,6 +395,41 @@
             }
           },
           "required": ["path", "status"]
+        },
+        "typedConfig": {
+          "$ref": "#/$defs/path"
+        },
+        "assetsDirectory": {
+          "type": "string",
+          "minLength": 1
+        },
+        "apps": {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/releaseProfile"
+          }
+        },
+        "migrations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "binding": {
+                "type": "string",
+                "pattern": "^[A-Z][A-Z0-9_]*$"
+              },
+              "directory": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "required": ["binding", "directory"]
+          }
+        },
+        "workersDevSubdomain": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]*$"
         }
       },
       "required": []
@@ -408,6 +443,63 @@
       "type": "string",
       "minLength": 1,
       "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$))(?!.*\\\\).+$"
+    },
+    "releaseProfile": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "appDirectory": {
+          "$ref": "#/properties/release/properties/appDirectory"
+        },
+        "productionUrl": {
+          "$ref": "#/properties/release/properties/productionUrl"
+        },
+        "previewUrl": {
+          "$ref": "#/properties/release/properties/previewUrl"
+        },
+        "productionWorker": {
+          "$ref": "#/properties/release/properties/productionWorker"
+        },
+        "previewWorker": {
+          "$ref": "#/properties/release/properties/previewWorker"
+        },
+        "artifactPrefix": {
+          "$ref": "#/properties/release/properties/artifactPrefix"
+        },
+        "artifactSource": {
+          "$ref": "#/properties/release/properties/artifactSource"
+        },
+        "productionUrlEnv": {
+          "$ref": "#/properties/release/properties/productionUrlEnv"
+        },
+        "previewUrlEnv": {
+          "$ref": "#/properties/release/properties/previewUrlEnv"
+        },
+        "artifactAcceptance": {
+          "$ref": "#/properties/release/properties/artifactAcceptance"
+        },
+        "previewBindings": {
+          "$ref": "#/properties/release/properties/previewBindings"
+        },
+        "previewBindingsEnv": {
+          "$ref": "#/properties/release/properties/previewBindingsEnv"
+        },
+        "smoke": {
+          "$ref": "#/properties/release/properties/smoke"
+        },
+        "typedConfig": {
+          "$ref": "#/properties/release/properties/typedConfig"
+        },
+        "assetsDirectory": {
+          "$ref": "#/properties/release/properties/assetsDirectory"
+        },
+        "migrations": {
+          "$ref": "#/properties/release/properties/migrations"
+        },
+        "workersDevSubdomain": {
+          "$ref": "#/properties/release/properties/workersDevSubdomain"
+        }
+      }
     }
   }
 }

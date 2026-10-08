@@ -81,6 +81,20 @@
       "items": {
         "$ref": "#/$defs/forbidden"
       }
+    },
+    "analyticsEngine": {
+      "type": "array",
+      "description": "Production Analytics Engine dataset bindings; readiness compares repository and deployed Worker settings, without writing events.",
+      "items": {
+        "$ref": "#/$defs/analyticsEngine"
+      }
+    },
+    "rateLimits": {
+      "type": "array",
+      "description": "Production Worker rate-limit namespaces and settings. Namespace identifiers share counters across Workers in an account.",
+      "items": {
+        "$ref": "#/$defs/rateLimit"
+      }
     }
   },
   "$defs": {
@@ -119,7 +133,7 @@
         "zone": {
           "type": "object",
           "additionalProperties": false,
-          "required": ["name", "id"],
+          "required": ["name"],
           "properties": {
             "name": {
               "type": "string",
@@ -128,6 +142,9 @@
             "id": {
               "type": "string",
               "pattern": "^[0-9a-f]{32}$"
+            },
+            "idEnv": {
+              "$ref": "#/$defs/name"
             }
           }
         },
@@ -193,6 +210,11 @@
         "name": {
           "type": "string",
           "pattern": "^[a-z0-9-]+$"
+        },
+        "environment": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]+$",
+          "description": "Named deployment mode containing this binding. Omit for production."
         }
       }
     },
@@ -495,6 +517,49 @@
           "type": "string",
           "pattern": "^[A-Za-z0-9_-]+$",
           "description": "The GitHub environment that owns this variable; omit for repository variables."
+        }
+      }
+    },
+    "analyticsEngine": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["binding", "name"],
+      "properties": {
+        "binding": {
+          "$ref": "#/$defs/name"
+        },
+        "name": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "rateLimit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["binding", "namespace", "simple"],
+      "properties": {
+        "binding": {
+          "$ref": "#/$defs/name"
+        },
+        "namespace": {
+          "type": "string",
+          "pattern": "^[1-9][0-9]*$"
+        },
+        "simple": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["limit", "period"],
+          "properties": {
+            "limit": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "period": {
+              "type": "integer",
+              "enum": [10, 60]
+            }
+          }
         }
       }
     }

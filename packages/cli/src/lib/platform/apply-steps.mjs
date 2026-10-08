@@ -1,3 +1,4 @@
+import { secretForTarget, secretValueKey } from './secret-scope.mjs';
 import { randomBytes } from 'node:crypto';
 import path from 'node:path';
 import { redact } from './services.mjs';
@@ -101,7 +102,7 @@ export async function storeSecret(context, name, target, value) {
     );
   }
   context.handled.add(`secret:${name}:${target}`);
-  const secret = context.manifest.secrets?.find((candidate) => candidate.name === name);
+  const secret = secretForTarget(context.manifest, name, target);
   const shown = secret?.sensitive === false ? ` = ${value}` : '';
   context.io.write(
     `${paint('green', 'Stored')} ${name}${shown} on ${targetName(context, target)}.\n`,
@@ -111,6 +112,7 @@ export async function storeSecret(context, name, target, value) {
 /** Store a value a new resource produced, straight away, so it cannot be lost or left stale. */
 export async function storeFed(context, name, value) {
   if (!value || !context.state.worker.ok || !context.state.worker.value.exists) return;
-  context.values.set(name, value);
+  const secret = secretForTarget(context.manifest, name, 'worker');
+  context.values.set(secret ? secretValueKey(context.manifest, secret) : name, value);
   await storeSecret(context, name, 'worker', value);
 }

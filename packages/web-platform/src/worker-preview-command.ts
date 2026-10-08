@@ -42,6 +42,8 @@ export async function runWorkerPreview(
   if (environment !== undefined && environment !== 'preview')
     throw new Error('The only Worker environment is --env preview.');
   const workerName = environment ? config.previewWorker : config.productionWorker;
+  if (!config.workersDevSubdomain)
+    throw new Error('Configure the reviewed workersDevSubdomain before uploading a preview.');
 
   await verifyWorkerReleaseConfiguration(process.cwd(), config);
   const directory = await mkdtemp(path.join(os.tmpdir(), 'lvbt-worker-preview-'));
@@ -78,7 +80,11 @@ export async function runWorkerPreview(
       },
     );
 
-    const receipt = previewUploadReceipt(await readFile(receiptPath, 'utf8'), workerName);
+    const receipt = previewUploadReceipt(
+      await readFile(receiptPath, 'utf8'),
+      workerName,
+      config.workersDevSubdomain,
+    );
     const output = process.env.GITHUB_OUTPUT;
     if (output)
       await writeFile(output, `url=${receipt.url}\nversion=${receipt.version}\n`, { flag: 'a' });

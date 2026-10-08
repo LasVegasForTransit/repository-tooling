@@ -35,3 +35,20 @@ test('tooling rejects unsupported versions, paths and unknown fields', () => {
 });
 test('repositories without optional tooling declarations use version1 defaults', () =>
   assert.deepEqual(readTooling('/nonexistent/lvbt-fixture'), { version: 1 }));
+
+test('release profiles reuse field constraints and reject nested or unknown settings', () => {
+  const profile = {
+    artifactSource: 'typed-worker',
+    typedConfig: 'cloudflare.config.ts',
+    assetsDirectory: '../site/dist',
+    appDirectory: 'apps/deploy',
+  };
+  assert.deepEqual(validateTooling({ version: 1, release: { apps: { site: profile } } }), []);
+  for (const invalid of [
+    { ...profile, artifactSource: 'copied-framework' },
+    { ...profile, smoke: { path: '/health', status: 900 } },
+    { ...profile, apps: { other: {} } },
+    { ...profile, bootstrap: 'secret' },
+  ])
+    assert.ok(validateTooling({ version: 1, release: { apps: { site: invalid } } }).length);
+});

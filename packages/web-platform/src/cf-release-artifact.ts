@@ -85,7 +85,10 @@ export async function packageCfRelease(
         2,
       ),
     );
-    return await packageRelease(temporary, destination, identity, config.artifactAcceptance);
+    return await packageRelease(temporary, destination, identity, {
+      ...config.artifactAcceptance,
+      formatVersion: 2,
+    });
   } finally {
     await rm(temporary, { recursive: true, force: true });
   }

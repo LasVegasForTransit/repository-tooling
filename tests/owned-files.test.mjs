@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict';
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
+import { applyPreset } from '../standards/web-platform.ts';
 
 import {
   OWNED_FILES,
@@ -44,6 +45,62 @@ async function repository(t) {
   t.after(() => rm(directory, { recursive: true, force: true }));
   return directory;
 }
+
+test('canonical updating repairs shared hooks while preserving app files and seeded workflows', async (t) => {
+  const directory = await repository(t);
+  await mkdir(path.join(directory, '.githooks'));
+  await mkdir(path.join(directory, '.github/workflows'), { recursive: true });
+  await writeFile(path.join(directory, '.githooks/pre-push'), 'bespoke hook');
+  await writeFile(
+    path.join(directory, '.github/workflows/standard-update.yml'),
+    'existing maintainer workflow',
+  );
+  await writeFile(path.join(directory, 'product.txt'), 'app-owned value');
+  const incoming = await bundle(null);
+  const preview = await applyPreset(directory, incoming, true);
+  assert.ok(preview.consumerChanged.includes('.githooks/pre-push'));
+  assert.equal(await readFile(path.join(directory, '.githooks/pre-push'), 'utf8'), 'bespoke hook');
+  await applyPreset(directory, incoming);
+  assert.deepEqual(await ownedFileDrift(directory, null), []);
+  assert.equal(await readFile(path.join(directory, 'product.txt'), 'utf8'), 'app-owned value');
+  assert.equal(
+    await readFile(path.join(directory, '.github/workflows/standard-update.yml'), 'utf8'),
+    'existing maintainer workflow',
+  );
+  assert.deepEqual((await applyPreset(directory, incoming, true)).consumerChanged, []);
+});
+
+test('owned file restoration rejects ancestor symlinks before updating any consumer files', async (t) => {
+  const directory = await repository(t);
+  const external = await repository(t);
+  await writeFile(path.join(external, 'pre-push'), 'unrelated external hook');
+  await symlink(external, path.join(directory, '.githooks'));
+  const incoming = await bundle(null);
+  await assert.rejects(applyPreset(directory, incoming), /\.githooks.*symlink/);
+  assert.equal(await readFile(path.join(external, 'pre-push'), 'utf8'), 'unrelated external hook');
+  await assert.rejects(readFile(path.join(directory, '.lvbt/web-platform.json')));
+});
+
+test('plugin and seeded workflow publication never follows consumer symlinks', async (t) => {
+  const directory = await repository(t);
+  const external = await repository(t);
+  const settings = (await bundle()).files[`${reference}/.claude/settings.json`];
+  await writeFile(path.join(external, 'settings.json'), settings);
+  await mkdir(path.join(directory, '.claude'));
+  await symlink(
+    path.join(external, 'settings.json'),
+    path.join(directory, '.claude/settings.json'),
+  );
+  await assert.rejects(syncPluginRef(directory, await bundle(), false), /settings.json.*symlink/);
+  assert.equal(await readFile(path.join(external, 'settings.json'), 'utf8'), settings);
+  await mkdir(path.join(directory, '.github/workflows'), { recursive: true });
+  await symlink(
+    path.join(external, 'missing.yml'),
+    path.join(directory, '.github/workflows/standard-update.yml'),
+  );
+  await assert.rejects(seedFiles(directory, await bundle(), false), /standard-update.yml.*symlink/);
+  await assert.rejects(readFile(path.join(external, 'missing.yml')));
+});
 
 test('every example carries identical owned and seeded files', async () => {
   for (const name of [...OWNED_FILES, ...SEEDED_FILES]) {

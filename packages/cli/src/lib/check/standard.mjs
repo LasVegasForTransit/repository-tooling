@@ -11,8 +11,12 @@ export const STANDARD_COMMANDS = {
   audit: 'lvbt audit',
 };
 export function standardCommands(cwd) {
-  if (!existsSync(path.join(cwd, '.lvbt/web-platform/packages/cli/src/cli.mjs')))
-    return STANDARD_COMMANDS;
+  return standardCommandsFor({
+    vendored: existsSync(path.join(cwd, '.lvbt/web-platform/packages/cli/src/cli.mjs')),
+  });
+}
+export function standardCommandsFor({ vendored = false } = {}) {
+  if (!vendored) return STANDARD_COMMANDS;
   const prefix = 'node .lvbt/web-platform/packages/cli/src/cli.mjs';
   return {
     ...STANDARD_COMMANDS,

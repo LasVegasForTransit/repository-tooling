@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { deployedWorkerBindings } from './worker-bindings.mjs';
 import { observeGovernance } from './observe-governance.mjs';
 import { configForEnvironment } from './config-scope.mjs';
 import { emailRecords } from './guides.mjs';
@@ -54,7 +55,12 @@ async function observeWorker(api, account, name) {
       if (binding.type === 'plain_text' || binding.type === 'json')
         vars[binding.name] = binding.text ?? binding.json;
     }
-    return { exists: true, secrets: (secrets ?? []).map((secret) => secret.name), vars };
+    return {
+      exists: true,
+      secrets: (secrets ?? []).map((secret) => secret.name),
+      vars,
+      ...deployedWorkerBindings(settings?.bindings ?? []),
+    };
   });
 }
 
@@ -235,7 +241,11 @@ async function observeConfig(manifest, directory) {
     cfConfig ? readCloudflareConfig(configFile) : readWranglerConfig(configFile),
   );
   if (!production.ok) return production;
-  const modes = new Set((manifest.d1 ?? []).flatMap((database) => database.environment ?? []));
+  const modes = new Set(
+    [...(manifest.d1 ?? []), ...(manifest.r2 ?? [])].flatMap(
+      (resource) => resource.environment ?? [],
+    ),
+  );
   if (modes.size) {
     production.value.environments = {};
     for (const mode of modes)
