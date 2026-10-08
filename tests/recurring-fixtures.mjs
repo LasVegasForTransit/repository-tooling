@@ -129,15 +129,15 @@ if(args[0]==='api') {
  else if(args[1].includes('/workflows/')) emit({workflow_runs:[{id:100,run_attempt:1,event:'schedule'}]});
  else emit(${JSON.stringify(remote)});
 } else if(args[0]==='run') fs.copyFileSync(process.env.RECURRING_TEST_INPUT,path.join(option('--dir'),'lvbt-recurring-issues.json'));
-else if(args[0]==='label') {if(args[1]==='list') emit(state.labels.map(name=>({name})));else state.labels.push(args[2]);}
+else if(args[0]==='label') {if(args[1]==='list') emit(Array.isArray(state.labels)?state.labels.map(name=>({name})):state.labels);else {if(state.labels.some(name=>name.toLowerCase()===args[2].toLowerCase())) throw new Error('Duplicate label');state.labels.push(args[2]);}}
 else if(args[0]==='issue') {
  if(args[1]==='list') emit(state.issue?[state.issue]:[]);
  else if(args[1]==='view') emit(state.tamper?{...state.issue,body:'Incorrect stored body'}:state.issue);
  else if(args[1]==='create') {
   if(state.issue) throw new Error('Duplicate issue');
-  state.issue={number:7,title:option('--title'),body:fs.readFileSync(option('--body-file'),'utf8'),state:'OPEN',labels:args.flatMap((arg,index)=>arg==='--label'?[{name:args[index+1]}]:[]),url:'https://github.com/'+report.repository+'/issues/7'};
+  state.issue={number:7,title:option('--title'),body:fs.readFileSync(option('--body-file'),'utf8'),state:'OPEN',labels:args.flatMap((arg,index)=>arg==='--label'?[{name:state.labels.find(name=>name.toLowerCase()===args[index+1].toLowerCase())??args[index+1]}]:[]),url:'https://github.com/'+report.repository+'/issues/7'};
   emit(state.issue.url);
- } else if(args[1]==='edit') {state.issue.title=option('--title');state.issue.body=fs.readFileSync(option('--body-file'),'utf8');for(let i=0;i<args.length;i++)if(args[i]==='--add-label'&&!state.issue.labels.some(label=>label.name===args[i+1]))state.issue.labels.push({name:args[i+1]});}
+ } else if(args[1]==='edit') {state.issue.title=option('--title');state.issue.body=fs.readFileSync(option('--body-file'),'utf8');for(let i=0;i<args.length;i++)if(args[i]==='--add-label'&&!state.issue.labels.some(label=>label.name.toLowerCase()===args[i+1].toLowerCase()))state.issue.labels.push({name:state.labels.find(name=>name.toLowerCase()===args[i+1].toLowerCase())??args[i+1]});}
  else if(args[1]==='reopen') state.issue.state='OPEN';
  else if(args[1]==='close') state.issue.state='CLOSED';
  else throw new Error('Unexpected issue operation');

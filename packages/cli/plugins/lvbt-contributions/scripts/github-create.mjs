@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 
+import { hasLabels } from '../../../src/lib/contributions/issue-apply.mjs';
+
 import { readFile } from 'node:fs/promises';
 import { spawnSync } from 'node:child_process';
 import { commitSubjectError } from './validate-commit-subject.mjs';
@@ -228,7 +230,7 @@ if (options.kind === 'issue') {
     ]),
   );
   verifyStored(preview, stored);
-  if (labels && !labels.every((name) => stored.labels?.some((value) => value.name === name)))
+  if (labels && !hasLabels(stored.labels, labels))
     fail('GitHub stored issue labels differ from the verified preview.', 2);
   preview.number = stored.number;
   preview.url = stored.url;

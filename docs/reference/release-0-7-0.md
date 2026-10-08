@@ -12,18 +12,26 @@ minor release and become required in 0.8.0.
 
 `lvbt audit` runs shared link, Lighthouse, and dependency adapters. Trusted scheduled reports
 maintain one readable issue per check and target through the contribution helper, including verified
-recovery and regression handling. Errors and incomplete checks cannot close issues.
+recovery and regression handling. Errors and incomplete checks cannot close issues. The reporter
+verifies the run attempt's successful prerequisites and retained evidence before reconciling.
+Recurring product reports use the same contribution backend, with reviewed adoption of existing
+automation issues and optional pinning.
 
 The web-platform package now provides shared saved-release orchestration and `lvbt promote`. Main
 updates staging; production promotion verifies a saved artifact without rebuilding. Signed
 inventories verify the reviewed shared signer and source revision. Named staging supports Durable
 Objects with separate credential environments and immutable same-run acceptance receipts. Draft
 profiles cannot promote, and shared public R2 datasets expose only read capabilities in staging.
-Previously retained website artifacts remain readable. Consumers migrate their application-owned
+Previously retained website artifacts remain readable through exact reviewed run, commit, artifact
+ID, and expiry declarations. The compatibility path independently downloads and verifies the
+retained bytes; new artifacts always require signed proof. Consumers migrate their application-owned
 workflows and configuration explicitly; updating the vendor snapshot alone does not complete
 adoption.
 
 Repositories declaring saved releases cannot bypass promotion through `lvbt deploy`; it permits
 configuration dry runs and names the staging/promotion correction before any provider operation.
+Shared pull-request previews preserve repository-owned browser acceptance and clean up only their
+derived preview Worker. Initial production adoption or recovery can name an expected provider
+version; a changed version stops publication before production writes.
 
 See [Developer workflow](developer-workflow.md) for the command contract and ownership boundaries.

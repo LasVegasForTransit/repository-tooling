@@ -260,3 +260,21 @@ test('reviewed mixed-case labels adopt the same legacy issue and quoted runs can
     'update',
   );
 });
+
+test('CRLF recurring evidence blocks older runs and attempts before issue updates', async () => {
+  for (const previous of ['101 (attempt 1)', '100 (attempt 2)']) {
+    const setup = await fixture(report(), {
+      issues: [
+        {
+          ...owned,
+          body: `Contribution owner: LVBT recurring weekly automation.\r\n\r\nVerified run: ${previous}.\r\n\r\nWorkflow: previous.`,
+        },
+      ],
+    });
+    await assert.rejects(recurring.reportRecurring({ ...setup, dryRun: true }), /stale/);
+    assert.equal(
+      setup.calls.some((call) => ['edit', 'close', 'reopen', 'create'].includes(call[2])),
+      false,
+    );
+  }
+});

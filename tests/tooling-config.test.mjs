@@ -1,6 +1,49 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { readTooling, validateTooling } from '../packages/cli/src/lib/tooling.mjs';
+
+test('attestation compatibility declares only bounded exact old artifact records', () => {
+  const record = {
+    runId: '123',
+    sourceCommit: 'a'.repeat(40),
+    artifactId: 456,
+    expiresAt: '2027-01-01T00:00:00Z',
+  };
+  const attestation = {
+    signerWorkflow: 'LasVegasForTransit/repository-tooling/.github/workflows/release-attest.yml',
+    signerCommit: 'b'.repeat(40),
+    legacyArtifacts: [record],
+  };
+  assert.deepEqual(validateTooling({ version: 1, release: { attestation } }), []);
+  assert.ok(
+    validateTooling({
+      version: 1,
+      release: {
+        attestation: {
+          ...attestation,
+          legacyArtifacts: Array.from({ length: 101 }, (_, index) => ({
+            ...record,
+            runId: String(index + 1),
+            artifactId: index + 1,
+          })),
+        },
+      },
+    }).length,
+  );
+  for (const invalid of [
+    { ...record, artifactId: 0 },
+    { ...record, runId: 'main' },
+    { ...record, sourceCommit: 'main' },
+    { ...record, expiresAt: 'tomorrow' },
+    { ...record, enabled: true },
+  ])
+    assert.ok(
+      validateTooling({
+        version: 1,
+        release: { attestation: { ...attestation, legacyArtifacts: [invalid] } },
+      }).length,
+    );
+});
 test('tooling validates one declarative local/audit/release contract', () => {
   assert.deepEqual(
     validateTooling({

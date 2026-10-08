@@ -1,6 +1,6 @@
 import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { cp, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
@@ -63,6 +63,9 @@ async function sealTypedBuild(
     return await packageRelease(temporary, destination, input.identity, {
       ...input.acceptance,
       formatVersion: 2,
+      ...(!(await readdir(input.assets)).includes('index.html')
+        ? { artifactKind: 'worker' as const }
+        : {}),
     });
   }
   await mkdir(destination);

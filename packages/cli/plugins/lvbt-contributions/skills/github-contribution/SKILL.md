@@ -57,7 +57,11 @@ links before removing `--dry-run`. The helper validates the GitHub run, its conf
 the downloaded report artifact before changing issues. It rejects stale runs and ambiguous
 ownership. Each check and target owns one issue with the visible `audit-owned`, `audit:<check>`, and
 `target:<target>` labels. Failure updates or reopens that issue; a corresponding verified passing
-result closes it. Errors, skipped checks, and absent results never close an issue.
+result closes it. Errors, skipped checks, and absent results never close an issue. The attempt's
+measurement job must have successful checkout, setup and enabled prerequisites, a completed audit
+command, and successful evidence upload. Failed build, browser installation, cancelled, timed-out or
+skipped execution cannot establish recovery. A failed audit command may still report actual findings
+when its retained results agree with that command's outcome.
 
 The workflow must serialize reporting with one concurrency group per repository and must upload
 `lvbt-audit-report.json` to the configured audit artifact before reporting. Local execution and
