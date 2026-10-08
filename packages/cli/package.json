@@ -28,7 +28,7 @@
     "node": ">=24"
   },
   "dependencies": {
-    "tsx": "catalog:"
+    "tsx": "4.23.13"
   },
   "exports": {
     "./env": "./src/lib/env-file.mjs",

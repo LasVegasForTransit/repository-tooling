@@ -192,7 +192,7 @@ importers:
   packages/cli:
     dependencies:
       tsx:
-        specifier: 'catalog:'
+        specifier: 4.23.13
         version: 4.23.13
 
   packages/eslint-config:
