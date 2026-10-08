@@ -27,6 +27,7 @@ const valued = new Set([
   '--output',
   '--input',
   '--run-id',
+  '--expected-version',
   '--directory',
   '--commit',
   '--release-id',

@@ -36,13 +36,17 @@ async function manifestPaths(root: string): Promise<string[]> {
   return manifests;
 }
 
-async function rewriteManifest(root: string, file: string): Promise<void> {
+async function rewriteManifest(
+  root: string,
+  file: string,
+  sharedPackages: ReadonlySet<string>,
+): Promise<void> {
   const manifest = JSON.parse(await readFile(file, 'utf8')) as Manifest;
   for (const field of dependencyFields) {
     const dependencies = manifest[field];
     if (!dependencies) continue;
     for (const name of Object.keys(dependencies)) {
-      if (!name.startsWith('@lasvegasfortransit/')) continue;
+      if (!sharedPackages.has(name)) continue;
       const packageName = name.slice('@lasvegasfortransit/'.length);
       const target = path.join(root, '.lvbt/web-platform/packages', packageName);
       const relative = path.relative(path.dirname(file), target).split(path.sep).join('/');
@@ -89,7 +93,14 @@ export async function materializeTemplate(options: {
   );
   await cp(path.join(source, 'examples', options.example), target, { recursive: true });
   await applyPreset(target, bundle);
-  for (const file of await manifestPaths(target)) await rewriteManifest(target, file);
+  const sharedPackages = new Set<string>();
+  for (const [file, content] of Object.entries(bundle.files)) {
+    if (!/^packages\/[^/]+\/package\.json$/.test(file)) continue;
+    const { name } = JSON.parse(content) as { name: string };
+    sharedPackages.add(name);
+  }
+  for (const file of await manifestPaths(target))
+    await rewriteManifest(target, file, sharedPackages);
 }
 
 export async function main(args: string[]): Promise<void> {

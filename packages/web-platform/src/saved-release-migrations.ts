@@ -1,3 +1,4 @@
+import { verifyExpectedProductionVersion } from './expected-production-version.js';
 import { execFile } from 'node:child_process';
 import {
   cp,
@@ -282,6 +283,7 @@ export async function runReleaseMigrations(
       'release-id': { type: 'string' },
       'attestation-directory': { type: 'string' },
       'candidate-directory': { type: 'string' },
+      'expected-version': { type: 'string' },
     },
   });
   if (!values.directory) throw new Error('Pass --directory with the saved release.');
@@ -304,6 +306,8 @@ export async function runReleaseMigrations(
     },
     release,
   );
+  if (values.target === 'production')
+    await verifyExpectedProductionVersion(config, values['expected-version'], directory);
   if (!release.files.some(([file]) => file === manifestFile)) {
     // Original retained releases did not carry SQL. Preserve their reviewed no-migration behavior.
     if (release.formatVersion === 1) return;

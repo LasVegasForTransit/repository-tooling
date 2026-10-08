@@ -52,3 +52,25 @@ cannot be verified are rejected. This supports reviewed applications that receiv
 their handler or Durable Object constructor arguments; it is not a sandbox for arbitrary code. Rate
 limiter namespace IDs are account scoped and must remain distinct in preview. Draft profiles declare
 `previewOnly: true`; shared promotion and production writes reject them.
+
+## Retained recovery and first adoption
+
+Promotion accepts `--expected-version <current Worker UUID>` as an optimistic production
+precondition. A reusable caller exposes the manual `expected_version` input and passes it to
+`release-publish.yml` as `expected-version`. The production credential job checks the authenticated
+configured Worker before recording its baseline, and checks again before SQL, upload, and
+activation. A changed version or traffic split stops those production writes. Named candidate
+acceptance remains in the preview environment and cannot use production credentials.
+
+For first adoption, an older application may have a legacy marker or no shared marker. This is
+accepted only when an explicit expected version matches the authenticated production Worker. The
+publication receipt records `baselineEvidence` with the provider version and any recognized legacy
+marker fields; it does not invent a shared release ID or claim that old bytes were retained. Missing
+or nonmarker pages are distinguished from authentication, redirects, server failures, and timeouts,
+which still stop publication. The new selected artifact and its protected preview must pass their
+normal verification. Older provider versions without saved release artifacts need an explicit
+recovery process; they cannot be promoted as though their bytes were captured.
+
+An uncertain promotion outcome still requires inspecting the unique request, publication receipt,
+and current provider state. Do not redispatch automatically. Worker recovery does not reverse SQL or
+other persistent data changes.

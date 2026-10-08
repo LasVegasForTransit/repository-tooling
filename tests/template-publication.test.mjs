@@ -45,6 +45,7 @@ function assertVendoredDependencies(target, file, manifest) {
   const dependencies = fields.flatMap((field) => Object.entries(manifest[field] ?? {}));
   for (const [name, specifier] of dependencies) {
     if (!name.startsWith('@lasvegasfortransit/')) continue;
+    if (specifier.startsWith('workspace:')) continue;
     const packageName = name.slice('@lasvegasfortransit/'.length);
     assert.ok(specifier.startsWith('file:'), `${file}: ${name} must use a file dependency`);
     assert.equal(
@@ -110,6 +111,13 @@ test('template publication vendors one exact release and is byte-for-byte idempo
 
     const metadata = await verifyPreset(target);
     assert.equal(metadata.release, 'v99.0.0');
+    if (example !== 'basic') {
+      const application = example === 'with-astro' ? 'site' : 'app';
+      const deployment = JSON.parse(
+        await readFile(path.join(target, 'apps/deploy/package.json'), 'utf8'),
+      );
+      assert.equal(deployment.devDependencies[`@lasvegasfortransit/${application}`], 'workspace:*');
+    }
     const rootManifest = JSON.parse(await readFile(path.join(target, 'package.json'), 'utf8'));
     assert.equal(
       rootManifest.scripts['standards:update'],
