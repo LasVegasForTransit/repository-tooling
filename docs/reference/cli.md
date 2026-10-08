@@ -68,6 +68,11 @@ apply only to explicit production operations. Bootstrap verifies tool versions b
 
 Each failing check prints the command that fixes it.
 
+When `.gitleaks.toml` declares product secret-scanning rules, local preflight also probes scanner
+availability without scanning or requesting publishing authentication. Install native Gitleaks
+8.30.1 or start Docker for the reviewed pinned image. Repositories without that file need no
+scanner.
+
 | Check         | Passes when                                                     | Fix it prints                                                                            |
 | ------------- | --------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
 | Node.js       | the running version satisfies `engines.node`                    | install the version `engines.node` names                                                 |
@@ -167,6 +172,19 @@ command-line arguments. The same goes for the Turnstile and Access token.
 | `contract`  | Every package that ships code declares `lint`, `check-types`, `test`; every dependency is `catalog:`, `workspace:`, a repository-tooling tag, a verified vendored `file:` path, or `link:`; test material lives under `tests/`; every Astro project (a package with `astro` and its own `astro.config.*`) declares `sync`, and `turbo.json` runs it before `lint` |
 | `platform`  | Every `platform.json` at the root or under `apps/*` matches the schema `@lasvegasfortransit/cli` ships and names only secrets and vars it declares; a repository without one passes                                                                                                                                                                               |
 | `debt`      | `eslint-suppressions.json` ledgers never grow against `main`, and a changed file that carries suppressions shrinks (fewer findings or lines)                                                                                                                                                                                                                      |
+
+`lvbt check secrets` is an explicit full-history check, excluded from the default shape checks. It
+reads `.gitleaks.toml`, uses native Gitleaks only at version 8.30.1, and otherwise uses
+`ghcr.io/gitleaks/gitleaks@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f`
+with a read-only repository mount. The scan always redacts values, fails for shallow history, and
+fails when the scanner errors or times out. Scanner output is not echoed. A repository without
+`.gitleaks.toml` skips this check.
+
+Declare a root `security:secrets` script running `lvbt check secrets` and an uncached
+`//#security:secrets` Turbo task. Required app `validate` tasks depend on it. Keep dependency checks
+as separate uncached tasks with the repository's existing advisory budget, such as
+`pnpm audit --prod --audit-level=high`; scheduled normalized audits remain independent. CI must
+check out full history (`fetch-depth: 0`) before running `pnpm check`.
 
 ## Standard scripts
 

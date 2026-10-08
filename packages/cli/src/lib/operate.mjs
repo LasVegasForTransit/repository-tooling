@@ -8,6 +8,7 @@ import { localEnvironment } from './local-environment.mjs';
 import { findManifests } from './platform/manifest.mjs';
 import { platformBootstrap, platformPreflight } from './platform/index.mjs';
 import { readTooling } from './tooling.mjs';
+import { secretScannerFinding } from './check/secrets.mjs';
 
 function output(command, args, cwd) {
   const result = spawnSync(command, args, {
@@ -282,7 +283,11 @@ async function machineFindings(
   await toolchainFindings(cwd, packageJson, report, { includeDependencies });
   if (!toolsOnly) {
     await repositoryFindings(cwd, report, { production });
-    if (!production) findings.push(...localEnvironment(cwd, { apply: localApply }));
+    if (!production) {
+      findings.push(...localEnvironment(cwd, { apply: localApply }));
+      const scanner = secretScannerFinding({ cwd });
+      if (scanner) findings.push(scanner);
+    }
     if (production) await cloudflareFindings(cwd, report, { productionBootstrap });
   }
 

@@ -13,27 +13,27 @@ its own `check` with the shared packages.
 
 ## What `examples/basic` contains
 
-| Path                                         | Purpose                                                                                          |
-| -------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| `package.json`                               | The standard scripts, lint-staged, and the `@lasvegasfortransit/cli` and Prettier deps           |
-| `pnpm-workspace.yaml`                        | `apps/*`, `packages/*`, and the organization version catalog                                     |
-| `turbo.json`                                 | `build`, `lint`, `check-types`, `test`, `test:e2e`, `dev` tasks                                  |
-| `prettier.config.js`                         | Extends `@lasvegasfortransit/prettier-config`                                                    |
-| `.markdownlint-cli2.jsonc`                   | Documentation rules, including that every relative link resolves                                 |
-| `.gitleaks.toml`                             | Secret scanning exemptions for the lockfile and design records                                   |
-| `.githooks/`                                 | Stubs that run the shared hooks from `node_modules/@lasvegasfortransit/cli`                      |
-| `.codex/hooks.json`, `.agents/plugins/`      | Codex loads the plugin from `node_modules` and runs its guard                                    |
-| `.claude/settings.json`                      | Claude Code loads the plugin from the release tag, formats on edit, and cannot read secret files |
-| `.github/workflows/ci.yml`                   | The `Validate` job: `pnpm check`, dependency audit, secret scan                                  |
-| `.github/workflows/standard-update.yml`      | Daily: opens a self-merging pull request when a newer standard release exists                    |
-| `.github/actions/setup-node-pnpm/action.yml` | Node from `package.json`, pinned pnpm, frozen install                                            |
-| `.github/renovate.json`                      | Weekly grouped updates; `@lasvegasfortransit/*` bumps grouped as one                             |
-| `.github/CODEOWNERS`                         | The maintainers team reviews everything                                                          |
-| `.lvbt/commit-scopes.txt`                    | Placeholder scopes to replace                                                                    |
-| `docs/`                                      | The index, a start-here tutorial, and a glossary                                                 |
-| `AGENTS.md`, `README.md`                     | Agent guidance and the repository's own front page                                               |
-| `packages/example/`                          | A sample package with `lint`, `check-types`, `test`, `build`                                     |
-| `apps/`                                      | Empty; deployable apps go here                                                                   |
+| Path                                         | Purpose                                                                                            |
+| -------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `package.json`                               | The standard scripts, lint-staged, and the `@lasvegasfortransit/cli` and Prettier deps             |
+| `pnpm-workspace.yaml`                        | `apps/*`, `packages/*`, and the organization version catalog                                       |
+| `turbo.json`                                 | `build`, `lint`, `check-types`, `test`, `test:e2e`, `dev` tasks                                    |
+| `prettier.config.js`                         | Extends `@lasvegasfortransit/prettier-config`                                                      |
+| `.markdownlint-cli2.jsonc`                   | Documentation rules, including that every relative link resolves                                   |
+| `.gitleaks.toml`                             | Secret scanning exemptions for the lockfile and design records                                     |
+| `.githooks/`                                 | Stubs that run the shared hooks from `node_modules/@lasvegasfortransit/cli`                        |
+| `.codex/hooks.json`, `.agents/plugins/`      | Codex loads the plugin from `node_modules` and runs its guard                                      |
+| `.claude/settings.json`                      | Claude Code loads the plugin from the release tag, formats on edit, and cannot read secret files   |
+| `.github/workflows/ci.yml`                   | The `Validate` job runs `pnpm check`, including uncached dependency and full-history secret checks |
+| `.github/workflows/standard-update.yml`      | Daily: opens a self-merging pull request when a newer standard release exists                      |
+| `.github/actions/setup-node-pnpm/action.yml` | Node from `package.json`, pinned pnpm, frozen install                                              |
+| `.github/renovate.json`                      | Weekly grouped updates; `@lasvegasfortransit/*` bumps grouped as one                               |
+| `.github/CODEOWNERS`                         | The maintainers team reviews everything                                                            |
+| `.lvbt/commit-scopes.txt`                    | Placeholder scopes to replace                                                                      |
+| `docs/`                                      | The index, a start-here tutorial, and a glossary                                                   |
+| `AGENTS.md`, `README.md`                     | Agent guidance and the repository's own front page                                                 |
+| `packages/example/`                          | A sample package with `lint`, `check-types`, `test`, `build`                                       |
+| `apps/`                                      | Empty; deployable apps go here                                                                     |
 
 The example remains the authoritative source for application-owned template files. During
 publication, the workflow copies it, vendors the exact tagged `lvbt-web` preset, adds
@@ -45,13 +45,13 @@ files.
 
 `with-astro` and `with-vite-react` carry everything above, minus `packages/example`, plus:
 
-| Path                               | Purpose                                                                                              |
-| ---------------------------------- | ---------------------------------------------------------------------------------------------------- |
-| `apps/site` or `apps/app`          | The application: source under `src/`, unit tests under `tests/`, end-to-end tests under `tests/e2e/` |
-| `apps/deploy/cloudflare.config.ts` | The `cf` Worker project, which serves the app's built static assets                                  |
-| `apps/*/playwright.config.ts`      | Spreads `@lasvegasfortransit/playwright-config` and starts the app's `preview` server                |
-| `.github/workflows/deploy.yml`     | Validates, then runs `pnpm run deploy` on every push to `main` with the Cloudflare secrets           |
-| root `preview` and `deploy`        | `turbo run preview` and `lvbt deploy`; CI builds the app and dry-runs `cf deploy`                    |
+| Path                                | Purpose                                                                                                                                     |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `apps/site` or `apps/app`           | The application: source under `src/`, unit tests under `tests/`, end-to-end tests under `tests/e2e/`                                        |
+| `apps/deploy/cloudflare.config.ts`  | The `cf` Worker project, which serves the app's built static assets                                                                         |
+| `apps/*/playwright.config.ts`       | Spreads `@lasvegasfortransit/playwright-config` and starts the app's `preview` server                                                       |
+| `.github/workflows/deploy.yml`      | Validates and signs a retained artifact, updates staging on `main`, and promotes only on explicit request                                   |
+| root `preview`, `deploy`, `promote` | `turbo run preview`, the guarded shared deployment entry point, and saved-artifact promotion; required validation dry-runs the Worker build |
 
 The Astro example also adds `prettier-plugin-astro` to its Prettier config and extends
 `@lasvegasfortransit/typescript-config/astro.json`; the React example extends `react-library.json`

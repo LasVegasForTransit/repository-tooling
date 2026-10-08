@@ -114,8 +114,8 @@ export async function syncPluginRef(
   const current = await readOptional(file);
   let next: string | undefined;
   if (current === null) next = bundle.files[`${REFERENCE}/${SETTINGS}`];
-  else if (MARKETPLACE_REF.test(current))
-    next = current.replace(MARKETPLACE_REF, `$1${bundle.release}$3`);
+  else if (MARKETPLACE_REF.test(current)) next = current;
+  if (next !== undefined) next = next.replace(MARKETPLACE_REF, `$1${bundle.release}$3`);
   if (next === undefined || next === current) return [];
   if (!dryRun) {
     await mkdir(path.dirname(file), { recursive: true });

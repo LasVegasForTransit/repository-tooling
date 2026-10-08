@@ -29,6 +29,13 @@
     "dev": {
       "cache": false,
       "persistent": true
+    },
+    "//#validate": {
+      "dependsOn": ["//#security:dependencies"],
+      "cache": false
+    },
+    "//#security:dependencies": {
+      "cache": false
     }
   }
 }

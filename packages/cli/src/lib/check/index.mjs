@@ -4,6 +4,7 @@ import { checkDebt } from './debt.mjs';
 import { checkFilenames } from './filenames.mjs';
 import { checkPlatform } from './platform.mjs';
 import { checkStandard } from './standard.mjs';
+import { checkSecrets } from './secrets.mjs';
 
 const checks = {
   standard: checkStandard,
@@ -11,6 +12,7 @@ const checks = {
   contract: checkContract,
   debt: checkDebt,
   platform: checkPlatform,
+  secrets: checkSecrets,
 };
 
 /**
@@ -18,7 +20,10 @@ const checks = {
  * shares, run together by `pnpm check`. Each result names its fix.
  */
 export async function check({ cwd, options }) {
-  const names = options.positional.length > 0 ? options.positional : Object.keys(checks);
+  const names =
+    options.positional.length > 0
+      ? options.positional
+      : Object.keys(checks).filter((name) => name !== 'secrets');
   const unknown = names.filter((name) => !(name in checks));
   if (unknown.length > 0) {
     throw new CliError(

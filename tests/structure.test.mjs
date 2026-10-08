@@ -8,7 +8,7 @@ const root = path.resolve(import.meta.dirname, '..');
 const read = (file) => readFile(path.join(root, file), 'utf8');
 
 test('the pull request template stays human-readable and exact', async () => {
-  const template = await read('community-health/pull_request_template.md');
+  const template = await read('standards/community-health/pull_request_template.md');
   assert.equal(
     template,
     `# TL;DR
@@ -22,9 +22,9 @@ test('the pull request template stays human-readable and exact', async () => {
 });
 
 test('the issue forms require actionable information through native fields', async () => {
-  const bug = await read('community-health/ISSUE_TEMPLATE/bug.yml');
-  const feature = await read('community-health/ISSUE_TEMPLATE/feature.yml');
-  const config = await read('community-health/ISSUE_TEMPLATE/config.yml');
+  const bug = await read('standards/community-health/ISSUE_TEMPLATE/bug.yml');
+  const feature = await read('standards/community-health/ISSUE_TEMPLATE/feature.yml');
+  const config = await read('standards/community-health/ISSUE_TEMPLATE/config.yml');
 
   for (const field of ['reproduction', 'expected', 'actual']) {
     assert.match(bug, new RegExp(`id: ${field}`));

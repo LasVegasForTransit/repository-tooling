@@ -20,7 +20,9 @@
     "deploy": "lvbt deploy",
     "audit": "lvbt audit",
     "promote": "lvbt promote",
-    "postinstall": "lvbt setup-record"
+    "postinstall": "lvbt setup-record",
+    "validate": "lvbt check secrets",
+    "security:dependencies": "pnpm audit --audit-level=high"
   },
   "lint-staged": {
     "*": "prettier --write --ignore-unknown"
