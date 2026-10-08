@@ -216,3 +216,124 @@ test('an unavailable file present in the pinned tree cannot become a missing-fil
     /Cannot inventory.*package.json/,
   );
 });
+
+test('process inventory accepts canonical pinned audit callers and rejects moving refs', async () => {
+  for (const example of ['basic', 'with-astro', 'with-vite-react']) {
+    const snapshot = processSnapshot();
+    const file = '.github/workflows/audit-scheduled.yml';
+    snapshot.files['.lvbt/tooling.json'] = JSON.stringify({
+      version: 1,
+      audits: { workflow: file },
+    });
+    snapshot.files[file] = await readFile(path.join(root, 'examples', example, file), 'utf8');
+    assert.equal(
+      processFindings(snapshot).some(({ rule }) => rule === 'audit-workflow'),
+      false,
+      `${example} canonical caller`,
+    );
+    snapshot.files[file] = snapshot.files[file].replace(/@[a-f0-9]{40}/g, '@main');
+    assert.equal(
+      processFindings(snapshot).some(({ rule }) => rule === 'audit-workflow'),
+      true,
+      `${example} unpinned caller`,
+    );
+  }
+});
+
+test('audit provenance must be a real complete uses declaration, not a comment or malformed ref', () => {
+  const valid = `LasVegasForTransit/repository-tooling/.github/workflows/audit.yml@${'a'.repeat(40)}`;
+  for (const line of [
+    `# uses: ${valid}`,
+    `uses: ${valid}-broken`,
+    `uses: "${valid}'`,
+    `uses: ${valid.slice(0, -1)}`,
+    `uses: other/repository/.github/workflows/audit.yml@${'a'.repeat(40)}`,
+  ]) {
+    const snapshot = processSnapshot();
+    snapshot.files['.github/workflows/audits.yml'] = `schedule:\nworkflow_dispatch:\n${line}\n`;
+    assert.ok(
+      processFindings(snapshot).some(({ rule }) => rule === 'audit-workflow'),
+      line,
+    );
+  }
+  for (const line of [`uses: ${valid}`, `uses: "${valid}" # reviewed`, `uses: '${valid}'`]) {
+    const snapshot = processSnapshot();
+    snapshot.files['.github/workflows/audits.yml'] = `schedule:\nworkflow_dispatch:\n${line}\n`;
+    assert.equal(
+      processFindings(snapshot).some(({ rule }) => rule === 'audit-workflow'),
+      false,
+      line,
+    );
+  }
+});
+
+test('workspace configuration exports prove inheritance through the shared organization package', () => {
+  const snapshot = processSnapshot();
+  snapshot.files['eslint.config.ts'] =
+    "import { configs } from '@transitmapper/eslint-plugin/configs';";
+  snapshot.files['packages/eslint-plugin/package.json'] = JSON.stringify({
+    name: '@transitmapper/eslint-plugin',
+    exports: { './configs': './src/configs.ts' },
+  });
+  snapshot.files['packages/eslint-plugin/src/configs.ts'] =
+    "import { config } from '@lasvegasfortransit/eslint-config/base';";
+  assert.equal(processFindings(snapshot).filter(({ rule }) => rule === 'shared-config').length, 0);
+  snapshot.files['packages/eslint-plugin/src/configs.ts'] = 'export const configs = [];';
+  assert.ok(processFindings(snapshot).some(({ rule }) => rule === 'shared-config'));
+  snapshot.files['packages/eslint-plugin/package.json'] = JSON.stringify({
+    name: '@transitmapper/other',
+    exports: { './configs': './src/configs.ts' },
+  });
+  snapshot.files['packages/eslint-plugin/src/configs.ts'] =
+    "import { config } from '@lasvegasfortransit/eslint-config/base';";
+  assert.ok(processFindings(snapshot).some(({ rule }) => rule === 'shared-config'));
+});
+
+test('remote inventory reads only declared configuration inheritance at the pinned source', () => {
+  const snapshot = processSnapshot();
+  snapshot.files['eslint.config.ts'] = "import { configs } from '@example/config/settings';";
+  snapshot.files['packages/config/package.json'] = JSON.stringify({
+    name: '@example/config',
+    exports: { './settings': './src/settings.ts', '.': './src/app.ts' },
+  });
+  snapshot.files['packages/config/src/settings.ts'] = "export { config } from './base.js';";
+  snapshot.files['packages/config/src/base.ts'] =
+    "export { config } from '@lasvegasfortransit/eslint-config/base';";
+  snapshot.files['packages/config/src/app.ts'] = 'application code';
+  const commit = 'd'.repeat(40);
+  const requested = [];
+  let unavailable = false;
+  const read = (args) => {
+    const endpoint = args[1];
+    if (args[0] === 'pr' || endpoint.endsWith('/rulesets')) return '[]';
+    if (endpoint === 'repos/LasVegasForTransit/example') return '{"default_branch":"main"}';
+    if (endpoint.includes('/commits/')) return JSON.stringify({ sha: commit });
+    if (endpoint.includes('/git/trees/'))
+      return JSON.stringify({
+        truncated: false,
+        tree: Object.keys(snapshot.files).map((file) => ({ path: file, type: 'blob' })),
+      });
+    const match = endpoint.match(/\/contents\/(.+)\?ref=(.+)$/);
+    assert.equal(match?.[2], commit);
+    const file = match[1];
+    requested.push(file);
+    if (unavailable && file === 'packages/config/src/base.ts') throw new Error('unavailable');
+    return snapshot.files[file];
+  };
+  const state = status.readState(
+    { name: 'example', kind: 'consumer', requiredStatus: 'Validate' },
+    read,
+  );
+  assert.ok(requested.includes('packages/config/src/settings.ts'));
+  assert.ok(requested.includes('packages/config/src/base.ts'));
+  assert.ok(!requested.includes('packages/config/src/app.ts'));
+  assert.equal(
+    processFindings(state.process).some(({ rule }) => rule === 'shared-config'),
+    false,
+  );
+  unavailable = true;
+  assert.throws(
+    () => status.readState({ name: 'example', kind: 'consumer', requiredStatus: 'Validate' }, read),
+    /Cannot inventory.*packages\/config\/src\/base.ts.*unavailable/,
+  );
+});
