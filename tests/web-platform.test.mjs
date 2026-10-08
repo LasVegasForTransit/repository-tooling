@@ -9,6 +9,26 @@ import { applyPreset, verifyPreset, fingerprint } from '../standards/web-platfor
 import { readCommit, readRelease } from '../standards/web-platform-source.ts';
 import { deployables } from '../packages/cli/src/lib/operate.mjs';
 
+test('vendored runtime dependencies are installable outside the source workspace', async () => {
+  const source = path.resolve(import.meta.dirname, '..');
+  const { catalog } = JSON.parse(
+    await readFile(path.join(source, 'packages/cli/catalog.json'), 'utf8'),
+  );
+  for (const name of ['cli', 'web-platform']) {
+    const manifest = JSON.parse(
+      await readFile(path.join(source, 'packages', name, 'package.json'), 'utf8'),
+    );
+    for (const [dependency, specifier] of Object.entries(manifest.dependencies ?? {})) {
+      assert.doesNotMatch(
+        specifier,
+        /^(?:catalog|workspace):/,
+        `${name}: ${dependency} must install from the generated snapshot`,
+      );
+      if (catalog[dependency]) assert.equal(specifier, catalog[dependency]);
+    }
+  }
+});
+
 async function fixture(run) {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'lvbt-preset-'));
   try {

@@ -8,7 +8,7 @@ const url = remote ?? 'http://127.0.0.1:4173';
 export default defineConfig({
   ...sharedConfig,
   use: { ...sharedConfig.use, baseURL: url },
-  webServer: remote
-    ? undefined
-    : { command: 'pnpm preview', url, reuseExistingServer: !process.env.CI },
+  ...(remote
+    ? {}
+    : { webServer: { command: 'pnpm preview', url, reuseExistingServer: !process.env.CI } }),
 });

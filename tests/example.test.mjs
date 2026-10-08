@@ -29,11 +29,16 @@ const version = JSON.parse(
   await readFile(path.join(sourceRoot, 'packages/cli/package.json'), 'utf8'),
 ).version;
 const sharedPackages =
-  'cli eslint-config playwright-config prettier-config typescript-config vitest-config'.split(' ');
+  'cli eslint-config playwright-config prettier-config typescript-config vitest-config web-platform'.split(
+    ' ',
+  );
 
 /** Every example, with the shared packages a copy of it must pin and whether it deploys. */
 const examples = {
-  basic: { uses: sharedPackages.filter((name) => name !== 'playwright-config'), deploys: false },
+  basic: {
+    uses: sharedPackages.filter((name) => !['playwright-config', 'web-platform'].includes(name)),
+    deploys: false,
+  },
   'with-astro': { uses: sharedPackages, deploys: true },
   'with-vite-react': { uses: sharedPackages, deploys: true },
 };
