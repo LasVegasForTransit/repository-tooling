@@ -103,6 +103,10 @@ test('both harness manifests publish one plugin version', async () => {
   assert.equal(codex.name, 'lvbt-contributions');
   assert.equal(claude.name, codex.name);
   assert.equal(claude.version, codex.version);
+  const source = JSON.parse(await read('package.json'));
+  const marketplace = JSON.parse(await read('.claude-plugin/marketplace.json'));
+  assert.equal(codex.version, source.version);
+  assert.equal(marketplace.plugins[0].version, source.version);
 });
 
 test('the source repository uses the TransitMapper package-manager contract', async () => {
