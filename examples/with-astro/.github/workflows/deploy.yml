@@ -17,7 +17,7 @@ concurrency:
 
 jobs:
   build:
-    uses: LasVegasForTransit/repository-tooling/.github/workflows/release-build.yml@b49317453a9e1d9ce2feda157a05782f803200d6
+    uses: LasVegasForTransit/repository-tooling/.github/workflows/release-build.yml@2cfa412166011accfb16374311dee22a61518e15
     with:
       app-directory: apps/deploy
       artifact-prefix: app-release
@@ -30,13 +30,13 @@ jobs:
       packages: read
       attestations: write
       id-token: write
-    uses: LasVegasForTransit/repository-tooling/.github/workflows/release-attest.yml@c0ecd968983a175baa919042bc56c87cbb127d7c
+    uses: LasVegasForTransit/repository-tooling/.github/workflows/release-attest.yml@2cfa412166011accfb16374311dee22a61518e15
     with:
       artifact-prefix: app-release
 
   staging:
     needs: [build, attest]
-    uses: LasVegasForTransit/repository-tooling/.github/workflows/release-publish.yml@b49317453a9e1d9ce2feda157a05782f803200d6
+    uses: LasVegasForTransit/repository-tooling/.github/workflows/release-publish.yml@2cfa412166011accfb16374311dee22a61518e15
     with:
       target: preview
       attestation-prefix: attestation-app-release

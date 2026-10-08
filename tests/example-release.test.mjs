@@ -19,6 +19,7 @@ for (const name of ['with-astro', 'with-vite-react']) {
     assert.notEqual(config.previewWorker, config.productionWorker);
     const deploy = await readFile(path.join(directory, '.github/workflows/deploy.yml'), 'utf8');
     assert.match(deploy, /release-attest\.yml@[a-f0-9]{40}/);
+    assert.ok(deploy.includes(`release-attest.yml@${config.attestation.signerCommit}`));
     assert.match(deploy, /needs: \[build, attest\]/);
     assert.match(deploy, /attestation-prefix: attestation-app-release/);
     assert.doesNotMatch(deploy, /target: production/);

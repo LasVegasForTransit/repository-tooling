@@ -5,7 +5,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
 
-import { applyPreset } from './web-platform.ts';
+import { applyIncoming } from './web-platform-cli.ts';
 import { readRelease } from './web-platform-source.ts';
 
 const examples = new Set(['basic', 'with-astro', 'with-vite-react']);
@@ -92,7 +92,7 @@ export async function materializeTemplate(options: {
       .map((entry) => rm(path.join(target, entry.name), { recursive: true, force: true })),
   );
   await cp(path.join(source, 'examples', options.example), target, { recursive: true });
-  await applyPreset(target, bundle);
+  await applyIncoming(target, bundle);
   const sharedPackages = new Set<string>();
   for (const [file, content] of Object.entries(bundle.files)) {
     if (!/^packages\/[^/]+\/package\.json$/.test(file)) continue;

@@ -2,6 +2,10 @@ import type { Finding } from './status.ts';
 import path from 'node:path';
 import { standardCommandsFor } from '../packages/cli/src/lib/check/standard.mjs';
 import { OWNED_FILES } from './owned-files.ts';
+import {
+  turboCacheProblem,
+  turboCacheRequired,
+} from '../packages/cli/src/lib/check/turbo-cache.mjs';
 
 export interface ProcessSnapshot {
   name: string;
@@ -31,6 +35,7 @@ export function inventoryPaths(paths: string[]): string[] {
   const root = [
     'package.json',
     'pnpm-workspace.yaml',
+    'turbo.json',
     '.lvbt/web-platform.json',
     '.lvbt/tooling.json',
     '.claude/settings.json',
@@ -168,6 +173,21 @@ function releaseFindings(
       add(rule, `${file ?? rule} must call the pinned shared saved-release workflow.`);
   }
 }
+function cacheFindings(snapshot: ProcessSnapshot): Finding[] {
+  const provenance = json(snapshot.files['.lvbt/web-platform.json']) as
+    { release?: string } | undefined;
+  const problem = turboCacheProblem(snapshot.files['turbo.json']);
+  return problem
+    ? [
+        {
+          repository: snapshot.name,
+          rule: 'turbo-cache',
+          message: `${problem} (required from v0.8.0).`,
+          severity: turboCacheRequired(provenance?.release) ? 'error' : 'warning',
+        },
+      ]
+    : [];
+}
 export function processFindings(snapshot: ProcessSnapshot): Finding[] {
   if (snapshot.kind === 'source' || !snapshot.files['package.json']) return [];
   const found: Finding[] = [];
@@ -182,6 +202,7 @@ export function processFindings(snapshot: ProcessSnapshot): Finding[] {
   fileFindings(snapshot, add);
   const provenance = json(snapshot.files['.lvbt/web-platform.json']) as
     { commit?: string; contentHash?: string } | undefined;
+  found.push(...cacheFindings(snapshot));
   if (
     !/^[a-f0-9]{40}$/u.test(provenance?.commit ?? '') ||
     !/^[a-f0-9]{64}$/u.test(provenance?.contentHash ?? '')

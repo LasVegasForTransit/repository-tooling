@@ -8,7 +8,11 @@ rotated; generated secrets wait while another target cannot be observed.
 
 `lvbt check` now verifies standard integrity and reports command-contract drift. Consumer root
 commands match the templates, with product checks ordered by Turbo. New command rules warn in this
-minor release and become required in 0.8.0.
+minor release and become required in 0.8.0. The updater adds shared Turbo cache inputs for the
+standard fingerprint, tooling declarations and root workflows while preserving product globals and
+tasks. Missing inputs warn in 0.7 and fail from adopted 0.8 releases. Template publication executes
+the selected release's own updater, so repeated publication cannot inherit a different running
+standard's policy.
 
 `lvbt audit` runs shared link, Lighthouse, and dependency adapters. Trusted scheduled reports
 maintain one readable issue per check and target through the contribution helper, including verified

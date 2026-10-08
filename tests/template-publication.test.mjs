@@ -111,6 +111,15 @@ test('template publication vendors one exact release and is byte-for-byte idempo
 
     const metadata = await verifyPreset(target);
     assert.equal(metadata.release, 'v99.0.0');
+    const publishedTurbo = JSON.parse(await readFile(path.join(target, 'turbo.json'), 'utf8'));
+    const reviewedTurbo = JSON.parse(
+      await readFile(path.join(source, 'examples', example, 'turbo.json'), 'utf8'),
+    );
+    assert.deepEqual(
+      publishedTurbo.globalDependencies,
+      reviewedTurbo.globalDependencies,
+      'publishing an older reviewed release must not apply the running release cache migration',
+    );
     if (example !== 'basic') {
       const application = example === 'with-astro' ? 'site' : 'app';
       const deployment = JSON.parse(

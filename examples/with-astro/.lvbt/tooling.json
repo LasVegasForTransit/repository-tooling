@@ -21,7 +21,7 @@
     "workersDevSubdomainEnv": "LVBT_WORKERS_DEV_SUBDOMAIN",
     "attestation": {
       "signerWorkflow": "LasVegasForTransit/repository-tooling/.github/workflows/release-attest.yml",
-      "signerCommit": "c0ecd968983a175baa919042bc56c87cbb127d7c"
+      "signerCommit": "2cfa412166011accfb16374311dee22a61518e15"
     }
   },
   "audits": {

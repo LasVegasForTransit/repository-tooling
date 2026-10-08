@@ -17,4 +17,4 @@ concurrency:
 
 jobs:
   audit:
-    uses: LasVegasForTransit/repository-tooling/.github/workflows/audit.yml@b49317453a9e1d9ce2feda157a05782f803200d6
+    uses: LasVegasForTransit/repository-tooling/.github/workflows/audit.yml@2cfa412166011accfb16374311dee22a61518e15

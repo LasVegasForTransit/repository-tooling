@@ -332,6 +332,20 @@ test('an update runs the updater carried by the preset it installs', () =>
     }),
   ));
 
+test('the incoming updater resolves its reviewed sibling package policy, never the running release policy', () =>
+  fixture((root) =>
+    fixture(async (source) => {
+      const commit = await sourceCommit(source, {
+        'packages/cli/catalog.json': '{}\n',
+        'packages/cli/src/lib/check/turbo-cache.mjs':
+          'export const inputs = ["reviewed-policy"];\n',
+        'standards/web-platform.ts':
+          'import {inputs} from "../packages/cli/src/lib/check/turbo-cache.mjs"; export async function applyPreset() { return {consumerChanged: inputs}; }\n',
+      });
+      assert.deepEqual(runUpdate(root, source, commit).consumerChanged, ['reviewed-policy']);
+    }),
+  ));
+
 test('a preset without an updater is applied by the running one', () =>
   fixture((root) =>
     fixture(async (source) => {
