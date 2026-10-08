@@ -178,10 +178,12 @@ test('generated repositories authenticate GitHub Packages during installation', 
 test('publication commits an installable frozen lockfile', async () => {
   const propagate = await read('standards/propagate.ts');
 
-  assert.match(propagate, /'install', '--lockfile-only', '--no-frozen-lockfile'/);
+  assert.match(propagate, /'install', '--no-frozen-lockfile'/);
+  assert.doesNotMatch(propagate, /'--lockfile-only'/);
   assert.ok(
-    propagate.indexOf("'--lockfile-only'") < propagate.indexOf('git restore --staged . && git add'),
-    'the lockfile must be generated before the update commit',
+    propagate.indexOf("'install', '--no-frozen-lockfile'") <
+      propagate.indexOf('git restore --staged . && git add'),
+    'dependencies and lockfile must be installed before the real update commit hook',
   );
 });
 
