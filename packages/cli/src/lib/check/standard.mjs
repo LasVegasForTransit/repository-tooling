@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { readTooling } from '../tooling.mjs';
+import { turboCacheProblem, turboCacheRequired } from './turbo-cache.mjs';
 
 export const STANDARD_COMMANDS = {
   bootstrap: 'lvbt bootstrap',
@@ -27,6 +28,7 @@ export function standardCommandsFor({ vendored = false } = {}) {
 export async function checkStandard({ cwd }) {
   const lines = [];
   let ok = true;
+  let release = null;
   try {
     readTooling(cwd);
   } catch (error) {
@@ -48,6 +50,7 @@ export async function checkStandard({ cwd }) {
         pathToFileURL(path.join(vendor, 'owned-files.ts')).href
       );
       const metadata = await verifyPreset(cwd);
+      release = metadata.release;
       const drift = await ownedFileDrift(cwd, metadata.release);
       if (drift.length) {
         lines.push(...drift);
@@ -62,11 +65,24 @@ export async function checkStandard({ cwd }) {
       ok = false;
     }
   }
+  const cache = cacheCheck(cwd, release);
+  lines.push(...cache.lines);
+  ok = ok && cache.ok;
   return {
     name: 'standard',
     ok,
     lines,
     fix: 'Run pnpm standards:update for shared files; make shared behavior changes in repository-tooling, then migrate application-owned configuration.',
+  };
+}
+
+function cacheCheck(cwd, release) {
+  const turbo = path.join(cwd, 'turbo.json');
+  const problem = turboCacheProblem(existsSync(turbo) ? readFileSync(turbo, 'utf8') : null);
+  const required = turboCacheRequired(release);
+  return {
+    ok: !problem || !required,
+    lines: problem ? [`${required ? 'error' : 'warning'}: ${problem} (required from v0.8.0).`] : [],
   };
 }
 

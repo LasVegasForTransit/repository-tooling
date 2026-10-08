@@ -41,7 +41,9 @@ browser acceptance, and retain publication receipts. Publishing commands check t
 when used. An uncertain publication must be reconciled before another dispatch. Production promotion
 is an explicit operation. In a repository declaring a release profile, `lvbt deploy` rejects direct
 publication before building or contacting the provider and directs contributors to staging and
-`pnpm promote`. Its `--dry-run` option remains available for configuration validation.
+`pnpm promote`. Its `--dry-run` option remains available for configuration validation. The common
+[web-release setup guide](../how-to/set-up-a-web-release.md) covers account declarations, protected
+staging and maintainer readiness; application guides add their own configuration.
 
 ## Ownership and extensions
 

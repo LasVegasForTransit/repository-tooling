@@ -7,6 +7,7 @@ import { syncSetupEntrypoints } from './setup-entrypoints.ts';
 import { syncCommunityPublication } from './community-publication.ts';
 import { rejectSymlinkDestination } from './paths.ts';
 import { syncAstroTypesBeforeLint } from './astro-sync.ts';
+import { syncTurboCache } from './turbo-cache.ts';
 import {
   AGENT_WORKTREES,
   consumerIgnoreWarnings,
@@ -74,7 +75,7 @@ export async function verifyPreset(root: string): Promise<PresetMetadata> {
   return metadata;
 }
 
-function validateBundle(bundle: WebPreset): void {
+export function validateBundle(bundle: WebPreset): void {
   if (bundle.executables?.some((name) => !Object.hasOwn(bundle.files, name))) {
     throw new Error('Executable path is absent from the preset.');
   }
@@ -163,6 +164,7 @@ export async function applyPreset(root: string, bundle: WebPreset, dryRun = fals
         ...(await syncSetupEntrypoints(root, bundle, dry)),
         ...(await syncConsumerIgnores(root, dry)),
         ...(await syncAstroTypesBeforeLint(root, dry)),
+        ...(await syncTurboCache(root, dry)),
         ...(await seedFiles(root, bundle, dry)),
         ...(await syncOwnedFiles(root, bundle, dry)),
         ...(await syncPluginRef(root, bundle, dry)),
