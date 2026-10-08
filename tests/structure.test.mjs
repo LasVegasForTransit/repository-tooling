@@ -142,6 +142,26 @@ test('continuous integration uses the same pnpm setup contract', async () => {
   assert.match(setup, /NODE_AUTH_TOKEN: \$\{\{ github\.token \}\}/);
 });
 
+test('every source check workflow supplies history for installed-release compatibility', async () => {
+  for (const file of ['.github/workflows/ci.yml', '.github/workflows/publish.yml']) {
+    const workflow = await read(file);
+    assert.match(workflow, /fetch-depth: 0/, file);
+    assert.match(workflow, /run: pnpm check/, file);
+  }
+});
+
+test('every shared release build checkout supplies full history to the required gate', async () => {
+  for (const [file, count] of [
+    ['.github/workflows/release-build.yml', 2],
+    ['.github/workflows/release-pr-preview.yml', 1],
+  ]) {
+    const workflow = await read(file);
+    const checkouts = [...workflow.matchAll(/- name: Checkout\n[\s\S]*?(?= {6}- name:)/gu)];
+    assert.equal(checkouts.length, count, file);
+    for (const [checkout] of checkouts) assert.match(checkout, /fetch-depth: 0/, file);
+  }
+});
+
 test('generated repositories authenticate GitHub Packages during installation', async () => {
   for (const profile of ['basic', 'with-astro', 'with-vite-react']) {
     const setup = await read(`examples/${profile}/.github/actions/setup-node-pnpm/action.yml`);

@@ -23,6 +23,8 @@ jobs:
         with:
           ref: ${{ inputs.tag }}
           persist-credentials: false
+          # Compatibility checks exercise the installed published release history.
+          fetch-depth: 0
 
       - name: Setup Node + pnpm
         uses: ./.github/actions/setup-node-pnpm

@@ -152,6 +152,13 @@ function replacementValue(value, quote) {
   return quote === '"' ? JSON.stringify(value) : value;
 }
 
+function quotedYamlScalar(value) {
+  // Shared Prettier uses singleQuote. Double quotes avoid YAML apostrophe escaping where needed.
+  return value.includes("'") || [...value].some((character) => character.charCodeAt(0) < 32)
+    ? JSON.stringify(value)
+    : `'${value}'`;
+}
+
 /** Change shared pins alone; leave app-only overrides, comments and other pnpm fields intact. */
 export function updateOverrides(source, policy) {
   scalarSection(source, 'catalog');
@@ -168,7 +175,7 @@ export function updateOverrides(source, policy) {
   }
   const additions = Object.entries(canonical)
     .filter(([key]) => !Object.hasOwn(section.entries, key))
-    .map(([key, value]) => `  ${JSON.stringify(key)}: ${JSON.stringify(value)}`);
+    .map(([key, value]) => `  ${quotedYamlScalar(key)}: ${quotedYamlScalar(value)}`);
   if (additions.length) {
     if (section.start === -1) lines.splice(section.end, 0, 'overrides:', ...additions);
     else lines.splice(section.end, 0, ...additions);

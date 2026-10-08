@@ -264,6 +264,7 @@ test('web profiles validate the cf bundle after building their app', () => {
 
 test('the updater accepts either a release or an exact commit, never both', () =>
   fixture(async (root) => {
+    await writeFile(path.join(root, 'pnpm-workspace.yaml'), 'packages:\n  - packages/*\n');
     const repository = new URL('..', import.meta.url).pathname;
     const commit = execFileSync('git', ['-C', repository, 'rev-parse', 'HEAD'], {
       encoding: 'utf8',

@@ -3,6 +3,8 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
+import prettier from 'prettier';
+import prettierConfig from '../packages/prettier-config/index.js';
 import {
   scalarSection,
   updateOverrides,
@@ -47,7 +49,7 @@ test('canonical replacements preserve app-only overrides, unrelated fields and c
   const expected = source
     .replace('sharp: 0.35.4', 'sharp: 0.35.5')
     .replace("'7.0.0'", "'7.29.1'")
-    .replace('allowBuilds:', `  "braces": "${overrides.braces}"\nallowBuilds:`);
+    .replace('allowBuilds:', `  'braces': '${overrides.braces}'\nallowBuilds:`);
   assert.equal(updateOverrides(source, overrides), expected);
   assert.equal(updateOverrides(expected, overrides), expected);
   assert.deepEqual(overrideProblems(expected, overrides), []);
@@ -56,6 +58,26 @@ test('canonical replacements preserve app-only overrides, unrelated fields and c
     'pnpm-workspace.yaml overrides "undici@>=7 <8" is "7.0.0"; shared audited policy requires "7.29.1".',
     `pnpm-workspace.yaml overrides "braces" is missing; shared audited policy requires "${overrides.braces}".`,
   ]);
+});
+
+test('complete audited map and representative selectors produce shared Prettier-idempotent YAML', async () => {
+  const { overrides: standard } = JSON.parse(
+    await readFile(new URL('../packages/cli/catalog.json', import.meta.url), 'utf8'),
+  );
+  const policy = {
+    ...standard,
+    'package > child': 'npm:reviewed@1.2.3',
+    '@scope/name': '1.2.3',
+    "package's child": '1.2.3',
+  };
+  const source =
+    "packages:\n  - apps/*\noverrides:\n  sharp: 0.35.4 # keep rationale\n  'app > child': 'npm:app-fork@2.0.0' # app only\nallowBuilds:\n  esbuild: true\n";
+  const updated = updateOverrides(source, policy);
+  assert.equal(updated, await prettier.format(updated, { ...prettierConfig, parser: 'yaml' }));
+  assert.equal(scalarSection(updated, 'overrides').entries['app > child'], 'npm:app-fork@2.0.0');
+  assert.ok(updated.includes('# keep rationale'));
+  assert.ok(updated.includes('# app only'));
+  assert.equal(updateOverrides(updated, policy), updated);
 });
 
 test('literal quoted ranges, Git fragments and CRLF remain unchanged alongside new shared pins', () => {
@@ -165,7 +187,7 @@ test('contract warns for 0.7, enforces 0.8, and reports exact differing or missi
     await writeFile(path.join(root, 'pnpm-workspace.yaml'), source);
     assert.deepEqual(checkContract({ cwd: root }).lines, []);
     await mkdir(path.join(root, '.lvbt'));
-    const changed = source.replace('"sharp": "0.35.5"', '"sharp": "0.35.4"');
+    const changed = source.replace("'sharp': '0.35.5'", "'sharp': '0.35.4'");
     await writeFile(path.join(root, 'pnpm-workspace.yaml'), changed);
     for (const [release, ok, prefix] of [
       ['v0.7.0', true, 'warning'],
