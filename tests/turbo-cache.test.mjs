@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { execFile } from 'node:child_process';
+import { execFile, execFileSync, spawnSync } from 'node:child_process';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -8,6 +8,7 @@ import { promisify } from 'node:util';
 import { checkStandard } from '../packages/cli/src/lib/check/standard.mjs';
 import { processFindings, inventoryPaths } from '../standards/process-contract.ts';
 import { applyPreset, verifyPreset } from '../standards/web-platform.ts';
+import { readCommit, readRelease } from '../standards/web-platform-source.ts';
 
 const source = new URL('..', import.meta.url).pathname;
 const dependencies = ['.lvbt/web-platform.json', '.lvbt/tooling.json', '.github/workflows/**'];
@@ -123,6 +124,101 @@ test('every shipped workspace template declares shared Turbo cache inputs', asyn
     );
   }
 });
+
+for (const [name, ref] of [
+  ['C6', '54d56480d26709a56d61e89fe9ecec4ea39a4604'],
+  ['published v0.6.3', 'v0.6.3'],
+])
+  test(`the byte-for-byte installed ${name} updater installs the incoming cache policy once through its existing command`, () =>
+    fixture(async (root) => {
+      const incoming = path.join(root, 'incoming');
+      const installed = path.join(root, 'installed');
+      for (const directory of [incoming, installed])
+        execFileSync('git', ['clone', '--quiet', '--shared', source, directory]);
+      execFileSync('git', ['-C', installed, 'checkout', '--quiet', ref]);
+      for (const file of [
+        'standards/turbo-cache.ts',
+        'standards/web-platform.ts',
+        'standards/community-publication.ts',
+        'standards/owned-files.ts',
+      ])
+        await writeFile(path.join(incoming, file), await readFile(path.join(source, file)));
+      await rm(path.join(incoming, 'community-health'), { recursive: true, force: true });
+      await mkdir(path.join(incoming, 'standards/community-health/ISSUE_TEMPLATE'), {
+        recursive: true,
+      });
+      for (const file of [
+        'CONTRIBUTING.md',
+        'pull_request_template.md',
+        'ISSUE_TEMPLATE/bug.yml',
+        'ISSUE_TEMPLATE/feature.yml',
+        'ISSUE_TEMPLATE/config.yml',
+      ])
+        await writeFile(
+          path.join(incoming, 'standards/community-health', file),
+          await readFile(path.join(source, 'standards/community-health', file)),
+        );
+      const message = path.join(root, 'fixture-commit.txt');
+      await writeFile(message, 'test: pin incoming updater fixture\n');
+      execFileSync(
+        '/bin/sh',
+        [
+          '-c',
+          'git restore --staged . && git add --update && git add -- standards/turbo-cache.ts standards/web-platform.ts standards/community-publication.ts standards/owned-files.ts standards/community-health && git -c core.hooksPath=/dev/null -c user.name=Test -c user.email=test@example.org commit --quiet --allow-empty -F "$1"',
+          'sh',
+          message,
+        ],
+        { cwd: incoming },
+      );
+      const commit = execFileSync('git', ['-C', incoming, 'rev-parse', 'HEAD'], {
+        encoding: 'utf8',
+      }).trim();
+      const release = 'v99.10.0';
+      execFileSync('git', ['-C', incoming, 'tag', release, commit]);
+      const consumer = path.join(root, 'consumer');
+      await mkdir(consumer);
+      const tasks = { validate: { cache: false, dependsOn: ['own-product'] } };
+      await json(consumer, 'package.json', { name: 'first-update', private: true });
+      await applyPreset(
+        consumer,
+        ref.startsWith('v') ? readRelease(installed, ref) : readCommit(installed, ref),
+      );
+      const cli = path.join(consumer, '.lvbt/web-platform/standards/web-platform-cli.ts');
+      assert.equal(
+        await readFile(cli, 'utf8'),
+        execFileSync('git', ['-C', source, 'show', `${ref}:standards/web-platform-cli.ts`], {
+          encoding: 'utf8',
+        }),
+      );
+      await json(consumer, 'turbo.json', { globalDependencies: ['product.json'], tasks });
+      const update = () => {
+        const result = spawnSync(
+          process.execPath,
+          [
+            cli,
+            'update',
+            '--root',
+            consumer,
+            '--source',
+            incoming,
+            '--release',
+            release,
+            '--apply',
+            '--json',
+          ],
+          { encoding: 'utf8' },
+        );
+        assert.equal(result.status, 0, result.stdout + result.stderr);
+        return JSON.parse(result.stdout).plan;
+      };
+      assert.ok(update().consumerChanged.includes('turbo.json'));
+      assert.equal((await verifyPreset(consumer)).commit, commit);
+      assert.equal((await verifyPreset(consumer)).release, release);
+      const turbo = JSON.parse(await readFile(path.join(consumer, 'turbo.json'), 'utf8'));
+      assert.deepEqual(turbo.globalDependencies, ['product.json', ...dependencies]);
+      assert.deepEqual(turbo.tasks, tasks);
+      assert.deepEqual(update(), { added: [], changed: [], removed: [], consumerChanged: [] });
+    }));
 
 test('actual Turbo task hashes invalidate for standard metadata, tooling, and workflow changes', () =>
   fixture(async (root) => {

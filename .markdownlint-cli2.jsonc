@@ -21,7 +21,7 @@
     ".turbo",
     "CHANGELOG.md",
     // Issue and pull request templates are forms; each section is a top-level heading on purpose.
-    "community-health/**",
+    "standards/community-health/**",
     "packages/cli/plugins/**/assets/**",
     // Design records are historical and not held to the writing bar.
     "docs/superpowers/**",

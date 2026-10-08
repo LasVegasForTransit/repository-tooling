@@ -111,3 +111,22 @@ test('setup-record refuses to bless an existing tree outside the pnpm install li
       code: 'ENOENT',
     });
   }));
+
+test('configured local preflight probes scanner availability without scanning or publishing auth', () =>
+  fixture(async ({ cwd, exec }) => {
+    await writeFile(path.join(cwd, '.env.local'), 'API_KEY=\n');
+    await writeFile(path.join(cwd, '.gitleaks.toml'), '[extend]\nuseDefault = true\n');
+    const scanner = path.join(cwd, 'bin/gitleaks');
+    await writeFile(
+      scanner,
+      '#!/bin/sh\n[ "$1" = version ] || exit 99\necho version >> scanner-calls\necho 8.30.1\n',
+    );
+    await chmod(scanner, 0o755);
+    const result = exec('preflight');
+    assert.equal(result.status, 0, result.stdout + result.stderr);
+    assert.match(result.stdout, /secret scanner.*8\.30\.1/);
+    assert.doesNotMatch(result.stdout, /Cloudflare|GitHub CLI/);
+    assert.equal(await readFile(path.join(cwd, 'scanner-calls'), 'utf8'), 'version\n');
+    await assert.rejects(readFile(path.join(cwd, 'calls')), { code: 'ENOENT' });
+    assert.equal(await readFile(path.join(cwd, '.env.local'), 'utf8'), 'API_KEY=\n');
+  }));

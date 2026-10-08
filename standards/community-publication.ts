@@ -40,7 +40,9 @@ async function publicationContents(
   const contents: Record<string, string> = {};
   const hashes: Record<string, string> = {};
   for (const file of FILES) {
-    const content = bundle.files[`community-health/${file}`];
+    const content =
+      bundle.files[`standards/community-health/${file}`] ??
+      bundle.files[`community-health/${file}`];
     if (content === undefined) continue;
     const destination = file === 'CONTRIBUTING.md' ? file : `.github/${file}`;
     await rejectSymlinks(root, destination);

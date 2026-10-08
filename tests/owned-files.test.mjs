@@ -46,6 +46,19 @@ async function repository(t) {
   return directory;
 }
 
+test('a newly seeded contribution plugin pins the requested release on its first write', async (t) => {
+  const directory = await repository(t);
+  const incoming = await bundle('v9.9.9');
+  assert.deepEqual(await syncPluginRef(directory, incoming, true), ['.claude/settings.json']);
+  await assert.rejects(readFile(path.join(directory, '.claude/settings.json')));
+  await syncPluginRef(directory, incoming, false);
+  assert.match(
+    await readFile(path.join(directory, '.claude/settings.json'), 'utf8'),
+    /"ref": "v9\.9\.9"/,
+  );
+  assert.deepEqual(await syncPluginRef(directory, incoming, false), []);
+});
+
 test('canonical updating repairs shared hooks while preserving app files and seeded workflows', async (t) => {
   const directory = await repository(t);
   await mkdir(path.join(directory, '.githooks'));

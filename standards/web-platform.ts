@@ -164,7 +164,7 @@ export async function applyPreset(root: string, bundle: WebPreset, dryRun = fals
         ...(await syncSetupEntrypoints(root, bundle, dry)),
         ...(await syncConsumerIgnores(root, dry)),
         ...(await syncAstroTypesBeforeLint(root, dry)),
-        ...(await syncTurboCache(root, dry)),
+        ...(await syncTurboCache(root, bundle, dry)),
         ...(await seedFiles(root, bundle, dry)),
         ...(await syncOwnedFiles(root, bundle, dry)),
         ...(await syncPluginRef(root, bundle, dry)),

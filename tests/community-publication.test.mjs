@@ -19,14 +19,16 @@ test('community-health publication is generated from reviewed shared source with
       release: 'v0.7.0',
       commit: 'a'.repeat(40),
       files: {
-        'community-health/CONTRIBUTING.md': '# Contributing\n',
-        'community-health/pull_request_template.md': '# TL;DR\n',
+        'standards/community-health/CONTRIBUTING.md': '# Contributing\n',
+        'standards/community-health/pull_request_template.md': '# TL;DR\n',
+        'community-health/CONTRIBUTING.md': '# Older immutable layout\n',
       },
     };
     const preview = await applyPreset(root, bundle, true);
     assert.ok(preview.consumerChanged.includes('CONTRIBUTING.md'));
     await assert.rejects(readFile(path.join(root, 'CONTRIBUTING.md')));
     await applyPreset(root, bundle);
+    assert.equal(await readFile(path.join(root, 'CONTRIBUTING.md'), 'utf8'), '# Contributing\n');
     const provenance = JSON.parse(await readFile(path.join(root, 'SOURCE.json'), 'utf8'));
     assert.equal(provenance.ref, 'v0.7.0');
     assert.equal(provenance.commit, bundle.commit);
