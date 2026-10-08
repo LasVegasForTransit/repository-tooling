@@ -70,6 +70,8 @@ jobs:
         with:
           persist-credentials: false
           lfs: true
+          # The required gate includes full-history secret scanning.
+          fetch-depth: 0
       - name: Setup Node + pnpm
         uses: ./.github/actions/setup-node-pnpm
       - name: Build and retain reviewed release
@@ -89,6 +91,8 @@ jobs:
         with:
           persist-credentials: false
           lfs: true
+          # The required gate includes full-history secret scanning.
+          fetch-depth: 0
       - name: Setup Node + pnpm
         uses: ./.github/actions/setup-node-pnpm
       - name: Build and retain reviewed release

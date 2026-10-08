@@ -139,6 +139,8 @@ jobs:
         with:
           ref: ${{ github.sha }}
           lfs: true
+          # The required gate includes full-history secret scanning.
+          fetch-depth: 0
           persist-credentials: false
       - name: Setup Node + pnpm
         if: steps.credentials.outputs.configured == 'true'
