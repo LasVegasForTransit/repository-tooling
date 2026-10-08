@@ -1,3 +1,4 @@
+import { planWorkerBindings } from './plan-worker-bindings.mjs';
 import { planGovernance } from './plan-governance.mjs';
 import { planDomains, planGithubVariables } from './plan-infrastructure.mjs';
 import { planAccess } from './plan-access.mjs';
@@ -29,6 +30,7 @@ export function planPlatform({ manifest, state, configPath }) {
   const context = { manifest, state, configPath };
   return [
     ...planWorker(context),
+    ...planWorkerBindings(context),
     ...planDomains(context),
     ...planD1(context),
     ...planR2(context),

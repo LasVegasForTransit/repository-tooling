@@ -191,7 +191,7 @@ export async function packageWorkerCfRelease(
       path.join(destination, 'worker-bindings.json'),
       `${JSON.stringify({ production: built.env, preview }, null, 2)}\n`,
     );
-    return await sealSavedRelease(destination, identity, 'worker');
+    return await sealSavedRelease(destination, identity, 'worker', 2);
   } catch (error) {
     await rm(destination, { recursive: true, force: true });
     throw error;

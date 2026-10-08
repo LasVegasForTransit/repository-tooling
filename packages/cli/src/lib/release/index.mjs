@@ -2,6 +2,7 @@ import { CliError } from '../arguments.mjs';
 import { runRelease } from './runner.mjs';
 export { promote } from './promote.mjs';
 const flags = [
+  'app',
   'directory',
   'commit',
   'release-id',
@@ -20,7 +21,7 @@ export async function release({ cwd, options = {} }) {
   if (options.dryRun || options.production || options.staged)
     throw new CliError('Select an explicit release operation and target.', 2);
   const positionals = options.positional ?? [];
-  const mode = ['publication', 'smoke'].includes(positionals[0])
+  const mode = ['publication', 'smoke', 'migrate'].includes(positionals[0])
     ? positionals[0]
     : 'worker-release';
   const args = mode !== 'worker-release' ? positionals.slice(1) : [...positionals];

@@ -3,6 +3,9 @@ name: Resolve retained staging release
 on:
   workflow_call:
     inputs:
+      app:
+        type: string
+        required: false
       preview-environment:
         type: string
         required: false
@@ -29,6 +32,7 @@ jobs:
     timeout-minutes: 15
     environment: ${{ inputs.preview-environment }}
     env:
+      LVBT_RELEASE_APP: ${{ inputs.app }}
       LVBT_PRODUCTION_URL: ${{ vars.LVBT_PRODUCTION_URL }}
       LVBT_PREVIEW_URL: ${{ vars.LVBT_PREVIEW_URL }}
       LVBT_PREVIEW_BINDINGS: ${{ vars.LVBT_PREVIEW_BINDINGS }}

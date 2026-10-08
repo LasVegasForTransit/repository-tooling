@@ -173,17 +173,20 @@ export function planR2({ manifest, state, configPath }) {
         next: `${SETUP} creates it`,
         action: { type: 'r2.create', name: bucket.name },
       });
-    const bound = state.config.ok
-      ? state.config.value.r2.find((entry) => entry.binding === bucket.binding)
-      : undefined;
-    if (state.config.ok && bound?.name !== bucket.name)
+    const config = configForEnvironment(state.config, bucket.environment);
+    if (!config.ok) return unknownItem(fields, config);
+    const bound = (config.value.r2 ?? []).find((entry) => entry.binding === bucket.binding);
+    const location = bucket.environment
+      ? `${bucket.environment} environment of ${configPath}`
+      : configPath;
+    if (bound?.name !== bucket.name)
       return item({
         ...fields,
         status: 'mismatch',
-        detail: `${configPath} does not bind ${bucket.binding} to ${bucket.name}`,
+        detail: `${location} does not bind ${bucket.binding} to ${bucket.name}`,
         next: configPath.endsWith('.ts')
-          ? `set worker.env.${bucket.binding} to bindings.r2({ name: "${bucket.name}" }) in ${configPath}`
-          : `add it to r2_buckets in ${configPath}`,
+          ? `set worker.env.${bucket.binding} to bindings.r2({ name: "${bucket.name}" }) in ${location}`
+          : `add it to r2_buckets in ${location}`,
       });
     return item({ ...fields, status: 'ok', detail: `exists and is bound as ${bucket.binding}` });
   });

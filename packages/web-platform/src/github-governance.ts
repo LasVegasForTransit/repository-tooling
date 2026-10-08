@@ -71,10 +71,12 @@ export async function githubGovernanceDoctor(
     ),
     check(
       'security-updates',
-      'Settings → Code security: enable Dependabot security updates.',
+      'Settings → Code security: enable and unpause Dependabot security updates.',
       async () => {
-        await read(`${base}/automated-security-fixes`);
-        return true;
+        const updates = z
+          .object({ enabled: z.boolean(), paused: z.boolean() })
+          .parse(await read(`${base}/automated-security-fixes`));
+        return updates.enabled && !updates.paused;
       },
     ),
   ]);

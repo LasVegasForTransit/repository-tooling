@@ -4,6 +4,15 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import { checkStandard } from '../packages/cli/src/lib/check/standard.mjs';
+import * as standard from '../packages/cli/src/lib/check/standard.mjs';
+test('remote inventory can use the same pure vendored command contract', () => {
+  assert.equal(typeof standard.standardCommandsFor, 'function');
+  assert.equal(
+    standard.standardCommandsFor({ vendored: true }).bootstrap,
+    'node .lvbt/web-platform/packages/cli/src/cli.mjs bootstrap',
+  );
+  assert.equal(standard.standardCommandsFor({ vendored: false }).preflight, 'lvbt preflight');
+});
 test('standard command drift warns with a concrete upstream migration action', async () => {
   const cwd = await mkdtemp(path.join(os.tmpdir(), 'lvbt-standard-check-'));
   try {

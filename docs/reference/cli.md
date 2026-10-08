@@ -6,15 +6,18 @@ binary. It needs Node.js 24.20 or newer on the 24 line, and git.
 
 ## Commands
 
-| Command                       | Purpose                                                                                           | Exit code                   |
-| ----------------------------- | ------------------------------------------------------------------------------------------------- | --------------------------- |
-| `lvbt bootstrap`              | `pnpm install`, then the local preflight checks                                                   | as preflight                |
-| `lvbt bootstrap --production` | The same, then set up everything the repository's `platform.json` declares, asking as it goes     | 0 ready, 1 open, 2 no tty   |
-| `lvbt preflight`              | Check Node, pnpm, dependencies, hooks, scopes, and declared local configuration                   | 0 pass, 1 fail              |
-| `lvbt preflight --production` | The same, then report whether production has everything `platform.json` declares; changes nothing | 0 ready, 1 not ready        |
-| `lvbt check [name ...]`       | The shared repository-shape rules: `filenames`, `contract`, `debt`, `platform` (all by default)   | 0 pass, 1 fail, 2 bad usage |
-| `lvbt deploy [--filter x]`    | `pnpm build`, then `cf deploy` for cf projects or `wrangler deploy` for legacy projects           | 0 done, 2 nothing to deploy |
-| `lvbt help`                   | Print usage                                                                                       | 0                           |
+| Command                          | Purpose                                                                                                | Exit code                              |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------ | -------------------------------------- |
+| `lvbt bootstrap`                 | `pnpm install`, then the local preflight checks                                                        | as preflight                           |
+| `lvbt bootstrap --production`    | The same, then set up everything the repository's `platform.json` declares, asking as it goes          | 0 ready, 1 open, 2 no tty              |
+| `lvbt preflight`                 | Check Node, pnpm, dependencies, hooks, scopes, and declared local configuration                        | 0 pass, 1 fail                         |
+| `lvbt preflight --production`    | The same, then report whether production has everything `platform.json` declares; changes nothing      | 0 ready, 1 not ready                   |
+| `lvbt check [name ...]`          | Standard integrity and shape: `standard`, `filenames`, `contract`, `debt`, `platform` (all by default) | 0 pass, 1 fail, 2 bad usage            |
+| `lvbt audit [check]`             | Configured local link, Lighthouse, and dependency checks; explicit production target                   | 0 pass, 1 findings/errors, 2 bad usage |
+| `lvbt audit report --input file` | Verify CI evidence and reconcile its audit-owned issues; preview with `--dry-run`                      | 0 reported, 1 reporting failure        |
+| `lvbt promote [--app name]`      | Select a saved staging release and request explicit production promotion                               | 0 dispatched/reconciled, 1 failure     |
+| `lvbt deploy [--filter x]`       | `pnpm build`, then `cf deploy` for cf projects or `wrangler deploy` for legacy projects                | 0 done, 2 nothing to deploy            |
+| `lvbt help`                      | Print usage                                                                                            | 0                                      |
 
 `lvbt check filenames --staged` checks the staged tree, which the pre-commit hook uses.
 `lvbt deploy --dry-run` builds and runs the selected Cloudflare CLI with `--dry-run`. A
@@ -30,6 +33,31 @@ manifest declares; `--rotate` takes one name or several separated by commas, and
 
 Through pnpm, the flags pass straight to the script: `pnpm bootstrap --production` and
 `pnpm preflight --production`.
+
+Generated repositories use the direct vendored Node entrypoints for bootstrap and preflight, so a
+fresh clone can run them before installing dependencies. `verifyDepsBeforeRun: false` in
+pnpm-workspace.yaml prevents pnpm from auto-installing before the read-only command. Preflight also
+compares the installed Node/pnpm/lockfile fingerprint; an old install names `pnpm bootstrap` as its
+correction.
+
+## Audits and saved releases
+
+Use `pnpm run audit`, because `pnpm audit` is pnpm's built-in advisory command. Configuration in
+`.lvbt/tooling.json` selects the underlying command, output format, route budgets, and local or
+production target. Use `--json --output <file>` to retain a normalized report. The shared audit
+workflow runs configured adapters and the contribution helper; consumer workflows declare triggers,
+permissions, and product inputs. Local runs and PR runs cannot change audit-owned issues.
+
+Release profiles share one declaration and select an app with `pnpm promote --app <name>`. Multiple
+apps must use distinct artifact prefixes, Workers, and origins. The `typed-worker` adapter reads the
+canonical typed configuration and compiles through a generated temporary compatibility config;
+consumer copies of settings are unnecessary. Preview resources are explicit, isolated declarations,
+and preview schedules are disabled. Product acceptance remains in the repository.
+
+Declare SQL migrations by binding and directory in the release profile. Their files travel with the
+saved artifact and its checksums. Shared publication applies the selected artifact's migrations and
+settings, rather than reading newer checkout files. Production is updated only by an explicit
+promotion or an explicitly invoked recovery operation.
 
 ## Preflight checks
 
@@ -52,8 +80,8 @@ Each failing check prints the command that fixes it.
 steps. An account-owned `LVBT_CLOUDFLARE_SETUP_TOKEN` can then set up Turnstile and Access without
 signing in to cf. If setup needs to create a D1 database, create an R2 bucket, or apply D1
 migrations through cf, provide a token with those permissions in `CLOUDFLARE_API_TOKEN` for that
-session or sign in with `pnpm exec cf auth login`. Ordinary `preflight` still requires cf
-authentication before reporting the machine ready to deploy.
+session or sign in with `pnpm exec cf auth login`. Ordinary `preflight` reports local development
+readiness without checking publishing authentication.
 
 ## Production checks
 

@@ -16,6 +16,7 @@ const flags = new Set([
   '--wait-for-propagation',
 ]);
 const valued = new Set([
+  '--app',
   '--filter',
   '--rotate',
   '--target',

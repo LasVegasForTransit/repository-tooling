@@ -28,8 +28,8 @@ const usage = `Usage:
   lvbt check [standard|filenames|contract|debt|platform ...] [--staged]
   lvbt audit [links|lighthouse|dependencies] [--target local|production] [--json] [--output file]
   lvbt audit report --input file [--dry-run]
-  lvbt release <source|package|verify|upload|activate|publication> [options]
-  lvbt promote [--run-id id]
+  lvbt release <source|package|verify|upload|migrate|activate|publication|smoke> [--app name] [options]
+  lvbt promote [--app name] [--run-id id]
   lvbt deploy [--filter <app>] [--dry-run]
 
 Options:

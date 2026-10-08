@@ -35,3 +35,29 @@ test('reviewed releases cannot switch either configured Worker namespace', () =>
     ),
   ).toThrow('Worker');
 });
+test('preview uploads cannot share writable photo buckets or enable production schedules', () => {
+  expect(() =>
+    assertWorkerReleaseConfiguration(
+      {
+        ...config,
+        r2_buckets: [{ binding: 'PHOTOS', bucket_name: 'production-photos' }],
+        env: {
+          preview: {
+            ...config.env.preview,
+            r2_buckets: [{ binding: 'PHOTOS', bucket_name: 'production-photos' }],
+          },
+        },
+      },
+      identity,
+    ),
+  ).toThrow('R2');
+  expect(() =>
+    assertWorkerReleaseConfiguration(
+      {
+        ...config,
+        env: { preview: { ...config.env.preview, triggers: { crons: ['0 13 * * *'] } } },
+      },
+      identity,
+    ),
+  ).toThrow('schedule');
+});

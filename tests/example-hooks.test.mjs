@@ -4,9 +4,9 @@ import { rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import test, { after } from 'node:test';
 
-import { copies, installedCopy } from './example.test.mjs';
+import { copies, installedCopy } from './support/examples.mjs';
 
-// The example copies made here are removed with the ones example.test.mjs makes.
+// The example copies made here are removed with the ones the shared fixture makes.
 after(async () => {
   for (const copy of copies.splice(0)) await rm(copy, { recursive: true, force: true });
 });

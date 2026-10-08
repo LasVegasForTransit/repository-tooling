@@ -33,8 +33,15 @@ function typeOf(value) {
 }
 
 function resolve(root, reference) {
-  const match = /^#\/\$defs\/([A-Za-z0-9_-]+)$/.exec(reference);
-  const target = match ? root.$defs?.[match[1]] : undefined;
+  const target = reference.startsWith('#/')
+    ? reference
+        .slice(2)
+        .split('/')
+        .reduce((value, key) => {
+          const decoded = key.replaceAll('~1', '/').replaceAll('~0', '~');
+          return value && Object.hasOwn(value, decoded) ? value[decoded] : undefined;
+        }, root)
+    : undefined;
   if (!target) throw new Error(`Unsupported or unknown schema reference ${reference}.`);
   return target;
 }

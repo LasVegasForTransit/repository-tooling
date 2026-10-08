@@ -12,7 +12,7 @@ const identitySchema = z
   .strict();
 const releaseSchema = identitySchema
   .extend({
-    formatVersion: z.literal(1),
+    formatVersion: z.union([z.literal(1), z.literal(2)]),
     artifactHash: digest,
     artifactKind: z.literal('worker').optional(),
     files: z.array(z.tuple([z.string().min(1), digest])),
@@ -40,12 +40,12 @@ async function inventory(directory: string, relative = ''): Promise<[string, str
 }
 
 function artifactHash(
-  identity: Identity & { artifactKind?: 'worker' | undefined },
+  identity: Identity & { artifactKind?: 'worker' | undefined; formatVersion?: 1 | 2 },
   files: [string, string][],
 ): string {
   return hash(
     JSON.stringify({
-      formatVersion: 1,
+      formatVersion: identity.formatVersion ?? 1,
       commit: identity.commit,
       releaseId: identity.releaseId,
       ...(identity.artifactKind ? { artifactKind: identity.artifactKind } : {}),
@@ -82,11 +82,14 @@ async function acceptAssets(
       throw new Error('Release contains a preview-only test language.');
   }
 }
+export interface SavedReleaseOptions extends ArtifactAcceptance {
+  formatVersion?: 1 | 2;
+}
 export async function packageRelease(
   source: string,
   destination: string,
   identity: Identity,
-  acceptance: ArtifactAcceptance = {},
+  acceptance: SavedReleaseOptions = {},
 ): Promise<WebsiteRelease> {
   identitySchema.parse(identity);
   const assets = await inventory(path.join(source, 'dist'));
@@ -106,13 +109,14 @@ export async function packageRelease(
     path.join(destination, 'dist/lvbt-release.json'),
     `${JSON.stringify(identity)}\n`,
   );
-  return await sealSavedRelease(destination, identity);
+  return await sealSavedRelease(destination, identity, undefined, acceptance.formatVersion ?? 1);
 }
 
 export async function sealSavedRelease(
   directory: string,
   identity: Identity,
   artifactKind?: 'worker',
+  formatVersion: 1 | 2 = 1,
 ): Promise<WebsiteRelease> {
   identitySchema.parse(identity);
   const files = await inventory(directory);
@@ -122,9 +126,8 @@ export async function sealSavedRelease(
     !files.some(([name]) => name === 'wrangler.jsonc')
   )
     throw new Error('Release requires its entry point and compiled Worker.');
-  const taggedIdentity = { ...identity, ...(artifactKind ? { artifactKind } : {}) };
+  const taggedIdentity = { ...identity, formatVersion, ...(artifactKind ? { artifactKind } : {}) };
   const release: WebsiteRelease = {
-    formatVersion: 1,
     ...taggedIdentity,
     files,
     artifactHash: artifactHash(taggedIdentity, files),

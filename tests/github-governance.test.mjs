@@ -25,7 +25,7 @@ function reader(overrides = {}) {
     '/rulesets': [{ ...standard, id: 1 }],
     '/rulesets/1': standard,
     '/vulnerability-alerts': null,
-    '/automated-security-fixes': null,
+    '/automated-security-fixes': { enabled: true, paused: false },
     ...overrides,
   };
   return async (endpoint) => {
@@ -61,4 +61,27 @@ test('unreadable security inventory cannot establish ready governance', async ()
     reader({ '/vulnerability-alerts': new Error('Forbidden') }),
   );
   assert.equal(checks.find((c) => c.id === 'vulnerability-alerts').status, 'unknown');
+});
+
+test('paused or disabled Dependabot security updates require repair', async () => {
+  for (const updates of [
+    { enabled: true, paused: true },
+    { enabled: false, paused: false },
+  ]) {
+    const checks = await githubGovernanceDoctor(
+      { repository: 'LVBT/example', ruleset: standard },
+      reader({ '/automated-security-fixes': updates }),
+    );
+    assert.equal(checks.find((c) => c.id === 'security-updates').status, 'fail');
+  }
+});
+
+test('malformed Dependabot security update evidence cannot establish readiness', async () => {
+  for (const updates of [null, {}, { enabled: true }, { enabled: 'true', paused: false }]) {
+    const checks = await githubGovernanceDoctor(
+      { repository: 'LVBT/example', ruleset: standard },
+      reader({ '/automated-security-fixes': updates }),
+    );
+    assert.equal(checks.find((c) => c.id === 'security-updates').status, 'unknown');
+  }
 });

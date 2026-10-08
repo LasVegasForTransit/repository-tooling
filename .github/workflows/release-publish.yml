@@ -3,6 +3,9 @@ name: Verify and activate retained release
 on:
   workflow_call:
     inputs:
+      app:
+        type: string
+        required: false
       production-environment:
         type: string
         required: false
@@ -65,6 +68,7 @@ jobs:
         inputs.production-environment }}
       url: ${{ inputs.url }}
     env:
+      LVBT_RELEASE_APP: ${{ inputs.app }}
       LVBT_PRODUCTION_URL: ${{ vars.LVBT_PRODUCTION_URL }}
       LVBT_PREVIEW_URL: ${{ vars.LVBT_PREVIEW_URL }}
       LVBT_PREVIEW_BINDINGS: ${{ vars.LVBT_PREVIEW_BINDINGS }}
@@ -137,12 +141,17 @@ jobs:
           else
             pnpm --dir "$ACCEPTANCE_DIRECTORY" "$BROWSER_SCRIPT"
           fi
+      - name: Apply retained schema to selected target
+        run: >-
+          pnpm exec lvbt release migrate --directory "$RUNNER_TEMP/website-release" --commit
+          "$RELEASE_COMMIT" --release-id "$RELEASE_ID" --target "$TARGET"
       - name: Activate verified version
         id: activate
         env:
           VERSION_ID: ${{ steps.upload.outputs.version }}
         run: >-
-          pnpm exec lvbt release activate --target "$TARGET" --version "$VERSION_ID"
+          pnpm exec lvbt release activate --directory "$RUNNER_TEMP/website-release" --commit
+          "$RELEASE_COMMIT" --release-id "$RELEASE_ID" --target "$TARGET" --version "$VERSION_ID"
       - name: Verify activated origin
         id: public
         run: |
@@ -179,7 +188,9 @@ jobs:
         if: always() && inputs.target == 'production'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: publication-${{ github.run_id }}-${{ github.run_attempt }}
+          name:
+            publication-${{ github.run_id }}-${{ github.run_attempt }}${{ inputs.app != '' &&
+            format('-{0}', inputs.app) || '' }}
           path: ${{ runner.temp }}/publication/
           if-no-files-found: warn
           retention-days: 90
