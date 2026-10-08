@@ -1,7 +1,7 @@
 {
   "name": "lvbt-repository-tooling",
   "private": true,
-  "version": "0.6.3",
+  "version": "0.7.0",
   "type": "module",
   "description": "Source of truth for the LVBT repository standard: the shared @lasvegasfortransit packages and the example repositories create-turbo copies.",
   "packageManager": "pnpm@11.25.0",
@@ -9,8 +9,8 @@
     "node": "^24.20.0"
   },
   "scripts": {
-    "bootstrap": "lvbt bootstrap",
-    "preflight": "lvbt preflight",
+    "bootstrap": "node packages/cli/src/cli.mjs bootstrap",
+    "preflight": "node packages/cli/src/cli.mjs preflight",
     "build": "pnpm check-types",
     "check": "pnpm format:check && markdownlint-cli2 && pnpm lint && pnpm check-types && pnpm test",
     "check-types": "tsc --project standards/tsconfig.json",
@@ -21,7 +21,8 @@
     "lint:fix": "eslint . --fix",
     "test": "node --import tsx --test --test-concurrency=1 'tests/**/*.test.mjs' && pnpm --filter @lasvegasfortransit/web-platform test",
     "prepare": "git config --local core.hooksPath .githooks 2>/dev/null || true",
-    "standards:status": "node standards/status.ts"
+    "standards:status": "node standards/status.ts",
+    "audit": "lvbt audit"
   },
   "devDependencies": {
     "@astrojs/check": "catalog:",

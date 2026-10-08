@@ -367,6 +367,7 @@ test('lvbt check debt lets a newly adopted rule be recorded once but never lets 
 
 test('preflight names the fix for every failing check and passes once they are done', async () => {
   const repository = await installedCopy('basic');
+  await writeFile(path.join(repository, 'pnpm-lock.yaml'), 'lockfileVersion: 9.0\n');
   const packagePath = path.join(repository, 'package.json');
   const packageJson = await json(packagePath);
   // Preflight compares against this machine; the copy pins whatever is installed here.

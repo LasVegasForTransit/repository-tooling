@@ -42,3 +42,23 @@ node "${CLAUDE_PLUGIN_ROOT}/scripts/github-create.mjs" pr \
 
 Add `--json` for machine-readable output. Remove `--dry-run` only after the preview is correct. Do
 not replace the helper with `gh issue create`, `gh pr create`, `gh api`, or a GitHub connector.
+
+## Verified audit automation
+
+Scheduled and manual audit workflows on the default branch use the same helper:
+
+```bash
+node "${CLAUDE_PLUGIN_ROOT}/scripts/github-create.mjs" audit \
+  --input lvbt-audit-report.json --dry-run --json
+```
+
+Inspect the complete actions, titles, bug headings, reproduction commands, findings, and artifact
+links before removing `--dry-run`. The helper validates the GitHub run, its configured workflow, and
+the downloaded report artifact before changing issues. It rejects stale runs and ambiguous
+ownership. Each check and target owns one issue with the visible `audit-owned`, `audit:<check>`, and
+`target:<target>` labels. Failure updates or reopens that issue; a corresponding verified passing
+result closes it. Errors, skipped checks, and absent results never close an issue.
+
+The workflow must serialize reporting with one concurrency group per repository and must upload
+`lvbt-audit-report.json` to the configured audit artifact before reporting. Local execution and
+untrusted pull request runs may produce reports but cannot maintain audit issues.

@@ -3,11 +3,17 @@ import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { CliError } from './arguments.mjs';
 import { exists, readJson } from './files.mjs';
+import { checkInstall, recordInstall } from './install-fingerprint.mjs';
+import { localEnvironment } from './local-environment.mjs';
 import { findManifests } from './platform/manifest.mjs';
 import { platformBootstrap, platformPreflight } from './platform/index.mjs';
 
 function output(command, args, cwd) {
-  const result = spawnSync(command, args, { cwd, encoding: 'utf8' });
+  const result = spawnSync(command, args, {
+    cwd,
+    encoding: 'utf8',
+    env: { ...process.env, pnpm_config_verify_deps_before_run: 'error' },
+  });
   return result.status === 0 ? result.stdout.trim() : undefined;
 }
 
@@ -113,7 +119,7 @@ export async function deployables(cwd) {
   return [...found.values()];
 }
 
-async function toolchainFindings(cwd, packageJson, report) {
+async function toolchainFindings(cwd, packageJson, report, { includeDependencies = true } = {}) {
   const nodeRange = packageJson.engines?.node ?? '>=24';
   if (satisfies(process.versions.node, nodeRange))
     report.pass('Node.js', `${process.versions.node} satisfies ${nodeRange}`);
@@ -146,12 +152,17 @@ async function toolchainFindings(cwd, packageJson, report) {
     );
   else report.pass('pnpm', `${pnpm} matches packageManager`);
 
-  if (await exists(path.join(cwd, 'node_modules')))
+  if (!includeDependencies) return;
+  if (await exists(path.join(cwd, 'node_modules'))) {
     report.pass('dependencies', 'node_modules is present');
-  else report.fail('dependencies', 'node_modules is missing', 'pnpm install');
+    const installed = checkInstall(cwd, { pnpm });
+    if (!installed.ok) report.fail(installed.label, installed.detail, installed.fix);
+    else if (installed.warning) report.warn(installed.label, installed.detail, installed.fix);
+    else report.pass(installed.label, installed.detail);
+  } else report.fail('dependencies', 'node_modules is missing', 'pnpm install');
 }
 
-async function repositoryFindings(cwd, report) {
+async function repositoryFindings(cwd, report, { production = false } = {}) {
   const hooksPath = output('git', ['config', '--local', 'core.hooksPath'], cwd);
   if (hooksPath === '.githooks') report.pass('git hooks', 'core.hooksPath is .githooks');
   else
@@ -172,7 +183,8 @@ async function repositoryFindings(cwd, report) {
       "copy .lvbt/commit-scopes.txt from the standard example and list this repository's scopes",
     );
 
-  // Issues and pull requests are created by people, so a runner does not need gh.
+  if (!production) return;
+  // Publishing operations check authentication; ordinary local setup does not.
   if (process.env.CI) {
     report.pass('GitHub CLI', 'not needed in CI');
     return;
@@ -243,7 +255,16 @@ async function cloudflareFindings(cwd, report, { productionBootstrap = false } =
  * command that fixes it. Returns the failures instead of throwing, so
  * `--production` can still report on production.
  */
-async function machineFindings(cwd, { productionBootstrap = false } = {}) {
+async function machineFindings(
+  cwd,
+  {
+    production = false,
+    productionBootstrap = false,
+    toolsOnly = false,
+    includeDependencies = true,
+    localApply = false,
+  } = {},
+) {
   const packageJson = await readJson(path.join(cwd, 'package.json'));
   const findings = [];
   const report = {
@@ -252,16 +273,14 @@ async function machineFindings(cwd, { productionBootstrap = false } = {}) {
     fail: (label, detail, fix) => findings.push({ ok: false, label, detail, fix }),
   };
 
-  await toolchainFindings(cwd, packageJson, report);
-  await repositoryFindings(cwd, report);
-  await cloudflareFindings(cwd, report, { productionBootstrap });
-
-  for (const finding of findings) {
-    process.stdout.write(
-      `  ${finding.warning ? 'WARN' : finding.ok ? 'ok  ' : 'FAIL'}  ${finding.label.padEnd(14)} ${finding.detail}\n`,
-    );
-    if (finding.fix) process.stdout.write(`        fix: ${finding.fix}\n`);
+  await toolchainFindings(cwd, packageJson, report, { includeDependencies });
+  if (!toolsOnly) {
+    await repositoryFindings(cwd, report, { production });
+    if (!production) findings.push(...localEnvironment(cwd, { apply: localApply }));
+    if (production) await cloudflareFindings(cwd, report, { productionBootstrap });
   }
+
+  printFindings(findings);
   const failed = findings.filter((finding) => !finding.ok);
   if (failed.length === 0)
     process.stdout.write(`preflight: all ${findings.length} checks passed\n`);
@@ -280,7 +299,7 @@ export async function preflight({ cwd, options = {} }) {
       'preflight never changes anything; use --rotate with pnpm bootstrap --production.',
       2,
     );
-  const machine = await machineFindings(cwd);
+  const machine = await machineFindings(cwd, { production: options.production });
   if (options.production) {
     try {
       await platformPreflight({ cwd, options });
@@ -300,11 +319,18 @@ export async function preflight({ cwd, options = {} }) {
 export async function bootstrap({ cwd, options = {} }) {
   if (options.rotate !== undefined && !options.production)
     throw new CliError('--rotate replaces production secrets, so it needs --production.', 2);
+  const tools = await machineFindings(cwd, { toolsOnly: true, includeDependencies: false });
+  if (tools) throw new CliError(tools, 1);
   process.stdout.write('pnpm install\n');
   const install = spawnSync('pnpm', ['install'], { cwd, stdio: 'inherit' });
   if (install.status !== 0)
     throw new CliError('bootstrap: pnpm install failed', install.status ?? 1);
-  const machine = await machineFindings(cwd, { productionBootstrap: options.production });
+  recordInstall(cwd, { pnpm: output('pnpm', ['--version'], cwd) });
+  const machine = await machineFindings(cwd, {
+    production: options.production,
+    productionBootstrap: options.production,
+    localApply: !options.production,
+  });
   if (machine) throw new CliError(machine, 1);
   if (options.production) {
     await platformBootstrap({ cwd, options });
@@ -365,4 +391,28 @@ export async function deploy({ cwd, options }) {
         result.status ?? 1,
       );
   }
+}
+
+function printFindings(findings) {
+  for (const finding of findings) {
+    process.stdout.write(
+      `  ${finding.warning ? 'WARN' : finding.ok ? 'ok  ' : 'FAIL'}  ${finding.label.padEnd(14)} ${finding.detail}\n`,
+    );
+    if (finding.fix) process.stdout.write(`        fix: ${finding.fix}\n`);
+  }
+}
+
+/** Postinstall only: a manual invocation must not bless a stale dependency tree. */
+export function setupRecord({ cwd, options = {} }) {
+  if (
+    process.env.npm_lifecycle_event !== 'postinstall' ||
+    !process.env.npm_config_user_agent?.startsWith('pnpm/')
+  )
+    throw new CliError(
+      'setup-record runs only from pnpm postinstall; use pnpm bootstrap to install and record the tree.',
+      2,
+    );
+  if (options.production || options.rotate || options.positional?.length)
+    throw new CliError('setup-record accepts no arguments.', 2);
+  recordInstall(cwd, { pnpm: output('pnpm', ['--version'], cwd) });
 }

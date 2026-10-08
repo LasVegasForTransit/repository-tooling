@@ -319,3 +319,56 @@ test('an Access application whose identity provider is gone waits instead of gue
   assert.equal(app.status, 'mismatch');
   assert.equal(app.action, undefined);
 });
+
+test('list-only future secrets never offer provisioning actions', () => {
+  const plan = planAfter(
+    (state) => {
+      state.worker.value.secrets = [];
+    },
+    (manifest) => {
+      manifest.secrets = [
+        {
+          name: 'UNUSED_KEY',
+          purpose: 'Not built',
+          use: 'future',
+          listOnly: true,
+          steps: ['Do not create a key.'],
+        },
+      ];
+    },
+  );
+  const secret = plan.byId('secret:UNUSED_KEY:worker');
+  assert.equal(secret.action, undefined);
+  assert.equal(plan.ready, true);
+});
+test('generated values wait when another target could not be observed', () => {
+  const plan = planAfter(
+    (state) => {
+      state.worker.value.secrets = [];
+      state.github = unknown('missing inventory access');
+    },
+    (manifest) => {
+      manifest.secrets = [
+        {
+          name: 'SIGNING_SECRET',
+          purpose: 'Signs links.',
+          generate: true,
+          targets: ['worker', 'github:production'],
+        },
+      ];
+    },
+  );
+  assert.equal(plan.byId('secret:SIGNING_SECRET:worker').action, undefined);
+  assert.match(plan.byId('secret:SIGNING_SECRET:worker').detail, /cannot|unknown|check/i);
+});
+
+test('rotation refuses list-only future credentials', async () => {
+  const { rotationNames } = await import('../packages/cli/src/lib/platform/index.mjs');
+  assert.throws(
+    () =>
+      rotationNames('UNUSED_KEY', [
+        { secrets: [{ name: 'UNUSED_KEY', use: 'future', listOnly: true }] },
+      ]),
+    /future|list-only/,
+  );
+});

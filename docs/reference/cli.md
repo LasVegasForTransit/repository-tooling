@@ -8,9 +8,9 @@ binary. It needs Node.js 24.20 or newer on the 24 line, and git.
 
 | Command                       | Purpose                                                                                           | Exit code                   |
 | ----------------------------- | ------------------------------------------------------------------------------------------------- | --------------------------- |
-| `lvbt bootstrap`              | `pnpm install`, then the preflight checks                                                         | as preflight                |
+| `lvbt bootstrap`              | `pnpm install`, then the local preflight checks                                                   | as preflight                |
 | `lvbt bootstrap --production` | The same, then set up everything the repository's `platform.json` declares, asking as it goes     | 0 ready, 1 open, 2 no tty   |
-| `lvbt preflight`              | Check Node, pnpm, dependencies, git hooks, scopes, GitHub CLI, Cloudflare                         | 0 pass, 1 fail              |
+| `lvbt preflight`              | Check Node, pnpm, dependencies, hooks, scopes, and declared local configuration                   | 0 pass, 1 fail              |
 | `lvbt preflight --production` | The same, then report whether production has everything `platform.json` declares; changes nothing | 0 ready, 1 not ready        |
 | `lvbt check [name ...]`       | The shared repository-shape rules: `filenames`, `contract`, `debt`, `platform` (all by default)   | 0 pass, 1 fail, 2 bad usage |
 | `lvbt deploy [--filter x]`    | `pnpm build`, then `cf deploy` for cf projects or `wrangler deploy` for legacy projects           | 0 done, 2 nothing to deploy |
@@ -33,6 +33,9 @@ Through pnpm, the flags pass straight to the script: `pnpm bootstrap --productio
 
 ## Preflight checks
 
+Ordinary preflight is local-only and read-only. GitHub and Cloudflare authentication checks below
+apply only to explicit production operations. Bootstrap verifies tool versions before installing.
+
 Each failing check prints the command that fixes it.
 
 | Check         | Passes when                                                     | Fix it prints                                                                            |
@@ -54,9 +57,10 @@ authentication before reporting the machine ready to deploy.
 
 ## Production checks
 
-`lvbt preflight --production` and `lvbt bootstrap --production` read every `platform.json` at the
-repository root and under `apps/*`. The [platform manifest reference](platform-manifest.md) lists
-its fields. For each item, the report prints one line under its section:
+`lvbt preflight --production` and `lvbt bootstrap --production` check publishing credentials and
+read every `platform.json` at the repository root and under `apps/*`. The
+[platform manifest reference](platform-manifest.md) lists its fields. For each item, the report
+prints one line under its section:
 
 When a manifest uses `cloudflare.accountIdEnv`, set `CLOUDFLARE_ACCOUNT_ID` to the selected
 account's 32-character ID. The command validates it before reading production resources. D1 bindings
@@ -194,3 +198,13 @@ the stub.
 | `prepare-commit-msg` | Adds a `Co-Authored-By` footer when a coding agent drives the commit                                                                                                                     |
 | `commit-msg`         | Conventional subject ≤ 72 characters with a scope from `.lvbt/commit-scopes.txt`; a body for `feat` and `fix`, wrapped at 72; attribution required and well-placed when an agent commits |
 | `pre-push`           | `pnpm check`                                                                                                                                                                             |
+
+## Shared audits and releases
+
+`lvbt audit [links|lighthouse|dependencies] --target local|production --json --output <file>` uses
+`.lvbt/tooling.json`. The default target is local. Run it as `pnpm run audit`, because `pnpm audit`
+is reserved for pnpm’s built-in dependency audit.
+
+`lvbt audit report --input <report> --dry-run` previews trusted workflow issue reconciliation.
+`lvbt promote --run-id <id>` selects a saved staging release; omitted selection resolves the current
+staging identity once. See [Developer workflow](developer-workflow.md).

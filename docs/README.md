@@ -13,6 +13,7 @@ reference pages record facts and contracts, and explanation gives the reasoning.
 ## Reference
 
 - [Command reference](reference/cli.md)
+- [Developer workflow](reference/developer-workflow.md)
 - [Platform manifest reference](reference/platform-manifest.md)
 - [The shared packages](reference/packages.md)
 - [The example repositories](reference/examples.md)

@@ -1,0 +1,54 @@
+name: Resolve retained staging release
+
+on:
+  workflow_call:
+    inputs:
+      preview-environment:
+        type: string
+        required: false
+        default: worker-preview
+      run-id:
+        type: string
+        required: false
+    outputs:
+      commit:
+        value: ${{ jobs.source.outputs.commit }}
+      release-id:
+        value: ${{ jobs.source.outputs.release-id }}
+
+permissions:
+  contents: read
+  actions: read
+  packages: read
+
+jobs:
+  source:
+    name: Resolve and validate staging release
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: ${{ inputs.preview-environment }}
+    env:
+      LVBT_PRODUCTION_URL: ${{ vars.LVBT_PRODUCTION_URL }}
+      LVBT_PREVIEW_URL: ${{ vars.LVBT_PREVIEW_URL }}
+      LVBT_PREVIEW_BINDINGS: ${{ vars.LVBT_PREVIEW_BINDINGS }}
+      CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
+      CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
+      GH_TOKEN: ${{ github.token }}
+    outputs:
+      commit: ${{ steps.source.outputs.commit }}
+      release-id: ${{ steps.source.outputs.release-id }}
+    steps:
+      - name: Checkout trusted promotion tools
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - name: Setup Node + pnpm
+        id: setup
+        uses: ./.github/actions/setup-node-pnpm
+      - name: Resolve current preview or explicit release and validate provenance
+        id: source
+        env:
+          SOURCE_RUN_ID: ${{ inputs.run-id }}
+        run: >-
+          pnpm exec lvbt release source --repository "$GITHUB_REPOSITORY" --run-id "$SOURCE_RUN_ID"

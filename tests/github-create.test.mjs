@@ -269,3 +269,53 @@ if (process.argv[2] === 'issue' && process.argv[3] === 'create') {
   assert.match(result.stderr, /differs from the verified preview/);
   assert.doesNotMatch(await readFile(log, 'utf8'), /delete|close/);
 });
+
+test('audit-owned bug creation previews visible ownership labels', async () => {
+  const file = await bodyFile(
+    `# Steps to reproduce\n\nRun pnpm audit:links.\n\n# Expected behavior\n\nEvery link resolves.\n\n# Actual behavior\n\nThe public join link returns HTTP 404.\n\n# Additional context\n\nVerified run: 100 (attempt 1).\n`,
+  );
+  const result = run([
+    'issue',
+    '--type',
+    'bug',
+    '--title',
+    'Links audit fails in production',
+    '--body-file',
+    file,
+    '--audit-check',
+    'links',
+    '--audit-target',
+    'production',
+    '--dry-run',
+    '--json',
+  ]);
+  assert.equal(result.status, 0, result.stderr);
+  assert.deepEqual(JSON.parse(result.stdout).labels, [
+    'bug',
+    'audit-owned',
+    'audit:links',
+    'target:production',
+  ]);
+});
+
+test('invalid automation labels cannot create arbitrary issue classifications', async () => {
+  const file = await bodyFile(
+    `# Steps to reproduce\n\nRun the check.\n\n# Expected behavior\n\nThe check passes.\n\n# Actual behavior\n\nThe check fails.\n`,
+  );
+  const result = run([
+    'issue',
+    '--type',
+    'bug',
+    '--title',
+    'Audit fails',
+    '--body-file',
+    file,
+    '--audit-check',
+    'arbitrary',
+    '--audit-target',
+    'production',
+    '--dry-run',
+  ]);
+  assert.equal(result.status, 2);
+  assert.match(result.stderr, /audit check/i);
+});

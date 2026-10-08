@@ -119,7 +119,20 @@ test('template publication vendors one exact release and is byte-for-byte idempo
       rootManifest.scripts['standards:check'],
       'node .lvbt/web-platform/standards/web-platform-cli.ts check',
     );
-    assert.match(rootManifest.scripts.check, /^pnpm standards:check && /);
+    assert.equal(
+      rootManifest.scripts.bootstrap,
+      'node .lvbt/web-platform/packages/cli/src/cli.mjs bootstrap',
+    );
+    assert.equal(
+      rootManifest.scripts.preflight,
+      'node .lvbt/web-platform/packages/cli/src/cli.mjs preflight',
+    );
+    assert.match(
+      await readFile(path.join(target, 'pnpm-workspace.yaml'), 'utf8'),
+      /^verifyDepsBeforeRun: false$/mu,
+    );
+    assert.match(rootManifest.scripts.check, /lvbt check/);
+    assert.doesNotMatch(rootManifest.scripts.check, /^pnpm standards:check && /);
 
     for (const [file, manifest] of await manifests(target))
       assertVendoredDependencies(target, file, manifest);

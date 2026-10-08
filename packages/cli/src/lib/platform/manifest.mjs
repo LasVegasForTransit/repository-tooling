@@ -161,9 +161,11 @@ const targetsGithub = (entry) =>
   (entry.targets ?? []).some((target) => target.startsWith('github:'));
 
 function secretErrors(manifest) {
-  const errors = [];
   const fed = new Set(fedSecrets(manifest).map((entry) => entry.name));
-  for (const secret of manifest.secrets ?? []) {
+  return (manifest.secrets ?? []).flatMap((secret) => {
+    const errors = [];
+    if (secret.listOnly && secret.use !== 'future')
+      errors.push(`${secret.name} can be listOnly only while its use is future.`);
     const sources = [secret.generate === true, secret.from !== undefined, fed.has(secret.name)];
     const count = sources.filter(Boolean).length;
     if (count > 1)
@@ -182,8 +184,8 @@ function secretErrors(manifest) {
       errors.push(`${secret.name} has a pattern that is not a valid regular expression.`);
     if (targetsGithub(secret) && !manifest.github)
       errors.push(`${secret.name} targets a GitHub environment, so github.repository is required.`);
-  }
-  return errors;
+    return errors;
+  });
 }
 
 function forbiddenErrors(manifest) {
@@ -206,11 +208,28 @@ function accountErrors(manifest) {
     : [];
 }
 
+function githubVariableErrors(manifest) {
+  const errors = [];
+  const scopes = new Set();
+  for (const variable of manifest.github?.variables ?? []) {
+    const key = `${variable.environment ?? 'repository'}:${variable.name}`;
+    if (scopes.has(key))
+      errors.push(
+        `GitHub variable ${variable.name} is declared twice in ${variable.environment ?? 'repository'}.`,
+      );
+    scopes.add(key);
+    if (variable.value !== undefined && variable.from !== undefined)
+      errors.push(`GitHub variable ${variable.name} cannot specify both value and from.`);
+  }
+  return errors;
+}
+
 /** The rules a JSON schema cannot express: names that refer to each other, and contradictions. */
 function semanticErrors(manifest) {
   return [
     ...accountErrors(manifest),
     ...duplicateErrors(manifest),
+    ...githubVariableErrors(manifest),
     ...referenceErrors(manifest),
     ...accessErrors(manifest),
     ...secretErrors(manifest),
@@ -242,8 +261,10 @@ export function loadManifest(file) {
  * The parts of the production wrangler config the platform check compares
  * against: the Worker's name, its vars, and its D1 and R2 bindings.
  */
-export function readWranglerConfig(file) {
-  const config = parseJsonc(readFileSync(file, 'utf8'));
+export function readWranglerConfig(file, { environment } = {}) {
+  const production = parseJsonc(readFileSync(file, 'utf8'));
+  const config = environment ? production.env?.[environment] : production;
+  if (!config) throw new Error(`No ${environment} environment in ${file}.`);
   return {
     name: config.name,
     vars: config.vars ?? {},
@@ -261,15 +282,15 @@ export function readWranglerConfig(file) {
 }
 
 /** Read a cf project's canonical config, including its typed binding builders. */
-export async function readCloudflareConfig(file) {
+export async function readCloudflareConfig(file, { mode } = {}) {
   const module = await import(pathToFileURL(file).href);
   const project =
     typeof module.default === 'function'
-      ? await module.default({ mode: undefined, isPreview: false })
+      ? await module.default({ mode, isPreview: mode !== undefined })
       : module.default;
   const worker =
     typeof project?.worker === 'function'
-      ? await project.worker({ mode: undefined, isPreview: false })
+      ? await project.worker({ mode, isPreview: mode !== undefined })
       : project?.worker;
   if (!worker?.name || !worker.env)
     throw new Error(`${file} must declare a Worker with a name and env bindings.`);

@@ -213,6 +213,13 @@ export function rotationNames(option, manifests) {
       `--rotate names ${unknownNames.join(', ')}, which platform.json does not declare as a secret.`,
       2,
     );
+  const listOnly = new Set(
+    manifests.flatMap((manifest) =>
+      (manifest.secrets ?? []).filter((secret) => secret.listOnly).map((secret) => secret.name),
+    ),
+  );
+  if (names.some((name) => listOnly.has(name)))
+    throw new CliError('--rotate cannot replace list-only future credentials.', 2);
   return names;
 }
 

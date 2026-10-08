@@ -16,6 +16,8 @@ export const SUPPORTED_KEYWORDS = new Set([
   'enum',
   'pattern',
   'minLength',
+  'minimum',
+  'maximum',
   'minItems',
   'items',
   'properties',
@@ -60,6 +62,8 @@ function checkObject(walker, schema, value, at) {
     if (property) visit(walker, property, child, `${at}.${key}`);
     else if (schema.additionalProperties === false)
       walker.errors.push(`${at}: "${key}" is not a known field.`);
+    else if (schema.additionalProperties && typeof schema.additionalProperties === 'object')
+      visit(walker, schema.additionalProperties, child, `${at}.${key}`);
   }
 }
 
@@ -68,6 +72,12 @@ function mismatch(schema, value) {
   if ('const' in schema && value !== schema.const) return `must be ${JSON.stringify(schema.const)}`;
   if (schema.enum && !schema.enum.includes(value))
     return `must be one of ${schema.enum.map((item) => JSON.stringify(item)).join(', ')}`;
+  if (typeof value === 'number') {
+    if (schema.minimum !== undefined && value < schema.minimum)
+      return `must be at least ${schema.minimum}`;
+    if (schema.maximum !== undefined && value > schema.maximum)
+      return `must be at most ${schema.maximum}`;
+  }
   const actual = typeOf(value);
   if (schema.type && actual !== schema.type)
     return `must be ${schema.type === 'array' ? 'an array' : `a ${schema.type}`}`;
@@ -83,6 +93,12 @@ function visit(walker, schema, value, at) {
   if (problem) {
     walker.errors.push(`${at}: ${problem}.`);
     return;
+  }
+  if (typeof value === 'number') {
+    if (schema.minimum !== undefined && value < schema.minimum)
+      return `must be at least ${schema.minimum}`;
+    if (schema.maximum !== undefined && value > schema.maximum)
+      return `must be at most ${schema.maximum}`;
   }
   const actual = typeOf(value);
   if (actual === 'string') checkString(schema, value, at, walker.errors);

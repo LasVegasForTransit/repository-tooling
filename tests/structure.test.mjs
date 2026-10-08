@@ -111,8 +111,8 @@ test('the source repository uses the TransitMapper package-manager contract', as
   const agents = await read('AGENTS.md');
 
   assert.equal(packageJson.packageManager, 'pnpm@11.25.0');
-  assert.equal(packageJson.scripts.bootstrap, 'lvbt bootstrap');
-  assert.equal(packageJson.scripts.preflight, 'lvbt preflight');
+  assert.equal(packageJson.scripts.bootstrap, 'node packages/cli/src/cli.mjs bootstrap');
+  assert.equal(packageJson.scripts.preflight, 'node packages/cli/src/cli.mjs preflight');
   assert.equal(packageJson.scripts.build, 'pnpm check-types');
   // Tolerant of a missing .git so `npx github:LasVegasForTransit/repository-tooling`
   // can install this package outside a checkout to bootstrap a new repository.
@@ -156,7 +156,7 @@ test('publication commits an installable frozen lockfile', async () => {
 
   assert.match(propagate, /'install', '--lockfile-only', '--no-frozen-lockfile'/);
   assert.ok(
-    propagate.indexOf("'--lockfile-only'") < propagate.indexOf("'add', '-A'"),
+    propagate.indexOf("'--lockfile-only'") < propagate.indexOf('git restore --staged . && git add'),
     'the lockfile must be generated before the update commit',
   );
 });

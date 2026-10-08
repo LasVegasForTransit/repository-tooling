@@ -1,3 +1,4 @@
+import { configForEnvironment } from './config-scope.mjs';
 import { turnstileGuide } from './guides.mjs';
 import { item, manualGuide, SETUP, TOKEN_HINT, unknownItem } from './plan-items.mjs';
 
@@ -49,7 +50,11 @@ function databaseItem({ state, configPath }, database) {
       status: 'missing',
       detail: 'does not exist',
       next: `${SETUP} creates it`,
-      action: { type: 'd1.create', name: database.name },
+      action: {
+        type: 'd1.create',
+        name: database.name,
+        ...(database.environment ? { environment: database.environment } : {}),
+      },
     });
   if (!state.config.ok) return unknownItem(fields, state.config);
   const bound = state.config.ok
@@ -88,7 +93,11 @@ function migrationsItem({ state, configPath }, database) {
       detail: `cannot read ${database.migrations}: ${files?.reason ?? 'missing'}`,
       next: 'fix the migrations path in platform.json',
     });
-  const action = { type: 'd1.migrate', name: database.name };
+  const action = {
+    type: 'd1.migrate',
+    name: database.name,
+    ...(database.environment ? { environment: database.environment } : {}),
+  };
   const real = state.d1.ok ? state.d1.value[database.name] : undefined;
   if (state.d1.ok && !real)
     // Setup applies migrations after creating the database only if the config
@@ -137,10 +146,19 @@ function pendingItem({ state, configPath }, database, { fields, files, real, act
 }
 
 export function planD1(context) {
-  return (context.manifest.d1 ?? []).flatMap((database) => [
-    databaseItem(context, database),
-    ...(database.migrations ? [migrationsItem(context, database)] : []),
-  ]);
+  return (context.manifest.d1 ?? []).flatMap((database) => {
+    const scoped = {
+      ...context,
+      state: {
+        ...context.state,
+        config: configForEnvironment(context.state.config, database.environment),
+      },
+    };
+    return [
+      databaseItem(scoped, database),
+      ...(database.migrations ? [migrationsItem(scoped, database)] : []),
+    ];
+  });
 }
 
 export function planR2({ manifest, state, configPath }) {
