@@ -13,6 +13,11 @@ on:
         type: string
         required: false
 
+      expected_version:
+        description: Optional current production version; required before a release marker exists
+        type: string
+        required: false
+
 permissions:
   contents: read
   actions: read
@@ -35,6 +40,8 @@ jobs:
     uses: LasVegasForTransit/repository-tooling/.github/workflows/release-publish.yml@b49317453a9e1d9ce2feda157a05782f803200d6
     with:
       target: production
+      expected-version: ${{ inputs.expected_version }}
+      attestation-prefix: attestation-app-release
       release-id: ${{ needs.source.outputs.release-id }}
       commit: ${{ needs.source.outputs.commit }}
       artifact-prefix: app-release

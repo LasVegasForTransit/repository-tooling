@@ -22,11 +22,24 @@ jobs:
       app-directory: apps/deploy
       artifact-prefix: app-release
     secrets: inherit
-  staging:
+  attest:
     needs: build
+    permissions:
+      contents: read
+      actions: read
+      packages: read
+      attestations: write
+      id-token: write
+    uses: LasVegasForTransit/repository-tooling/.github/workflows/release-attest.yml@c0ecd968983a175baa919042bc56c87cbb127d7c
+    with:
+      artifact-prefix: app-release
+
+  staging:
+    needs: [build, attest]
     uses: LasVegasForTransit/repository-tooling/.github/workflows/release-publish.yml@b49317453a9e1d9ce2feda157a05782f803200d6
     with:
       target: preview
+      attestation-prefix: attestation-app-release
       release-id: ${{ github.run_id }}
       commit: ${{ github.sha }}
       artifact-prefix: app-release

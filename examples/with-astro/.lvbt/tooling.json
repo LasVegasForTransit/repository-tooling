@@ -17,6 +17,11 @@
       "file": "promote.yml",
       "titlePrefix": "Promote app",
       "branch": "main"
+    },
+    "workersDevSubdomainEnv": "LVBT_WORKERS_DEV_SUBDOMAIN",
+    "attestation": {
+      "signerWorkflow": "LasVegasForTransit/repository-tooling/.github/workflows/release-attest.yml",
+      "signerCommit": "c0ecd968983a175baa919042bc56c87cbb127d7c"
     }
   },
   "audits": {

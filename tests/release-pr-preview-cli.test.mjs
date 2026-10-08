@@ -181,3 +181,87 @@ test('actual CLI packages typed input, freezes SQL, retargets and verifies befor
     await rm(root, { recursive: true, force: true });
   }
 });
+
+test('closed unmerged cleanup correlates the rejected PR event while executing trusted default-branch tools and config', async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'closed-pr-cli-'));
+  try {
+    await application(root);
+    await providerFixture(root);
+    const event = path.join(root, 'event.json');
+    const capture = path.join(root, 'cleanup.jsonl');
+    await writeFile(
+      event,
+      JSON.stringify({
+        action: 'closed',
+        number: 42,
+        repository: { default_branch: 'main' },
+        pull_request: {
+          merged: false,
+          head: { repo: { full_name: 'Example/app' } },
+          base: { ref: 'main', repo: { full_name: 'Example/app' } },
+        },
+      }),
+    );
+    // This trusted working tree has a different identity than the rejected PR merge event.
+    await mkdir(path.join(root, '.git'));
+    await writeFile(path.join(root, '.git/HEAD'), 'b'.repeat(40));
+    const request = path.join(root, 'fetch.mjs');
+    await writeFile(
+      request,
+      `import {appendFileSync} from 'node:fs';
+globalThis.fetch=async(url,options)=>{
+ const base='https://api.cloudflare.com/client/v4/accounts/${'c'.repeat(32)}/workers';
+ appendFileSync(process.env.CLEANUP_CAPTURE,JSON.stringify({url,method:options.method||'GET'})+'\\n');
+ if(url===base+'/subdomain')return Response.json({success:true,result:{subdomain:'reviewed-account'}});
+ if(url===base+'/scripts/app-pr-42?force=true'&&options.method==='DELETE')return Response.json({success:true});
+ throw new Error('Deletion escaped the trusted derived PR Worker');
+};`,
+    );
+    await execute(
+      process.execPath,
+      [
+        path.join(source, 'packages/cli/src/cli.mjs'),
+        'release',
+        'pr-preview',
+        '--action',
+        'delete',
+        '--pr',
+        '42',
+        '--commit',
+        identity.commit,
+        '--release-id',
+        identity.releaseId,
+        '--publication-mode',
+        'named-staging',
+        '--protection',
+        'public',
+      ],
+      {
+        cwd: root,
+        maxBuffer: 1024 * 1024,
+        env: {
+          ...process.env,
+          PATH: `${path.join(root, 'bin')}:${process.env.PATH}`,
+          PR_TEST_TSX: createRequire(import.meta.url).resolve('tsx'),
+          NODE_OPTIONS: `--import=${pathToFileURL(request).href}`,
+          CLEANUP_CAPTURE: capture,
+          GITHUB_EVENT_NAME: 'pull_request',
+          GITHUB_EVENT_PATH: event,
+          GITHUB_REPOSITORY: 'Example/app',
+          GITHUB_SHA: identity.commit,
+          GITHUB_RUN_ID: identity.releaseId,
+          CLOUDFLARE_ACCOUNT_ID: 'c'.repeat(32),
+          CLOUDFLARE_API_TOKEN: 'fixture-preview-token',
+        },
+      },
+    );
+    const calls = (await readFile(capture, 'utf8')).trim().split('\n').map(JSON.parse);
+    assert.deepEqual(
+      calls.map((call) => call.method),
+      ['GET', 'DELETE'],
+    );
+    assert.match(calls[1].url, /\/workers\/scripts\/app-pr-42\?force=true$/);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});

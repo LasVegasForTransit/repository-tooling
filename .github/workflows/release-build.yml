@@ -60,6 +60,7 @@ jobs:
       LVBT_PRODUCTION_URL: ${{ vars.LVBT_PRODUCTION_URL }}
       LVBT_PREVIEW_URL: ${{ vars.LVBT_PREVIEW_URL }}
       LVBT_PREVIEW_BINDINGS: ${{ vars.LVBT_PREVIEW_BINDINGS }}
+      LVBT_WORKERS_DEV_SUBDOMAIN: ${{ vars.LVBT_WORKERS_DEV_SUBDOMAIN }}
       RELEASE_ID: ${{ github.run_id }}
       APP_DIRECTORY: ${{ inputs.app-directory }}
       VALIDATION_BROWSER_DIRECTORY: ${{ inputs.validation-browser-directory }}

@@ -130,6 +130,22 @@ async function repositoryOrigin(
     throw new Error('Configure a GitHub origin or an explicit release repository.');
   return url.pathname.slice(1).replace(/\.git$/, '');
 }
+function configuredWorkersSubdomain(
+  value: Record<string, unknown>,
+  env: Record<string, string | undefined>,
+) {
+  if (value.workersDevSubdomainEnv === undefined) return value.workersDevSubdomain;
+  if (value.workersDevSubdomain !== undefined)
+    throw new Error('Declare workersDevSubdomain or workersDevSubdomainEnv, not both.');
+  const name = z
+    .string()
+    .regex(/^[A-Z_][A-Z0-9_]*$/)
+    .parse(value.workersDevSubdomainEnv);
+  const label = env[name]?.trim();
+  if (!label)
+    throw new Error(`Configure ${name} with the reviewed Workers account label before releasing.`);
+  return label;
+}
 async function resolveConfiguration(
   cwd: string,
   value: Record<string, unknown>,
@@ -137,6 +153,7 @@ async function resolveConfiguration(
 ): Promise<ReleaseConfiguration> {
   const productionUrl = configuredUrl(value, 'productionUrl', env);
   const previewUrl = configuredUrl(value, 'previewUrl', env);
+  const workersDevSubdomain = configuredWorkersSubdomain(value, env);
   const repository = value.repository ?? (await repositoryOrigin(cwd, env));
   let previewBindings = value.previewBindings;
   if (value.previewBindingsEnv !== undefined) {
@@ -155,6 +172,7 @@ async function resolveConfiguration(
     productionUrlEnv: _productionUrlEnv,
     previewUrlEnv: _previewUrlEnv,
     previewBindingsEnv: _previewBindingsEnv,
+    workersDevSubdomainEnv: _workersDevSubdomainEnv,
     ...release
   } = value;
   return releaseConfigurationSchema.parse({
@@ -162,6 +180,7 @@ async function resolveConfiguration(
     repository,
     productionUrl,
     previewUrl,
+    workersDevSubdomain,
     ...(previewBindings ? { previewBindings } : {}),
   });
 }
