@@ -6,6 +6,11 @@ import test from 'node:test';
 
 import { checkContract } from '../packages/cli/src/lib/check/contract.mjs';
 import { applyPreset } from '../standards/web-platform.ts';
+import { updateOverrides } from '../packages/cli/src/lib/check/workspace-policy.mjs';
+
+const { overrides } = JSON.parse(
+  await readFile(new URL('../packages/cli/catalog.json', import.meta.url), 'utf8'),
+);
 
 const sourceRoot = new URL('..', import.meta.url).pathname;
 const example = (name, file) => readFile(path.join(sourceRoot, 'examples', name, file), 'utf8');
@@ -29,7 +34,7 @@ const writeJson = (file, value) => writeFile(file, `${JSON.stringify(value, null
 async function consumer(root, { astro = true, library = false } = {}) {
   await writeFile(
     path.join(root, 'pnpm-workspace.yaml'),
-    'packages:\n  - apps/*\n  - packages/*\n',
+    updateOverrides('packages:\n  - apps/*\n  - packages/*\n', overrides),
   );
   await writeJson(path.join(root, 'package.json'), { name: 'consumer', private: true });
   await mkdir(path.join(root, 'apps/site'), { recursive: true });

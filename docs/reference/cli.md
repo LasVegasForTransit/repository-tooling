@@ -184,7 +184,10 @@ Declare a root `security:secrets` script running `lvbt check secrets` and an unc
 `//#security:secrets` Turbo task. Required app `validate` tasks depend on it. Keep dependency checks
 as separate uncached tasks with the repository's existing advisory budget, such as
 `pnpm audit --prod --audit-level=high`; scheduled normalized audits remain independent. CI must
-check out full history (`fetch-depth: 0`) before running `pnpm check`.
+check out full history (`fetch-depth: 0`) before running `pnpm check`. Templates use an uncached
+root `//#validate` task running `lvbt check secrets`, depending on their uncached root
+`//#security:dependencies` task. This also runs both checks when a template has no application
+`validate` script. Shared transitive pins follow the [dependency policy](dependency-policy.md).
 
 ## Standard scripts
 

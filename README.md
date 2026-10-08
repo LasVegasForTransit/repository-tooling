@@ -9,10 +9,10 @@ It owns four things:
 
 - the shared packages every repository depends on: `@lasvegasfortransit/eslint-config`,
   `@lasvegasfortransit/typescript-config`, `@lasvegasfortransit/prettier-config`,
-  `@lasvegasfortransit/vitest-config`, and `@lasvegasfortransit/cli` (the `lvbt` command for
-  `bootstrap`, `preflight`, and `deploy`, the production platform setup, the git hooks, and the
-  `lvbt-contributions` agent plugin);
-- the example repositories under `examples/` that `create-turbo` copies to start a new repository;
+  `@lasvegasfortransit/vitest-config`, `@lasvegasfortransit/web-platform`, and
+  `@lasvegasfortransit/cli` (the shared commands, setup, checks, audits, web releases, git hooks,
+  and `lvbt-contributions` agent plugin);
+- the example repositories under `examples/` that generate the published repository templates;
 - the GitHub issue forms and pull request template published by
   [`LasVegasForTransit/.github`](https://github.com/LasVegasForTransit/.github);
 - the default-branch ruleset applied to every active organization repository.
@@ -39,19 +39,13 @@ dependencies at that local snapshot, so a fresh repository installs without regi
 Inside a repository, `pnpm standards:update --release <tag> --apply` reviews and applies a newer
 standard, and `turbo gen workspace` scaffolds a new package or app.
 
-## Every repository answers to the same commands
+## Every repository follows the same process
 
-| Command                       | What it does                                                        |
-| ----------------------------- | ------------------------------------------------------------------- |
-| `pnpm bootstrap`              | Install dependencies, wire git hooks, and run preflight             |
-| `pnpm preflight`              | Confirm the machine can build and deploy this repository            |
-| `pnpm preflight --production` | Report whether production has everything `platform.json` declares   |
-| `pnpm bootstrap --production` | Set up whatever production is missing, asking for values as it goes |
-| `pnpm check`                  | Format check, then lint, typecheck, and tests through Turborepo     |
-| `pnpm check:fix`              | Apply formatting and lint fixes                                     |
-| `pnpm build`                  | Build every package                                                 |
-| `pnpm run deploy`             | Build, then deploy each configured Cloudflare app                   |
-| `pnpm test`                   | Run every package's tests                                           |
+Follow the shared [developer workflow](docs/reference/developer-workflow.md): bootstrap, develop,
+check, pull request, staging, then explicit saved-artifact production promotion. Local setup
+requires no publishing credentials. The [command reference](docs/reference/cli.md) defines the
+interfaces; repositories add application configuration and product checks through the supported
+extension points.
 
 Guides, the command reference, and the package reference are in [`docs/`](docs/README.md).
 

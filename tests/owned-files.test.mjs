@@ -43,6 +43,7 @@ async function bundle(release = 'v9.9.9') {
 async function repository(t) {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'lvbt-owned-files-'));
   t.after(() => rm(directory, { recursive: true, force: true }));
+  await writeFile(path.join(directory, 'pnpm-workspace.yaml'), 'packages:\n  - apps/*\n');
   return directory;
 }
 

@@ -129,20 +129,28 @@ for (const [name, ref] of [
   ['C6', '54d56480d26709a56d61e89fe9ecec4ea39a4604'],
   ['published v0.6.3', 'v0.6.3'],
 ])
-  test(`the byte-for-byte installed ${name} updater installs the incoming cache policy once through its existing command`, () =>
+  test(`the byte-for-byte installed ${name} updater installs incoming cache and dependency policies once through its existing command`, () =>
     fixture(async (root) => {
       const incoming = path.join(root, 'incoming');
       const installed = path.join(root, 'installed');
       for (const directory of [incoming, installed])
         execFileSync('git', ['clone', '--quiet', '--shared', source, directory]);
       execFileSync('git', ['-C', installed, 'checkout', '--quiet', ref]);
-      for (const file of [
+      const incomingFiles = [
         'standards/turbo-cache.ts',
+        'standards/incoming-policy.ts',
+        'standards/workspace-policy.ts',
         'standards/web-platform.ts',
         'standards/community-publication.ts',
         'standards/owned-files.ts',
-      ])
+        'packages/cli/src/lib/check/workspace-policy.mjs',
+        'packages/cli/src/lib/check/workspace-policy.d.mts',
+        'packages/cli/catalog.json',
+      ];
+      for (const file of incomingFiles) {
+        await mkdir(path.dirname(path.join(incoming, file)), { recursive: true });
         await writeFile(path.join(incoming, file), await readFile(path.join(source, file)));
+      }
       await rm(path.join(incoming, 'community-health'), { recursive: true, force: true });
       await mkdir(path.join(incoming, 'standards/community-health/ISSUE_TEMPLATE'), {
         recursive: true,
@@ -164,7 +172,7 @@ for (const [name, ref] of [
         '/bin/sh',
         [
           '-c',
-          'git restore --staged . && git add --update && git add -- standards/turbo-cache.ts standards/web-platform.ts standards/community-publication.ts standards/owned-files.ts standards/community-health && git -c core.hooksPath=/dev/null -c user.name=Test -c user.email=test@example.org commit --quiet --allow-empty -F "$1"',
+          `git restore --staged . && git add --update && git add -- ${incomingFiles.join(' ')} standards/community-health && git -c core.hooksPath=/dev/null -c user.name=Test -c user.email=test@example.org commit --quiet --allow-empty -F "$1"`,
           'sh',
           message,
         ],
@@ -191,6 +199,10 @@ for (const [name, ref] of [
         }),
       );
       await json(consumer, 'turbo.json', { globalDependencies: ['product.json'], tasks });
+      await writeFile(
+        path.join(consumer, 'pnpm-workspace.yaml'),
+        'packages:\n  - apps/*\n# product policy\noverrides:\n  sharp: 0.35.4\n  "product > child": "npm:product-fork@1.0.0"\nallowBuilds:\n  esbuild: true\n',
+      );
       const update = () => {
         const result = spawnSync(
           process.execPath,
@@ -211,12 +223,25 @@ for (const [name, ref] of [
         assert.equal(result.status, 0, result.stdout + result.stderr);
         return JSON.parse(result.stdout).plan;
       };
-      assert.ok(update().consumerChanged.includes('turbo.json'));
+      const changes = update().consumerChanged;
+      assert.ok(changes.includes('turbo.json'));
+      assert.ok(changes.includes('pnpm-workspace.yaml'));
       assert.equal((await verifyPreset(consumer)).commit, commit);
       assert.equal((await verifyPreset(consumer)).release, release);
       const turbo = JSON.parse(await readFile(path.join(consumer, 'turbo.json'), 'utf8'));
       assert.deepEqual(turbo.globalDependencies, ['product.json', ...dependencies]);
       assert.deepEqual(turbo.tasks, tasks);
+      const workspace = await readFile(path.join(consumer, 'pnpm-workspace.yaml'), 'utf8');
+      const { scalarSection } = await import('../packages/cli/src/lib/check/workspace-policy.mjs');
+      const installedOverrides = scalarSection(workspace, 'overrides').entries;
+      const { overrides } = JSON.parse(
+        await readFile(path.join(source, 'packages/cli/catalog.json'), 'utf8'),
+      );
+      for (const [selector, version] of Object.entries(overrides))
+        assert.equal(installedOverrides[selector], version, selector);
+      assert.equal(installedOverrides['product > child'], 'npm:product-fork@1.0.0');
+      assert.match(workspace, /# product policy/);
+      assert.match(workspace, /allowBuilds:\n {2}esbuild: true/);
       assert.deepEqual(update(), { added: [], changed: [], removed: [], consumerChanged: [] });
     }));
 
