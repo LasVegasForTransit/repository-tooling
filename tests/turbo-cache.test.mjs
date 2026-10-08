@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFile, execFileSync, spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -125,10 +126,7 @@ test('every shipped workspace template declares shared Turbo cache inputs', asyn
   }
 });
 
-for (const [name, ref] of [
-  ['C6', '54d56480d26709a56d61e89fe9ecec4ea39a4604'],
-  ['published v0.6.3', 'v0.6.3'],
-])
+for (const [name, ref] of [['published v0.6.3', 'v0.6.3']])
   test(`the byte-for-byte installed ${name} updater installs incoming cache and dependency policies once through its existing command`, () =>
     fixture(async (root) => {
       const incoming = path.join(root, 'incoming');
@@ -192,11 +190,17 @@ for (const [name, ref] of [
         ref.startsWith('v') ? readRelease(installed, ref) : readCommit(installed, ref),
       );
       const cli = path.join(consumer, '.lvbt/web-platform/standards/web-platform-cli.ts');
+      const installedCli = await readFile(cli, 'utf8');
       assert.equal(
-        await readFile(cli, 'utf8'),
+        installedCli,
         execFileSync('git', ['-C', source, 'show', `${ref}:standards/web-platform-cli.ts`], {
           encoding: 'utf8',
         }),
+      );
+      // The historical C6 driver had these same bytes; its unpublished commit is rewritten on rebase.
+      assert.equal(
+        createHash('sha256').update(installedCli).digest('hex'),
+        '2d6eb1e3f4e26b518d532a9c7879e55bb68e2bf95ef11d5fe23543190fc8eff7',
       );
       await json(consumer, 'turbo.json', { globalDependencies: ['product.json'], tasks });
       await writeFile(

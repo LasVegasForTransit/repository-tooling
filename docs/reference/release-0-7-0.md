@@ -46,3 +46,7 @@ derived preview Worker. Initial production adoption or recovery can name an expe
 version; a changed version stops publication before production writes.
 
 See [Developer workflow](developer-workflow.md) for the command contract and ownership boundaries.
+
+Shared ESLint entry points ship declarations, so TypeScript consumer configurations need no local
+module shims. Release build and publication checkouts include full Git history for the required
+secret scanner and published-updater compatibility tests.
