@@ -94,6 +94,24 @@ test('a release moves a repository forward once, with its own updater, and never
   t.after(() => rm(fixture, { recursive: true, force: true }));
   const source = path.join(fixture, 'source');
   execFileSync('git', ['clone', '--quiet', '--shared', root, source]);
+  await writeFile(
+    path.join(source, 'standards/template-publication.ts'),
+    await readFile(path.join(root, 'standards/template-publication.ts')),
+  );
+  if (git(source, 'status', '--porcelain')) {
+    const message = path.join(fixture, 'incoming-message.txt');
+    await writeFile(message, 'test: use the incoming template publisher\n');
+    execFileSync(
+      'sh',
+      [
+        '-c',
+        'git restore --staged . && git add standards/template-publication.ts && git -c user.name=test -c user.email=test@example.org commit --quiet -F "$1"',
+        'commit',
+        message,
+      ],
+      { cwd: source },
+    );
+  }
   git(source, 'tag', 'v99.0.0', 'HEAD');
 
   const consumer = path.join(fixture, 'consumer');
@@ -195,6 +213,8 @@ test('a release moves a repository forward once, with its own updater, and never
   // A repository's own token may not push workflow files, so a self-update leaves them alone.
   const selfUpdating = path.join(fixture, 'self-updating');
   await materializeTemplate({ source, target: selfUpdating, example: 'basic', release: 'v99.0.1' });
+  const ciWorkflow = path.join(selfUpdating, '.github/workflows/ci.yml');
+  await writeFile(ciWorkflow, `${await readFile(ciWorkflow, 'utf8')}\n# Published workflow\n`);
   await rm(path.join(selfUpdating, '.github/workflows/standard-update.yml'));
   git(selfUpdating, 'init', '--quiet', '--initial-branch', 'main');
   git(selfUpdating, 'add', '-A');
@@ -233,9 +253,30 @@ test('a release moves a repository forward once, with its own updater, and never
   });
   assert.equal(skipped.changed, true);
   assert.deepEqual(skipped.skippedWorkflows, ['.github/workflows/standard-update.yml']);
+  assert.match(await readFile(ciWorkflow, 'utf8'), /# Published workflow/);
   assert.equal(
     git(selfUpdating, 'show', '--name-only', '--format=', 'HEAD').includes('.github/workflows/'),
     false,
+  );
+
+  const workflowTemplate = path.join(fixture, 'workflow-template');
+  execFileSync('git', ['clone', '--quiet', '--shared', selfUpdating, workflowTemplate]);
+  git(workflowTemplate, 'reset', '--hard', '--quiet', 'HEAD~1');
+  const templateSkipped = await applyRelease({
+    source,
+    target: workflowTemplate,
+    entry: { ...templateEntry },
+    tag: 'v99.0.2',
+    install: false,
+    skipWorkflows: true,
+  });
+  assert.deepEqual(templateSkipped.skippedWorkflows, [
+    '.github/workflows/ci.yml',
+    '.github/workflows/standard-update.yml',
+  ]);
+  assert.match(
+    await readFile(path.join(workflowTemplate, '.github/workflows/ci.yml'), 'utf8'),
+    /# Published workflow/,
   );
 });
 
