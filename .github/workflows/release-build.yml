@@ -3,6 +3,10 @@ name: Build retained staging release
 on:
   workflow_call:
     inputs:
+      release-tag:
+        description: Reviewed application version tag, supplied by its release workflow
+        type: string
+        required: false
       app:
         type: string
         required: false
@@ -40,6 +44,7 @@ jobs:
     timeout-minutes: 15
     env: &build-environment
       LVBT_RELEASE_APP: ${{ inputs.app }}
+      LVBT_RELEASE_TAG: ${{ inputs.release-tag }}
       PUBLIC_LVBT_INSTAGRAM: ${{ vars.PUBLIC_LVBT_INSTAGRAM }}
       PUBLIC_LVBT_LINKEDIN: ${{ vars.PUBLIC_LVBT_LINKEDIN }}
       PUBLIC_LVBT_BLUESKY: ${{ vars.PUBLIC_LVBT_BLUESKY }}

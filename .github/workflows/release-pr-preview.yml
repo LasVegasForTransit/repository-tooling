@@ -1,0 +1,258 @@
+name: Deploy pull request preview
+
+on:
+  workflow_call:
+    inputs:
+      enabled:
+        type: boolean
+        required: false
+        default: false
+      publication-mode:
+        description: version for aliases, named-staging for Durable Object Workers
+        type: string
+        required: false
+        default: version
+      preview-environment:
+        type: string
+        required: false
+        default: worker-preview
+      protection:
+        description: access or public, preserving the reviewed PR preview policy
+        type: string
+        required: false
+        default: access
+      app:
+        type: string
+        required: false
+      app-directory:
+        type: string
+        required: true
+      preview-script:
+        description: Thin version preview adapter, or api for the shared named operation
+        type: string
+        required: true
+      smoke-script:
+        description: Product smoke script, or api for the shared named operation
+        type: string
+        required: true
+      acceptance-directory:
+        type: string
+        required: false
+      browser-script:
+        description: Product browser acceptance script, or explicit none for a service
+        type: string
+        required: true
+      browser-project:
+        type: string
+        required: false
+      require-analytics:
+        type: boolean
+        required: false
+        default: false
+      preview-pages:
+        description: Include application debug pages only in this nonpromotable PR build
+        type: boolean
+        required: false
+        default: false
+
+permissions:
+  contents: read
+  deployments: write
+  packages: read
+  pull-requests: write
+
+concurrency:
+  group:
+    lvbt-pr-preview-${{ github.repository }}-${{ inputs.app || 'default' }}-${{
+    github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  preview:
+    if: >-
+      github.event_name == 'pull_request' && github.event.action != 'closed' &&
+      github.event.pull_request.head.repo.full_name == github.repository && inputs.enabled &&
+      inputs.preview-environment != 'production' && inputs.preview-environment != 'worker-candidate'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    environment:
+      name: ${{ inputs.preview-environment }}
+      url: ${{ steps.upload.outputs.url }}
+    env:
+      LVBT_RELEASE_APP: ${{ inputs.app }}
+      LVBT_PR_NUMBER: ${{ github.event.pull_request.number }}
+      LVBT_PREVIEW_URL: ${{ vars.LVBT_PREVIEW_URL }}
+      LVBT_PRODUCTION_URL: ${{ vars.LVBT_PRODUCTION_URL }}
+      LVBT_PREVIEW_BINDINGS: ${{ vars.LVBT_PREVIEW_BINDINGS }}
+      PUBLIC_LVBT_INSTAGRAM: ${{ vars.PUBLIC_LVBT_INSTAGRAM }}
+      PUBLIC_LVBT_LINKEDIN: ${{ vars.PUBLIC_LVBT_LINKEDIN }}
+      PUBLIC_LVBT_BLUESKY: ${{ vars.PUBLIC_LVBT_BLUESKY }}
+      PUBLIC_LVBT_DISCORD: ${{ vars.PUBLIC_LVBT_DISCORD }}
+      PUBLIC_LVBT_DONATE_URL: ${{ vars.PUBLIC_LVBT_DONATE_URL }}
+      PUBLIC_LVBT_MEMBERSHIP_FORM_URL: ${{ vars.PUBLIC_LVBT_MEMBERSHIP_FORM_URL }}
+      PUBLIC_LVBT_NEWSLETTER_URL: ${{ vars.PUBLIC_LVBT_NEWSLETTER_URL }}
+      PUBLIC_LVBT_NEWSLETTER_FEED_URL: ${{ vars.PUBLIC_LVBT_NEWSLETTER_FEED_URL }}
+      PUBLIC_LVBT_LABS_CWA_TOKEN: ${{ vars.PUBLIC_LVBT_LABS_CWA_TOKEN }}
+      PUBLIC_LVBT_CWA_TOKEN: ${{ vars.PUBLIC_LVBT_CWA_TOKEN }}
+      COMPARE_PUBLISHED: ${{ vars.COMPARE_PUBLISHED }}
+      LVBT_REQUIRE_ANALYTICS: ${{ inputs.require-analytics && '1' || '' }}
+      PUBLIC_LVBT_PREVIEW_PAGES: ${{ inputs.preview-pages && '1' || '' }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID || secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN:
+        ${{ secrets.CLOUDFLARE_PREVIEW_API_TOKEN || secrets.CLOUDFLARE_WORKERS_API_TOKEN ||
+        secrets.CLOUDFLARE_API_TOKEN }}
+      CF_ACCESS_CLIENT_ID: ${{ inputs.protection == 'access' && secrets.CF_ACCESS_CLIENT_ID || '' }}
+      CF_ACCESS_CLIENT_SECRET:
+        ${{ inputs.protection == 'access' && secrets.CF_ACCESS_CLIENT_SECRET || '' }}
+      PUBLICATION_MODE: ${{ inputs.publication-mode }}
+      PROTECTION: ${{ inputs.protection }}
+      APP_DIRECTORY: ${{ inputs.app-directory }}
+      PREVIEW_SCRIPT: ${{ inputs.preview-script }}
+      SMOKE_SCRIPT: ${{ inputs.smoke-script }}
+      BROWSER_SCRIPT: ${{ inputs.browser-script }}
+      BROWSER_PROJECT: ${{ inputs.browser-project }}
+      ACCEPTANCE_DIRECTORY: ${{ inputs.acceptance-directory || inputs.app-directory }}
+    steps:
+      - name: Check preview credentials
+        id: credentials
+        run: |
+          if [ -n "$CLOUDFLARE_API_TOKEN" ] && [ -n "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo 'configured=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'configured=false' >> "$GITHUB_OUTPUT"
+            echo 'PR preview is not configured: review the preview environment account and token.' >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Validate preview policy
+        if: steps.credentials.outputs.configured == 'true'
+        run: |
+          case "$PUBLICATION_MODE:$PREVIEW_SCRIPT:$SMOKE_SCRIPT" in
+            named-staging:api:api) ;;
+            version:api:*) echo 'Version previews require a thin application preview script.' >&2; exit 1 ;;
+            version:*) ;;
+            *) echo 'Unsupported PR preview mode or adapters.' >&2; exit 1 ;;
+          esac
+          case "$PROTECTION" in public|access) ;; *) exit 1 ;; esac
+      - name: Checkout
+        if: steps.credentials.outputs.configured == 'true'
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.sha }}
+          lfs: true
+          persist-credentials: false
+      - name: Setup Node + pnpm
+        if: steps.credentials.outputs.configured == 'true'
+        uses: ./.github/actions/setup-node-pnpm
+      - name: Resolve named preview origin before building
+        if:
+          steps.credentials.outputs.configured == 'true' && inputs.publication-mode ==
+          'named-staging'
+        id: target
+        run: >-
+          pnpm exec lvbt release pr-preview --action resolve --pr "$LVBT_PR_NUMBER" --commit
+          "$GITHUB_SHA" --release-id "$GITHUB_RUN_ID" --publication-mode named-staging --protection
+          "$PROTECTION"
+      - name: Configure preview build origin
+        if:
+          steps.credentials.outputs.configured == 'true' && inputs.publication-mode ==
+          'named-staging'
+        env:
+          PREVIEW_URL: ${{ steps.target.outputs.url }}
+        run: echo "VITE_SITE_URL=$PREVIEW_URL" >> "$GITHUB_ENV"
+      - name: Install Chromium
+        if:
+          steps.credentials.outputs.configured == 'true' && (inputs.browser-script != 'none' ||
+          inputs.smoke-script != 'api')
+        run: pnpm --dir "$ACCEPTANCE_DIRECTORY" exec playwright install --with-deps chromium
+      - name: Build and validate
+        if: steps.credentials.outputs.configured == 'true'
+        run: pnpm check
+      - name: Deploy PR preview
+        if: steps.credentials.outputs.configured == 'true'
+        id: upload
+        run: |
+          if [ "$PREVIEW_SCRIPT" = api ]; then
+            pnpm exec lvbt release pr-preview --pr "$LVBT_PR_NUMBER" --commit "$GITHUB_SHA" --release-id "$GITHUB_RUN_ID" --publication-mode "$PUBLICATION_MODE" --protection "$PROTECTION"
+          else
+            pnpm --dir "$APP_DIRECTORY" "$PREVIEW_SCRIPT" --alias "pr-$LVBT_PR_NUMBER" --env preview --message "PR #$LVBT_PR_NUMBER at $GITHUB_SHA"
+          fi
+      - name: Verify preview
+        if: steps.credentials.outputs.configured == 'true' && inputs.smoke-script != 'api'
+        env:
+          PREVIEW_URL: ${{ steps.upload.outputs.url }}
+        run: |
+          if [ "$PROTECTION" = access ]; then protection=--protected; else protection=--public; fi
+          pnpm --dir "$ACCEPTANCE_DIRECTORY" "$SMOKE_SCRIPT" --url "$PREVIEW_URL" "$protection"
+      - name: Browser acceptance
+        if: steps.credentials.outputs.configured == 'true' && inputs.browser-script != 'none'
+        env:
+          PLAYWRIGHT_BASE_URL: ${{ steps.upload.outputs.url }}
+        run: |
+          if [ -n "$BROWSER_PROJECT" ]; then
+            pnpm --dir "$ACCEPTANCE_DIRECTORY" "$BROWSER_SCRIPT" --project="$BROWSER_PROJECT"
+          else
+            pnpm --dir "$ACCEPTANCE_DIRECTORY" "$BROWSER_SCRIPT"
+          fi
+      - name: Upsert pull request preview comment
+        if: steps.credentials.outputs.configured == 'true'
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          PREVIEW_URL: ${{ steps.upload.outputs.url }}
+        with:
+          script: |
+            const marker = '<!-- lvbt-worker-preview -->';
+            const body = `${marker}\nWorker candidate: ${process.env.PREVIEW_URL}\n\nPR preview only; production uses a separately retained staging release.`;
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner: context.repo.owner, repo: context.repo.repo, issue_number: context.issue.number,
+            });
+            const existing = comments.find((comment) => comment.user?.type === 'Bot' &&
+              comment.user?.login === 'github-actions[bot]' && comment.body?.includes(marker));
+            const target = { owner: context.repo.owner, repo: context.repo.repo };
+            if (existing) await github.rest.issues.updateComment({ ...target, comment_id: existing.id, body });
+            else await github.rest.issues.createComment({ ...target, issue_number: context.issue.number, body });
+  teardown:
+    if: >-
+      github.event_name == 'pull_request' && github.event.action == 'closed' &&
+      github.event.pull_request.head.repo.full_name == github.repository && inputs.enabled &&
+      inputs.publication-mode == 'named-staging' && inputs.preview-environment != 'production' &&
+      inputs.preview-environment != 'worker-candidate'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: ${{ inputs.preview-environment }}
+    permissions:
+      contents: read
+      packages: read
+    env:
+      LVBT_RELEASE_APP: ${{ inputs.app }}
+      LVBT_PR_NUMBER: ${{ github.event.pull_request.number }}
+      LVBT_PREVIEW_URL: ${{ vars.LVBT_PREVIEW_URL }}
+      LVBT_PRODUCTION_URL: ${{ vars.LVBT_PRODUCTION_URL }}
+      LVBT_PREVIEW_BINDINGS: ${{ vars.LVBT_PREVIEW_BINDINGS }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID || secrets.CLOUDFLARE_ACCOUNT_ID }}
+      CLOUDFLARE_API_TOKEN:
+        ${{ secrets.CLOUDFLARE_PREVIEW_API_TOKEN || secrets.CLOUDFLARE_WORKERS_API_TOKEN ||
+        secrets.CLOUDFLARE_API_TOKEN }}
+    steps:
+      - name: Check preview credentials
+        id: credentials
+        run: |
+          if [ -n "$CLOUDFLARE_API_TOKEN" ] && [ -n "$CLOUDFLARE_ACCOUNT_ID" ]; then
+            echo 'configured=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'configured=false' >> "$GITHUB_OUTPUT"
+            echo 'PR cleanup is not configured: review the preview environment account and token.' >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Checkout trusted cleanup tools
+        if: steps.credentials.outputs.configured == 'true'
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Setup Node + pnpm
+        if: steps.credentials.outputs.configured == 'true'
+        uses: ./.github/actions/setup-node-pnpm
+      - name: Delete only the closed PR Worker
+        if: steps.credentials.outputs.configured == 'true'
+        run: >-
+          pnpm exec lvbt release pr-preview --action delete --pr "$LVBT_PR_NUMBER" --commit
+          "$GITHUB_SHA" --release-id "$GITHUB_RUN_ID" --publication-mode named-staging --protection
+          public

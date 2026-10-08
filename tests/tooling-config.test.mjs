@@ -85,3 +85,39 @@ test('prototype property names cannot bypass unknown-field configuration diagnos
   for (const key of ['__proto__', 'constructor', 'toString'])
     assert.ok(validateTooling(JSON.parse(`{"version":1,"${key}":{}}`)).length);
 });
+
+test('recurring contributions declare one trusted workflow, artifact, and visible ownership', () => {
+  const recurring = {
+    'weekly-report': {
+      workflow: '.github/workflows/weekly.yml',
+      artifactName: 'lvbt-weekly-issues',
+      title: 'LVBT analytics weekly report',
+      type: 'feature',
+      labels: ['analytics'],
+      pin: true,
+      adoptExisting: true,
+    },
+  };
+  assert.deepEqual(validateTooling({ version: 1, contributions: { recurring } }), []);
+  const declaration = recurring['weekly-report'];
+  for (const invalid of [
+    { ...declaration, workflow: '../../workflow.yml' },
+    { ...declaration, artifactName: '' },
+    { ...declaration, title: '' },
+    { ...declaration, type: 'custom-report-template' },
+    { ...declaration, labels: ['analytics', 'analytics'] },
+    { ...declaration, pin: 'yes' },
+    { ...declaration, adoptExisting: 'yes' },
+    { ...declaration, publish: 'custom-helper' },
+  ])
+    assert.ok(
+      validateTooling({ version: 1, contributions: { recurring: { 'weekly-report': invalid } } })
+        .length,
+    );
+  for (const key of ['__proto__', 'constructor', '../report', 'Weekly Report']) {
+    const configuration = JSON.parse(
+      JSON.stringify({ version: 1, contributions: { recurring: { [key]: declaration } } }),
+    );
+    assert.ok(validateTooling(configuration).length);
+  }
+});

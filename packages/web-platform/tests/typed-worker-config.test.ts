@@ -94,7 +94,7 @@ test('canonical upload metadata retains text and key credentials and preview mod
   };
   expect(typedWorkerConfiguration(production, config, preview)).toMatchObject({
     unsafe,
-    assets: { run_worker_first: ['/api/*'] },
+    assets: { run_worker_first: ['/api/*', '/lvbt-release.json'] },
     env: { preview: { unsafe, assets: { run_worker_first: true } } },
   });
 });
@@ -125,7 +125,7 @@ test('mode factories retain the deployed SQLite Durable Object class and isolate
   };
   expect(typedWorkerConfiguration(canonical, scoped)).toMatchObject({
     exports: { PlaceSearchGate: { type: 'durable-object', storage: 'sqlite' } },
-    assets: { run_worker_first: ['/api/*'] },
+    assets: { run_worker_first: ['/api/*', '/lvbt-release.json'] },
     durable_objects: {
       bindings: [{ name: 'GATE', class_name: 'PlaceSearchGate', script_name: 'participant' }],
     },

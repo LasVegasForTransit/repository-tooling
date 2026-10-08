@@ -24,6 +24,7 @@ export const SUPPORTED_KEYWORDS = new Set([
   'uniqueItems',
   'items',
   'properties',
+  'propertyNames',
   'required',
   'additionalProperties',
 ]);
@@ -73,6 +74,7 @@ function checkObject(walker, schema, value, at) {
     if (!Object.hasOwn(value, key)) walker.errors.push(`${at}: "${key}" is required.`);
   }
   for (const [key, child] of Object.entries(value)) {
+    if (schema.propertyNames) visit(walker, schema.propertyNames, key, `${at} property ${key}`);
     const property = Object.hasOwn(schema.properties ?? {}, key)
       ? schema.properties[key]
       : undefined;
@@ -140,7 +142,8 @@ export function unsupportedKeywords(schema) {
       else {
         if (!SUPPORTED_KEYWORDS.has(key)) found.add(key);
         if (key === 'properties' || key === '$defs') walk(child, true);
-        else if (key === 'items' || key === 'additionalProperties') walk(child, false);
+        else if (['items', 'additionalProperties', 'propertyNames'].includes(key))
+          walk(child, false);
       }
     }
   };

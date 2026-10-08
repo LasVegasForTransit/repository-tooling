@@ -465,6 +465,55 @@
         }
       },
       "required": []
+    },
+    "contributions": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "recurring": {
+          "type": "object",
+          "propertyNames": {
+            "type": "string",
+            "pattern": "^(?!constructor$|prototype$)[a-z][a-z0-9]*(?:-[a-z0-9]+)*$"
+          },
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "workflow": {
+                "type": "string",
+                "pattern": "^\\.github/workflows/[a-z0-9-]+\\.ya?ml$"
+              },
+              "artifactName": {
+                "type": "string",
+                "minLength": 1
+              },
+              "title": {
+                "type": "string",
+                "minLength": 1
+              },
+              "type": {
+                "enum": ["bug", "feature"]
+              },
+              "labels": {
+                "type": "array",
+                "uniqueItems": true,
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "pin": {
+                "type": "boolean"
+              },
+              "adoptExisting": {
+                "type": "boolean"
+              }
+            },
+            "required": ["workflow", "artifactName", "title", "type", "labels"]
+          }
+        }
+      }
     }
   },
   "required": ["version"],

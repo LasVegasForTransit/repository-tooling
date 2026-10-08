@@ -5,6 +5,7 @@ import type { ReleaseConfiguration } from './release-config.js';
 import { packageRelease, type WebsiteRelease } from './saved-release-artifact.js';
 import { configuredReleaseIdentity } from './worker-release-entry.js';
 import { retainReleaseMigrations } from './saved-release-migrations.js';
+import { normalizeLegacyReleaseMarker } from './legacy-release-marker.js';
 
 export async function packageLegacyWorkerRelease(
   source: string,
@@ -17,11 +18,6 @@ export async function packageLegacyWorkerRelease(
     throw new Error(
       'Nested app releases require a canonical typed-worker or cf-output artifact source.',
     );
-  if (!config.migrations?.length)
-    return await packageRelease(source, destination, identity, {
-      ...config.artifactAcceptance,
-      formatVersion: 2,
-    });
   const temporary = await mkdtemp(path.join(os.tmpdir(), 'lvbt-legacy-worker-'));
   try {
     const copy = path.join(temporary, 'release');
@@ -31,7 +27,8 @@ export async function packageLegacyWorkerRelease(
       ...config.artifactAcceptance,
       formatVersion: 2,
     });
-    await retainReleaseMigrations(source, copy, config);
+    await normalizeLegacyReleaseMarker(copy, identity, config);
+    if (config.migrations?.length) await retainReleaseMigrations(source, copy, config);
     return await packageRelease(copy, destination, identity, {
       ...config.artifactAcceptance,
       formatVersion: 2,

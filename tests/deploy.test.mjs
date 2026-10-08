@@ -6,11 +6,26 @@ import test from 'node:test';
 
 import {
   cfDeployArguments,
+  deploy,
   deployables,
   wranglerDeployArguments,
 } from '../packages/cli/src/lib/operate.mjs';
 
 const commit = 'a'.repeat(40);
+
+test('saved-release repositories reject direct publication before build or provider access', async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), 'lvbt-saved-release-deploy-'));
+  try {
+    await mkdir(path.join(root, '.lvbt'));
+    await writeFile(
+      path.join(root, '.lvbt/tooling.json'),
+      JSON.stringify({ version: 1, release: {} }),
+    );
+    await assert.rejects(deploy({ cwd: root, options: {} }), /saved staging release.*pnpm promote/);
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
 
 test('deploy records exact commit provenance and refuses conflicting remote changes', () => {
   assert.deepEqual(wranglerDeployArguments(commit, false), [

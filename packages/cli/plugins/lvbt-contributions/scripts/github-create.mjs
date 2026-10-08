@@ -3,6 +3,7 @@
 import { readFile } from 'node:fs/promises';
 import { spawnSync } from 'node:child_process';
 import { commitSubjectError } from './validate-commit-subject.mjs';
+import { ownershipLabel } from '../../../src/lib/contributions/ownership.mjs';
 
 const placeholderPattern =
   /\[(?:describe|optional|subheading|more subheadings|future issue title)[^\]]*\]/i;
@@ -85,6 +86,20 @@ function verifyStored(expected, stored) {
 }
 
 const options = parseArguments(process.argv.slice(2));
+if (options.kind === 'recurring') {
+  try {
+    const { reportRecurring } = await import('../../../src/lib/contributions/recurring.mjs');
+    const result = await reportRecurring({
+      cwd: process.cwd(),
+      input: options.input,
+      dryRun: options.dryRun,
+    });
+    process.stdout.write(`${JSON.stringify(result)}\n`);
+    process.exit(0);
+  } catch (error) {
+    fail(error.message, 2);
+  }
+}
 if (options.kind === 'audit') {
   try {
     const { reportAudit } = await import('../../../src/lib/audit/report.mjs');
@@ -100,7 +115,7 @@ if (options.kind === 'audit') {
   }
 }
 if (!['issue', 'pr'].includes(options.kind)) {
-  fail('Usage: github-create issue|pr|audit [options]', 2);
+  fail('Usage: github-create issue|pr|audit|recurring [options]', 2);
 }
 if (!options.title?.trim()) fail('A non-empty title is required.');
 if (options.title !== options.title.trim()) fail('The title must be trimmed.');
@@ -138,6 +153,34 @@ if (options.kind === 'issue') {
 }
 
 let labels;
+if (options.recurring_key || options.recurring_labels) {
+  if (
+    options.kind !== 'issue' ||
+    !/^[a-z0-9][a-z0-9-]*$/.test(options.recurring_key ?? '') ||
+    options.audit_check ||
+    options.audit_target
+  )
+    fail('Recurring ownership requires one valid issue key.', 2);
+  let additional;
+  try {
+    additional = JSON.parse(options.recurring_labels ?? '[]');
+  } catch {
+    fail('Invalid recurring labels.', 2);
+  }
+  if (
+    !Array.isArray(additional) ||
+    additional.some(
+      (name) =>
+        typeof name !== 'string' ||
+        !/^[A-Za-z0-9][A-Za-z0-9 .:_-]{0,49}$/.test(name) ||
+        ownershipLabel(name),
+    )
+  )
+    fail('Invalid recurring labels.', 2);
+  labels = [
+    ...new Set([label, 'recurring-owned', `recurring:${options.recurring_key}`, ...additional]),
+  ];
+}
 if (options.audit_check || options.audit_target) {
   if (options.kind !== 'issue' || options.type !== 'bug')
     fail('Audit ownership requires a bug issue.', 2);

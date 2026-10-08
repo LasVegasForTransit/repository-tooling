@@ -7,6 +7,7 @@ import { checkInstall, recordInstall } from './install-fingerprint.mjs';
 import { localEnvironment } from './local-environment.mjs';
 import { findManifests } from './platform/manifest.mjs';
 import { platformBootstrap, platformPreflight } from './platform/index.mjs';
+import { readTooling } from './tooling.mjs';
 
 function output(command, args, cwd) {
   const result = spawnSync(command, args, {
@@ -356,6 +357,11 @@ export async function bootstrap({ cwd, options = {} }) {
  * names.
  */
 export async function deploy({ cwd, options }) {
+  if (readTooling(cwd).release && !options.dryRun)
+    throw new CliError(
+      'deploy: this repository publishes a saved staging release; push the reviewed change to main, then use pnpm promote for production.',
+      2,
+    );
   let targets = await deployables(cwd);
   if (options.filter)
     targets = targets.filter((target) =>

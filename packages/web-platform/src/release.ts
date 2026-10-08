@@ -36,3 +36,4 @@ export * from './typed-worker-compatibility.js';
 export { isolatedPreviewBindings, type WorkerBindings } from './worker-bindings.js';
 export * from './release-path.js';
 export * from './release-attestation.js';
+export * from './release-pr-preview-command.js';
