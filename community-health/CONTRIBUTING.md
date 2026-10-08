@@ -10,7 +10,16 @@ pinned lvbt-contributions helper, preview the complete contribution, and verify 
 
 Trusted default-branch audit automation uses the same helper to maintain one issue per check and
 target with visible ownership labels. Errors, skipped checks, missing reports, and stale runs never
-close a finding. The helper previews and verifies every issue reconciliation operation.
+close a finding. The helper previews and verifies every issue reconciliation operation. Writes
+require the matching GitHub executor and declarations from the verified source commit; local or pull
+request executors cannot replay trusted evidence to mutate issues.
+
+Product reports also use the approved helper's `recurring` route. Repository-owned declarations keep
+titles, templates, labels and pin behavior explicit. Trusted default-branch schedule or manual
+workflows upload the exact contribution actions, preview them, and verify stored issue readback.
+Only an explicit verified resolution closes its matching owned issue; errors, missing actions and
+stale evidence cannot clear it. Reviewed legacy adoption requires unique visible ownership, bot
+authorship and verified timestamps. Conflicting automation ownership blocks reconciliation.
 
 For deployable applications, main updates staging. Production publication is an explicit promotion
 of a saved artifact. Use the shared release command and retain its publication evidence.

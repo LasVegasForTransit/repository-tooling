@@ -47,7 +47,7 @@ test('compatibility config comes from both canonical modes and relocates future 
     const generated = await generateTypedWorkerCompatibility(source, destination, config);
     expect(generated).toMatchObject({
       main: '.wrangler/worker/index.js',
-      assets: { directory: 'dist', run_worker_first: ['/api/*'] },
+      assets: { directory: 'dist', run_worker_first: ['/api/*', '/lvbt-release.json'] },
       unsafe: { metadata: { keep_bindings: ['secret_text', 'secret_key'] } },
       d1_databases: [{ migrations_dir: 'sql', database_id: 'production-id' }],
       env: {

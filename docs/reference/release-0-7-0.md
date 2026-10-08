@@ -23,4 +23,7 @@ Previously retained website artifacts remain readable. Consumers migrate their a
 workflows and configuration explicitly; updating the vendor snapshot alone does not complete
 adoption.
 
+Repositories declaring saved releases cannot bypass promotion through `lvbt deploy`; it permits
+configuration dry runs and names the staging/promotion correction before any provider operation.
+
 See [Developer workflow](developer-workflow.md) for the command contract and ownership boundaries.

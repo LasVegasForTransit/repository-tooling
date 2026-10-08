@@ -39,7 +39,9 @@ Main builds update staging. `pnpm promote` selects and publishes the saved, revi
 without rebuilding. Shared release tools verify identity, hashes, preview protection, and product
 browser acceptance, and retain publication receipts. Publishing commands check their credentials
 when used. An uncertain publication must be reconciled before another dispatch. Production promotion
-is an explicit operation. Recovery deploy commands do not replace that release process.
+is an explicit operation. In a repository declaring a release profile, `lvbt deploy` rejects direct
+publication before building or contacting the provider and directs contributors to staging and
+`pnpm promote`. Its `--dry-run` option remains available for configuration validation.
 
 ## Ownership and extensions
 

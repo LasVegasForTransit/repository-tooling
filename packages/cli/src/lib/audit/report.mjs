@@ -3,6 +3,12 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
 import { checks, execute } from './index.mjs';
+import {
+  verifyExecutor,
+  verifySourceConfiguration,
+} from '../contributions/trusted-configuration.mjs';
+import { foreignOwnership } from '../contributions/ownership.mjs';
+import { idNumber, successful, verifiedRun } from '../contributions/trusted-report.mjs';
 
 const helper = new URL(
   '../../../plugins/lvbt-contributions/scripts/github-create.mjs',
@@ -16,7 +22,6 @@ const labelNames = (result) => [
   `target:${result.target}`,
 ];
 const normalize = (body) => body.replaceAll('\r\n', '\n').trimEnd();
-const idNumber = (id) => BigInt(String(id));
 
 function validateResult(result, report, seen) {
   const key = `${result.check}:${result.target}`;
@@ -60,106 +65,6 @@ function validate(report) {
   const seen = new Set();
   for (const result of report.results) validateResult(result, report, seen);
 }
-async function successful(run, command, args, { cwd, message }) {
-  const result = await run(command, args, { cwd });
-  if (result.status !== 0) throw new Error(result.stderr || message);
-  return result.stdout;
-}
-function verifyIdentity(report, remote, repository, config) {
-  const workflow = config.audits?.workflow ?? '.github/workflows/audits.yml';
-  const matches = [
-    [remote.repository?.full_name, report.repository],
-    [report.run.repository, report.repository],
-    [remote.head_branch, repository.default_branch],
-    [report.run.headBranch, remote.head_branch],
-    [remote.head_sha, report.commit],
-    [report.run.headSha, remote.head_sha],
-    [report.run.event, remote.event],
-    [remote.path?.split('@')[0], workflow],
-    [report.run.workflow, workflow],
-    [remote.run_attempt, report.run.attempt],
-    [String(remote.id), String(report.run.id)],
-    [remote.html_url, report.run.url],
-  ];
-  if (
-    !['schedule', 'workflow_dispatch'].includes(remote.event) ||
-    matches.some(([actual, expected]) => actual !== expected)
-  )
-    throw new Error(
-      'Audit run is not a trusted default-branch schedule or manual workflow result.',
-    );
-}
-function newer(candidate, remote) {
-  if (!['schedule', 'workflow_dispatch'].includes(candidate.event)) return false;
-  return (
-    idNumber(candidate.id) > idNumber(remote.id) ||
-    (String(candidate.id) === String(remote.id) && candidate.run_attempt > remote.run_attempt)
-  );
-}
-async function verifyArtifact(report, config, run, cwd) {
-  const directory = await mkdtemp(path.join(tmpdir(), 'lvbt-audit-evidence-'));
-  try {
-    const artifactName = config.audits?.artifactName ?? 'lvbt-audit-report';
-    const metadata = JSON.parse(
-      await successful(
-        run,
-        'gh',
-        ['api', `repos/${report.repository}/actions/runs/${report.run.id}/artifacts?per_page=100`],
-        { cwd, message: 'Could not verify audit artifact metadata.' },
-      ),
-    );
-    const artifacts =
-      metadata.artifacts?.filter(
-        (artifact) => artifact.name === artifactName && !artifact.expired,
-      ) ?? [];
-    if (artifacts.length !== 1 || !/^\d+$/.test(String(artifacts[0].id)))
-      throw new Error('Trusted audit artifact is missing, expired, or ambiguous.');
-    await successful(
-      run,
-      'gh',
-      [
-        'run',
-        'download',
-        String(report.run.id),
-        '--repo',
-        report.repository,
-        '--name',
-        artifactName,
-        '--dir',
-        directory,
-      ],
-      { cwd, message: 'Could not download trusted audit artifact.' },
-    );
-    const stored = JSON.parse(
-      await readFile(path.join(directory, 'lvbt-audit-report.json'), 'utf8'),
-    );
-    if (!isDeepStrictEqual(stored, report))
-      throw new Error('Input report does not match the trusted workflow artifact.');
-    return `${report.run.url}/artifacts/${artifacts[0].id}`;
-  } finally {
-    await rm(directory, { recursive: true, force: true });
-  }
-}
-async function verifiedRun(report, config, run, cwd) {
-  const gh = async (args) =>
-    JSON.parse(
-      await successful(run, 'gh', args, { cwd, message: 'GitHub provenance verification failed.' }),
-    );
-  const repository = await gh(['api', `repos/${report.repository}`]);
-  const remote = await gh(['api', `repos/${report.repository}/actions/runs/${report.run.id}`]);
-  verifyIdentity(report, remote, repository, config);
-  const latest = await gh([
-    'api',
-    `repos/${report.repository}/actions/workflows/${remote.workflow_id}/runs?branch=${encodeURIComponent(repository.default_branch)}&per_page=100`,
-  ]);
-  if (
-    !Array.isArray(latest.workflow_runs) ||
-    latest.workflow_runs.some((candidate) => newer(candidate, remote))
-  )
-    throw new Error('Audit report is stale relative to a newer trusted workflow run.');
-  const artifactUrl = await verifyArtifact(report, config, run, cwd);
-  return { gh, artifactUrl };
-}
 function issueBody(report, result) {
   const command = result.command.join(' ');
   const findings = result.findings
@@ -171,13 +76,19 @@ function issueBody(report, result) {
   return `# Steps to reproduce\n\nRun \`${command.replaceAll('`', '\\`')}\` against ${result.target} at commit ${report.commit}.\n\n# Expected behavior\n\nThe ${result.check} audit passes without findings.\n\n# Actual behavior\n\n${result.status === 'pass' ? 'The verified audit now passes.' : findings}\n\n# Additional context\n\nAudit owner: LVBT shared audit automation.\n\nVerified run: ${report.run.id} (attempt ${report.run.attempt}).\n\nWorkflow: [${report.run.workflow}](${report.run.url}).\n\nCommit: [${report.commit}](https://github.com/${report.repository}/commit/${report.commit}).\n\nArtifacts: [Download the verified audit evidence](${report.artifactUrl}).${result.artifacts.length ? ` Raw files: ${result.artifacts.join(', ')}.` : ''}\n`;
 }
 function ownedIssue(issues, labels, result, report) {
-  const matches = issues.filter((issue) =>
-    labels.slice(1).every((name) => issue.labels.some((label) => label.name === name)),
+  const matches = issues.filter(
+    (issue) =>
+      !issue.pull_request &&
+      labels
+        .slice(1)
+        .every((name) => issue.labels.some((label) => label.name.toLowerCase() === name)),
   );
   if (matches.length > 1)
     throw new Error(`Multiple audit-owned issues match ${result.check}/${result.target}.`);
   const issue = matches[0];
   if (!issue) return undefined;
+  if (foreignOwnership(issue.labels, labels.slice(1)))
+    throw new Error('Audit issue has ambiguous foreign automation ownership.');
   const previous = issue.body.match(/Verified run: (\d+) \(attempt (\d+)\)\./);
   if (
     previous &&
@@ -354,7 +265,14 @@ async function applyActions(actions, report, directory, { gh, run, cwd }) {
     await verifyAction(action, report, gh);
   }
 }
-export async function reportAudit({ cwd, input, dryRun = false, config, execute: run = execute }) {
+export async function reportAudit({
+  cwd,
+  input,
+  dryRun = false,
+  config,
+  environment = process.env,
+  execute: run = execute,
+}) {
   if (!input) throw new Error('Audit reporting requires --input.');
   if (!config) {
     const { readTooling } = await import('../tooling.mjs');
@@ -362,7 +280,16 @@ export async function reportAudit({ cwd, input, dryRun = false, config, execute:
   }
   const report = JSON.parse(await readFile(path.resolve(cwd, input), 'utf8'));
   validate(report);
-  const { gh, artifactUrl } = await verifiedRun(report, config, run, cwd);
+  verifyExecutor(report, environment, dryRun);
+  const { gh, artifactUrl } = await verifiedRun({
+    report,
+    workflow: config.audits?.workflow ?? '.github/workflows/audits.yml',
+    artifactName: config.audits?.artifactName ?? 'lvbt-audit-report',
+    filename: 'lvbt-audit-report.json',
+    run,
+    cwd,
+  });
+  await verifySourceConfiguration(report, config, gh, 'audits');
   const issues = await gh([
     'issue',
     'list',

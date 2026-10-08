@@ -1,7 +1,7 @@
 # Command reference
 
 `lvbt` is the binary of `@lasvegasfortransit/cli`. A repository's standard scripts call it, so you
-normally run `pnpm bootstrap`, `pnpm preflight`, `pnpm check`, and `pnpm run deploy` rather than the
+normally run `pnpm bootstrap`, `pnpm preflight`, `pnpm check`, and `pnpm promote` rather than the
 binary. It needs Node.js 24.20 or newer on the 24 line, and git.
 
 ## Commands
@@ -16,16 +16,18 @@ binary. It needs Node.js 24.20 or newer on the 24 line, and git.
 | `lvbt audit [check]`             | Configured local link, Lighthouse, and dependency checks; explicit production target                   | 0 pass, 1 findings/errors, 2 bad usage |
 | `lvbt audit report --input file` | Verify CI evidence and reconcile its audit-owned issues; preview with `--dry-run`                      | 0 reported, 1 reporting failure        |
 | `lvbt promote [--app name]`      | Select a saved staging release and request explicit production promotion                               | 0 dispatched/reconciled, 1 failure     |
-| `lvbt deploy [--filter x]`       | `pnpm build`, then `cf deploy` for cf projects or `wrangler deploy` for legacy projects                | 0 done, 2 nothing to deploy            |
+| `lvbt deploy [--filter x]`       | Build and deploy projects without saved releases; saved-release repositories require promotion         | 0 done, 2 refused/bad configuration    |
 | `lvbt help`                      | Print usage                                                                                            | 0                                      |
 
 `lvbt check filenames --staged` checks the staged tree, which the pre-commit hook uses.
-`lvbt deploy --dry-run` builds and runs the selected Cloudflare CLI with `--dry-run`. A
-`cloudflare.config.ts` takes precedence over a retained Wrangler config. When `platform.json` points
-`cloudflare.cloudflareConfig` to a sibling deploy package, only that cf project deploys; the
-Wrangler config beside the manifest remains available for legacy operations. `--filter apps/worker`
-limits deploy to that target directory. With `--production`, `--filter apps/site` (or `site`) limits
-bootstrap and preflight to that app's `platform.json`; `--filter .` picks the one at the root.
+`lvbt deploy --dry-run` builds and runs the selected Cloudflare CLI with `--dry-run`. A repository
+with a `release` declaration must publish through staging and `pnpm promote`; direct `lvbt deploy`
+publication is rejected before build or provider access. A `cloudflare.config.ts` takes precedence
+over a retained Wrangler config. When `platform.json` points `cloudflare.cloudflareConfig` to a
+sibling deploy package, only that cf project deploys; the Wrangler config beside the manifest
+remains available for legacy operations. `--filter apps/worker` limits deploy to that target
+directory. With `--production`, `--filter apps/site` (or `site`) limits bootstrap and preflight to
+that app's `platform.json`; `--filter .` picks the one at the root.
 
 `lvbt bootstrap --production --rotate SIGNING_SECRET` replaces the stored value of a secret the
 manifest declares; `--rotate` takes one name or several separated by commas, and only

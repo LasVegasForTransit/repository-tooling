@@ -61,4 +61,36 @@ result closes it. Errors, skipped checks, and absent results never close an issu
 
 The workflow must serialize reporting with one concurrency group per repository and must upload
 `lvbt-audit-report.json` to the configured audit artifact before reporting. Local execution and
-untrusted pull request runs may produce reports but cannot maintain audit issues.
+untrusted pull request runs may produce reports but cannot maintain audit issues. Writes require the
+current executor's repository, run, attempt, commit, branch and event to match the verified
+evidence. Declarations must match `.lvbt/tooling.json` at that verified source commit. Read-only
+local previews may inspect trusted evidence; altered local declarations cannot change its owner.
+
+## Verified recurring contributions
+
+Product report workflows use the same helper to maintain declared recurring issues:
+
+```bash
+node "${CLAUDE_PLUGIN_ROOT}/scripts/github-create.mjs" recurring \
+  --input lvbt-recurring-issues.json --dry-run --json
+```
+
+Declare each stable key under `contributions.recurring` in `.lvbt/tooling.json`, with its trusted
+workflow, evidence artifact name, readable title, bug or feature type, and visible labels. Set
+`pin: true` only for a report that should remain pinned. Preserve the template headings in each
+complete body. The helper checks the actual default-branch schedule or manual run, attempt, source
+commit, latest run, and exact uploaded contribution actions before previewing or writing.
+
+Upload `lvbt-recurring-issues.json` before reporting and serialize issue maintenance with one
+repository concurrency group. Inspect the complete preview before removing `--dry-run`. An `open`
+action creates, updates or reopens its owned issue. Only an explicit verified `resolved` action
+closes the corresponding issue. Missing, errored and skipped actions never close issues. Every write
+verifies stored title, body, state, labels and the requested pin. Reporting failures fail the
+workflow. The visible `recurring-owned` and `recurring:<key>` labels identify ownership; pull
+requests and other automation's issues cannot be maintained by this route.
+
+For a reviewed migration, `adoptExisting: true` permits adopting one exact title and configured
+label match. The helper requires GitHub Actions bot authorship, no other automation ownership and an
+update timestamp no later than the verified run's start. Ambiguous or unverifiable adoption fails;
+it never silently replaces the existing stable issue. Local and pull request runs cannot maintain
+recurring issues.

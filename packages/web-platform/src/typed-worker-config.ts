@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { releaseMarkerAssets } from './release-marker-assets.js';
 import type { ReleaseConfiguration } from './release-config.js';
 import {
   isolatedPreviewBindings,
@@ -114,6 +115,18 @@ function canonicalWorkers(value: unknown, config: ReleaseConfiguration, previewV
     );
   return { built, candidate };
 }
+function workerAssets(
+  value: z.infer<typeof canonical>['worker']['assets'],
+  binding: string | undefined,
+  publicPath: string | undefined,
+): Record<string, unknown> | undefined {
+  return value
+    ? releaseMarkerAssets(
+        { ...(snakeSettings(value) as Record<string, unknown>), binding },
+        publicPath,
+      )
+    : undefined;
+}
 export function typedWorkerConfiguration(
   value: unknown,
   config: ReleaseConfiguration,
@@ -131,12 +144,8 @@ export function typedWorkerConfiguration(
     .map(([name]) => name);
   if (assetNames.length > 1 || Boolean(built.assets) !== Boolean(assetNames.length))
     throw new Error('Declare one assets binding with its canonical asset settings.');
-  const assets = built.assets
-    ? { ...(snakeSettings(built.assets) as Record<string, unknown>), binding: assetNames[0] }
-    : undefined;
-  const previewAssets = candidate.assets
-    ? { ...(snakeSettings(candidate.assets) as Record<string, unknown>), binding: assetNames[0] }
-    : undefined;
+  const assets = workerAssets(built.assets, assetNames[0], config.publicPath);
+  const previewAssets = workerAssets(candidate.assets, assetNames[0], config.publicPath);
   const unsafe = built.unsafe ?? { metadata: { keep_bindings: ['secret_text', 'secret_key'] } };
   const productionBindings = wranglerBindings(built.env);
   const previewBindings = wranglerBindings(preview);

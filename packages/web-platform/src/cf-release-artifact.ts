@@ -6,6 +6,7 @@ import type { ReleaseConfiguration } from './release-config.js';
 import { configuredReleaseIdentity, workerReleaseEntry } from './worker-release-entry.js';
 import { packageWorkerCfRelease } from './cf-worker-release-artifact.js';
 import { packageRelease, type WebsiteRelease } from './saved-release-artifact.js';
+import { releaseMarkerAssets } from './release-marker-assets.js';
 
 const staticWorker = z.strictObject({
   name: z.string(),
@@ -48,13 +49,16 @@ export async function packageCfRelease(
       path.join(temporary, '.wrangler/worker/index.js'),
       workerReleaseEntry('./assets.js', identity, config),
     );
-    const assets = {
-      directory: './dist',
-      binding: 'ASSETS',
-      run_worker_first: true,
-      not_found_handling: built.assets.notFoundHandling ?? 'none',
-      ...(built.assets.htmlHandling ? { html_handling: built.assets.htmlHandling } : {}),
-    };
+    const assets = releaseMarkerAssets(
+      {
+        directory: './dist',
+        binding: 'ASSETS',
+        run_worker_first: true,
+        not_found_handling: built.assets.notFoundHandling ?? 'none',
+        ...(built.assets.htmlHandling ? { html_handling: built.assets.htmlHandling } : {}),
+      },
+      config.publicPath,
+    );
     await writeFile(
       path.join(temporary, 'wrangler.jsonc'),
       JSON.stringify(

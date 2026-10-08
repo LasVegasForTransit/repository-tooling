@@ -9,6 +9,14 @@ const scratch = await mkdtemp(path.join(tmpdir(), 'lvbt-audit-report-'));
 after(() => rm(scratch, { recursive: true, force: true }));
 const sha = 'a'.repeat(40);
 const repository = 'LasVegasForTransit/example';
+const environment = {
+  GITHUB_REPOSITORY: repository,
+  GITHUB_RUN_ID: '100',
+  GITHUB_RUN_ATTEMPT: '1',
+  GITHUB_SHA: sha,
+  GITHUB_REF_NAME: 'main',
+  GITHUB_EVENT_NAME: 'schedule',
+};
 function report(status = 'fail') {
   return {
     version: 1,
@@ -77,6 +85,12 @@ async function fixture(
     if (command === 'gh' && args[0] === 'api') {
       if (args[1] === `repos/${repository}`)
         data = { default_branch: 'main', full_name: repository };
+      else if (args[1].includes('/contents/'))
+        data = {
+          type: 'file',
+          encoding: 'base64',
+          content: Buffer.from('{"version":1}').toString('base64'),
+        };
       else if (args[1].includes('/artifacts'))
         data = { artifacts: [{ id: 777, name: 'lvbt-audit-report', expired: false }] };
       else if (args[1].endsWith('/runs/100')) data = run;
@@ -92,7 +106,7 @@ async function fixture(
     else throw new Error(`Unexpected mutation: ${command} ${args.join(' ')}`);
     return { status: 0, stdout: JSON.stringify(data), stderr: '' };
   };
-  return { cwd: dir, input, execute, calls };
+  return { cwd: dir, input, execute, calls, environment };
 }
 
 test('verified failure previews one helper-owned bug with reproduction and artifact links', async () => {
@@ -209,6 +223,7 @@ const option=(name)=>args[args.indexOf(name)+1];
 const emit=(value)=>console.log(typeof value==='string'?value:JSON.stringify(value));
 if(args[0]==='api') {
  if(args[1]==='repos/'+report.repository) emit({default_branch:'main'});
+ else if(args[1].includes('/contents/')) emit({type:'file',encoding:'base64',content:Buffer.from('{"version":1}').toString('base64')});
  else if(args[1].includes('/artifacts')) emit({artifacts:[{id:777,name:'lvbt-audit-report',expired:false}]});
  else if(args[1].includes('/workflows/')) emit({workflow_runs:[{id:100,run_attempt:1,event:'schedule'}]});
  else emit({id:100,run_attempt:1,head_sha:report.commit,head_branch:'main',event:'schedule',path:'.github/workflows/audits.yml',workflow_id:10,repository:{full_name:report.repository},html_url:report.run.url});
@@ -243,7 +258,7 @@ fs.writeFileSync(process.env.AUDIT_TEST_STATE,JSON.stringify(state));
         AUDIT_TEST_REPORT: input,
       },
     });
-  return { cwd: directory, input, execute, state };
+  return { cwd: directory, input, execute, state, environment };
 }
 
 test('live helper boundary creates, updates, reopens, and closes one stored owned issue', async () => {
@@ -282,4 +297,49 @@ test('live helper boundary creates, updates, reopens, and closes one stored owne
       ['bug', 'audit-owned', 'audit:links', 'target:production'],
     );
   }
+});
+test('audit writes cannot replay trusted evidence from a local or PR executor', async () => {
+  for (const environment of [{}, { GITHUB_EVENT_NAME: 'pull_request' }]) {
+    const setup = await liveFixture(report());
+    await assert.rejects(
+      audit.reportAudit({ ...setup, config: {}, environment }),
+      /executor|execution|workflow/i,
+    );
+    assert.equal(
+      JSON.parse(await (await import('node:fs/promises')).readFile(setup.state, 'utf8')).issue,
+      undefined,
+    );
+  }
+});
+test('audit artifact selection must match declarations at the verified source commit', async () => {
+  const setup = await fixture(report());
+  await assert.rejects(
+    audit.reportAudit({
+      ...setup,
+      dryRun: true,
+      config: {
+        audits: { workflow: '.github/workflows/audits.yml', artifactName: 'lvbt-audit-report' },
+      },
+    }),
+    /configuration|declaration|commit/i,
+  );
+});
+test('an audit-owned result cannot mutate a pull request or another automation owner', async () => {
+  const issue = {
+    number: 7,
+    body: '',
+    state: 'OPEN',
+    labels: ['audit-owned', 'audit:links', 'target:production'].map((name) => ({ name })),
+  };
+  const pullRequest = await fixture(report('pass'), {
+    issues: [{ ...issue, pull_request: { url: 'https://github.com/example/pull/7' } }],
+  });
+  assert.deepEqual(
+    (await audit.reportAudit({ ...pullRequest, config: {}, dryRun: true })).actions,
+    [],
+  );
+  const ambiguous = await fixture(report(), {
+    issues: [{ ...issue, labels: [...issue.labels, { name: 'recurring-owned' }] }],
+  });
+  await assert.rejects(audit.reportAudit({ ...ambiguous, config: {}, dryRun: true }), /ownership/i);
 });
