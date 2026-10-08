@@ -6,6 +6,10 @@ import { isDeepStrictEqual, parseArgs, promisify } from 'node:util';
 import { z } from 'zod';
 import type { ReleaseConfiguration } from './release-config.js';
 import { verifyRelease, type WebsiteRelease } from './saved-release-artifact.js';
+import {
+  legacyArtifactsSchema,
+  verifyLegacyReleaseAttestation,
+} from './legacy-release-attestation.js';
 
 const execute = promisify(execFile);
 const signer = z.strictObject({
@@ -13,10 +17,18 @@ const signer = z.strictObject({
     'LasVegasForTransit/repository-tooling/.github/workflows/release-attest.yml',
   ),
   signerCommit: z.string().regex(/^[a-f0-9]{40}$/),
+  legacyArtifacts: legacyArtifactsSchema.optional(),
 });
-type AttestationConfig = Pick<ReleaseConfiguration, 'repository'> & {
-  attestation?: { signerWorkflow: string; signerCommit: string } | undefined;
-};
+type AttestationConfig = Pick<ReleaseConfiguration, 'repository'> &
+  Partial<Pick<ReleaseConfiguration, 'artifactPrefix' | 'stagingWorkflow'>> & {
+    attestation?:
+      | {
+          signerWorkflow: string;
+          signerCommit: string;
+          legacyArtifacts?: z.infer<typeof legacyArtifactsSchema> | undefined;
+        }
+      | undefined;
+  };
 
 /** Sign the verified inventory itself, so its digest binds every retained file. */
 export async function createReleaseAttestation(
@@ -49,6 +61,7 @@ export async function verifyReleaseAttestation(
 ): Promise<void> {
   if (!config.attestation) return;
   const expectedSigner = signer.parse(config.attestation);
+  if (!proofDirectory && (await verifyLegacyReleaseAttestation(config, directory))) return;
   if (!proofDirectory)
     throw new Error('This release requires --attestation-directory with retained signed proof.');
   const release = await verifyRelease(directory);

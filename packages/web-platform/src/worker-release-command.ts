@@ -20,6 +20,7 @@ import { parseArgs, promisify } from 'node:util';
 import { previewUploadReceipt } from './pr-preview-config.js';
 import { verifyRelease, type WebsiteRelease } from './saved-release-artifact.js';
 import { releaseSource } from './release-source.js';
+import { selectedLegacyRelease } from './legacy-release-attestation.js';
 import { accessCredentials } from './access-auth.js';
 import { readReleaseIdentity } from './release-identity.js';
 import { resolveRelease } from './resolve-release.js';
@@ -81,12 +82,17 @@ async function sourceRelease(config: ReleaseConfiguration, values: ReleaseOption
           },
           config,
         );
+  const legacy = await selectedLegacyRelease(config, source);
   const output = process.env.GITHUB_OUTPUT;
   if (output)
-    await writeFile(output, `commit=${source.commit}\nrelease-id=${source.releaseId}\n`, {
-      flag: 'a',
-    });
-  process.stdout.write(`${JSON.stringify(source)}\n`);
+    await writeFile(
+      output,
+      `commit=${source.commit}\nrelease-id=${source.releaseId}\nlegacy=${legacy}\n`,
+      {
+        flag: 'a',
+      },
+    );
+  process.stdout.write(`${JSON.stringify({ ...source, legacy })}\n`);
 }
 async function uploadVersionRelease(
   config: ReleaseConfiguration,

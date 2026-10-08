@@ -42,6 +42,10 @@ writing provider state. Credentials remain in their respective environments. Sta
 requires live protected preview verification or this verified current-run receipt. Unknown provider
 outcomes require reconciliation rather than automatic retry.
 
+Applications adopting signed artifacts can preserve exact older retained format-version-1 releases
+through the bounded [legacy attestation policy](legacy-release-attestations.md). Every use verifies
+their remote provenance and retained bytes; newly produced artifacts always require signed proof.
+
 A deliberately shared public R2 dataset can be declared in `previewReadOnlyBindings`. Only a
 matching R2 binding is eligible. The generated staging wrapper exposes `get`, `head`, and `list` and
 rejects writes, including from exported Durable Objects. Other mutable preview resources remain

@@ -18,6 +18,8 @@ on:
         value: ${{ jobs.source.outputs.commit }}
       release-id:
         value: ${{ jobs.source.outputs.release-id }}
+      legacy:
+        value: ${{ jobs.source.outputs.legacy }}
 
 permissions:
   contents: read
@@ -42,6 +44,7 @@ jobs:
     outputs:
       commit: ${{ steps.source.outputs.commit }}
       release-id: ${{ steps.source.outputs.release-id }}
+      legacy: ${{ steps.source.outputs.legacy }}
     steps:
       - name: Checkout trusted promotion tools
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2

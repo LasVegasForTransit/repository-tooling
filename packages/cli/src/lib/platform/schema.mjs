@@ -21,6 +21,7 @@ export const SUPPORTED_KEYWORDS = new Set([
   'minimum',
   'maximum',
   'minItems',
+  'maxItems',
   'uniqueItems',
   'items',
   'properties',
@@ -60,6 +61,8 @@ function checkString(schema, value, at, errors) {
 function checkArray(walker, schema, value, at) {
   if (schema.minItems !== undefined && value.length < schema.minItems)
     walker.errors.push(`${at}: needs at least ${schema.minItems} item(s).`);
+  if (schema.maxItems !== undefined && value.length > schema.maxItems)
+    walker.errors.push(`${at}: permits at most ${schema.maxItems} item(s).`);
   if (
     schema.uniqueItems &&
     value.some((item, i) => value.slice(0, i).some((other) => isDeepStrictEqual(item, other)))

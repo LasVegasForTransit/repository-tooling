@@ -59,7 +59,7 @@ jobs:
         if: inputs.build
         run: pnpm build
       - name: Install pinned link checker
-        if: always() && steps.setup.outcome == 'success' && inputs.link-checker
+        if: success() && inputs.link-checker
         uses: lycheeverse/lychee-action@e7477775783ea5526144ba13e8db5eec57747ce8 # v2
         with:
           lycheeVersion: v0.24.2
@@ -67,7 +67,7 @@ jobs:
           fail: false
           jobSummary: false
       - name: Execute configured audits and retain every result
-        if: always() && steps.setup.outcome == 'success'
+        if: success()
         run: pnpm run audit --target "$AUDIT_TARGET" --json --output lvbt-audit-report.json
       - name: Retain normalized and raw evidence
         if: always()

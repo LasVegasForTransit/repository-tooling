@@ -3,6 +3,7 @@ import { workerSmokeSchema } from './worker-release-smoke.js';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { z } from 'zod';
+import { legacyArtifactsSchema } from './legacy-release-attestation.js';
 
 const origin = z
   .url({ protocol: /^https$/ })
@@ -36,6 +37,7 @@ export const releaseConfigurationSchema = z
           'LasVegasForTransit/repository-tooling/.github/workflows/release-attest.yml',
         ),
         signerCommit: z.string().regex(/^[a-f0-9]{40}$/),
+        legacyArtifacts: legacyArtifactsSchema.optional(),
       })
       .optional(),
     previewOnly: z.boolean().optional(),

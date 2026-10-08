@@ -10,6 +10,8 @@ import {
 import { foreignOwnership } from '../contributions/ownership.mjs';
 import { latestIssueEvidence } from '../contributions/issue-evidence.mjs';
 import { idNumber, successful, verifiedRun } from '../contributions/trusted-report.mjs';
+import { verifyAuditExecution } from './execution.mjs';
+import { applyIssueActions } from '../contributions/issue-apply.mjs';
 
 const helper = new URL(
   '../../../plugins/lvbt-contributions/scripts/github-create.mjs',
@@ -165,107 +167,6 @@ async function previewActions(actions, report, directory, { run, cwd }) {
       throw new Error('Contribution helper preview differs from the audit action.');
   }
 }
-async function ensureLabels(actions, report, { gh, run, cwd }) {
-  const existing = await gh([
-    'label',
-    'list',
-    '--repo',
-    report.repository,
-    '--limit',
-    '1000',
-    '--json',
-    'name',
-  ]);
-  for (const name of new Set(actions.flatMap((action) => action.labels))) {
-    if (existing.some((label) => label.name === name)) continue;
-    const description =
-      name === 'audit-owned'
-        ? 'Maintained by the verified LVBT audit workflow.'
-        : 'LVBT audit classification.';
-    await successful(
-      run,
-      'gh',
-      [
-        'label',
-        'create',
-        name,
-        '--repo',
-        report.repository,
-        '--color',
-        'B60205',
-        '--description',
-        description,
-      ],
-      { cwd, message: `Could not create audit label ${name}.` },
-    );
-  }
-}
-async function updateAction(action, report, file, { run, cwd }) {
-  await successful(
-    run,
-    'gh',
-    [
-      'issue',
-      'edit',
-      String(action.number),
-      '--repo',
-      report.repository,
-      '--title',
-      action.title,
-      '--body-file',
-      file,
-    ],
-    { cwd, message: 'Audit issue update failed.' },
-  );
-  if (action.action === 'close' || action.action === 'reopen')
-    await successful(
-      run,
-      'gh',
-      ['issue', action.action, String(action.number), '--repo', report.repository],
-      { cwd, message: 'Audit issue state update failed.' },
-    );
-}
-async function verifyAction(action, report, gh) {
-  const stored = await gh([
-    'issue',
-    'view',
-    String(action.number),
-    '--repo',
-    report.repository,
-    '--json',
-    'number,title,body,state,labels,url',
-  ]);
-  const expectedState = action.action === 'close' ? 'CLOSED' : 'OPEN';
-  const same = [
-    stored.title === action.title,
-    normalize(stored.body) === normalize(action.body),
-    stored.state === expectedState,
-    action.labels.every((name) => stored.labels.some((label) => label.name === name)),
-  ];
-  if (same.some((value) => !value))
-    throw new Error(
-      `GitHub stored audit issue ${action.number} differently from the verified preview.`,
-    );
-  action.url = stored.url;
-}
-async function applyActions(actions, report, directory, { gh, run, cwd }) {
-  await ensureLabels(actions, report, { gh, run, cwd });
-  for (const action of actions) {
-    const file = bodyFile(directory, action);
-    if (action.action === 'create') {
-      const output = await successful(
-        run,
-        process.execPath,
-        helperArguments(action, report, file),
-        { cwd, message: 'Audit issue creation failed.' },
-      );
-      const stored = JSON.parse(output);
-      action.number = stored.number;
-      action.url = stored.url;
-    } else await updateAction(action, report, file, { run, cwd });
-    await verifyAction(action, report, gh);
-  }
-}
 export async function reportAudit({
   cwd,
   input,
@@ -291,6 +192,7 @@ export async function reportAudit({
     cwd,
   });
   await verifySourceConfiguration(report, config, gh, 'audits');
+  await verifyAuditExecution(report, gh);
   const issues = await gh([
     'issue',
     'list',
@@ -311,7 +213,15 @@ export async function reportAudit({
   const directory = await mkdtemp(path.join(tmpdir(), 'lvbt-audit-issues-'));
   try {
     await previewActions(actions, report, directory, { run, cwd });
-    if (!dryRun) await applyActions(actions, report, directory, { gh, run, cwd });
+    if (!dryRun)
+      await applyIssueActions(actions, report.repository, {
+        gh,
+        run,
+        cwd,
+        bodyFile: (action) => bodyFile(directory, action),
+        helperArguments: (action, repository, file) =>
+          helperArguments(action, { repository }, file),
+      });
   } finally {
     await rm(directory, { recursive: true, force: true });
   }

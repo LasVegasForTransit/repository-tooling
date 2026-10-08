@@ -88,6 +88,7 @@ async function acceptAssets(
   }
 }
 export interface SavedReleaseOptions extends ArtifactAcceptance {
+  artifactKind?: 'worker';
   formatVersion?: 1 | 2;
 }
 export async function packageRelease(
@@ -114,7 +115,12 @@ export async function packageRelease(
     path.join(destination, 'dist/lvbt-release.json'),
     `${JSON.stringify(identity)}\n`,
   );
-  return await sealSavedRelease(destination, identity, undefined, acceptance.formatVersion ?? 1);
+  return await sealSavedRelease(
+    destination,
+    identity,
+    acceptance.artifactKind,
+    acceptance.formatVersion ?? 1,
+  );
 }
 
 export async function sealSavedRelease(

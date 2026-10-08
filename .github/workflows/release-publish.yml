@@ -14,6 +14,10 @@ on:
       attestation-prefix:
         type: string
         required: false
+      legacy-artifact:
+        type: boolean
+        required: false
+        default: false
       app:
         type: string
         required: false
@@ -87,6 +91,7 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       LVBT_RELEASE_PUBLICATION_MODE: ${{ inputs.publication-mode }}
       ATTESTATION_PREFIX: ${{ inputs.attestation-prefix }}
+      LEGACY_ARTIFACT: ${{ inputs.legacy-artifact }}
       LVBT_RELEASE_APP: ${{ inputs.app }}
       LVBT_PRODUCTION_URL: ${{ vars.LVBT_PRODUCTION_URL }}
       LVBT_PREVIEW_URL: ${{ vars.LVBT_PREVIEW_URL }}
@@ -130,7 +135,7 @@ jobs:
           name: ${{ inputs.artifact-prefix }}-${{ inputs.release-id }}
           path: ${{ runner.temp }}/website-release
       - name: Download signed release proof
-        if: inputs.attestation-prefix != ''
+        if: inputs.attestation-prefix != '' && !inputs.legacy-artifact
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           github-token: ${{ github.token }}
@@ -140,7 +145,7 @@ jobs:
       - name: Verify artifact identity and files
         run: |
           proof=()
-          if [ -n "$ATTESTATION_PREFIX" ]; then proof=(--attestation-directory "$RUNNER_TEMP/release-attestation"); fi
+          if [ -n "$ATTESTATION_PREFIX" ] && [ "$LEGACY_ARTIFACT" != true ]; then proof=(--attestation-directory "$RUNNER_TEMP/release-attestation"); fi
           pnpm exec lvbt release verify --directory "$RUNNER_TEMP/website-release" --commit "$RELEASE_COMMIT" --release-id "$RELEASE_ID" "${proof[@]}"
       - name: Install Chromium
         if: inputs.browser-script != 'none'
@@ -149,13 +154,13 @@ jobs:
         if: inputs.target == 'preview'
         run: |
           proof=()
-          if [ -n "$ATTESTATION_PREFIX" ]; then proof=(--attestation-directory "$RUNNER_TEMP/release-attestation"); fi
+          if [ -n "$ATTESTATION_PREFIX" ] && [ "$LEGACY_ARTIFACT" != true ]; then proof=(--attestation-directory "$RUNNER_TEMP/release-attestation"); fi
           pnpm exec lvbt release migrate --directory "$RUNNER_TEMP/website-release" --commit "$RELEASE_COMMIT" --release-id "$RELEASE_ID" --target preview "${proof[@]}"
       - name: Upload candidate without rebuilding
         id: upload
         run: |
           proof=()
-          if [ -n "$ATTESTATION_PREFIX" ]; then proof=(--attestation-directory "$RUNNER_TEMP/release-attestation"); fi
+          if [ -n "$ATTESTATION_PREFIX" ] && [ "$LEGACY_ARTIFACT" != true ]; then proof=(--attestation-directory "$RUNNER_TEMP/release-attestation"); fi
           pnpm exec lvbt release upload --directory "$RUNNER_TEMP/website-release" --target "$TARGET" "${proof[@]}" --expected-version "$EXPECTED_PRODUCTION_VERSION"
       - name: Verify candidate
         id: smoke
@@ -185,7 +190,7 @@ jobs:
         if: inputs.target == 'production'
         run: |
           proof=()
-          if [ -n "$ATTESTATION_PREFIX" ]; then proof=(--attestation-directory "$RUNNER_TEMP/release-attestation"); fi
+          if [ -n "$ATTESTATION_PREFIX" ] && [ "$LEGACY_ARTIFACT" != true ]; then proof=(--attestation-directory "$RUNNER_TEMP/release-attestation"); fi
           pnpm exec lvbt release migrate --directory "$RUNNER_TEMP/website-release" --commit "$RELEASE_COMMIT" --release-id "$RELEASE_ID" --target production "${proof[@]}" --expected-version "$EXPECTED_PRODUCTION_VERSION"
       - name: Activate verified version
         id: activate
@@ -193,7 +198,7 @@ jobs:
           VERSION_ID: ${{ steps.upload.outputs.version }}
         run: |
           proof=()
-          if [ -n "$ATTESTATION_PREFIX" ]; then proof=(--attestation-directory "$RUNNER_TEMP/release-attestation"); fi
+          if [ -n "$ATTESTATION_PREFIX" ] && [ "$LEGACY_ARTIFACT" != true ]; then proof=(--attestation-directory "$RUNNER_TEMP/release-attestation"); fi
           pnpm exec lvbt release activate --directory "$RUNNER_TEMP/website-release" --commit "$RELEASE_COMMIT" --release-id "$RELEASE_ID" --target "$TARGET" --version "$VERSION_ID" "${proof[@]}" --expected-version "$EXPECTED_PRODUCTION_VERSION"
       - name: Verify activated origin
         id: public
@@ -252,6 +257,7 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       LVBT_RELEASE_PUBLICATION_MODE: ${{ inputs.publication-mode }}
       ATTESTATION_PREFIX: ${{ inputs.attestation-prefix }}
+      LEGACY_ARTIFACT: ${{ inputs.legacy-artifact }}
       LVBT_RELEASE_APP: ${{ inputs.app }}
       LVBT_PRODUCTION_URL: ${{ vars.LVBT_PRODUCTION_URL }}
       LVBT_PREVIEW_URL: ${{ vars.LVBT_PREVIEW_URL }}
@@ -289,7 +295,7 @@ jobs:
           name: ${{ inputs.artifact-prefix }}-${{ inputs.release-id }}
           path: ${{ runner.temp }}/website-release
       - name: Download signed release proof
-        if: inputs.attestation-prefix != ''
+        if: inputs.attestation-prefix != '' && !inputs.legacy-artifact
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           github-token: ${{ github.token }}
@@ -299,7 +305,7 @@ jobs:
       - name: Verify artifact identity and files
         run: |
           proof=()
-          if [ -n "$ATTESTATION_PREFIX" ]; then proof=(--attestation-directory "$RUNNER_TEMP/release-attestation"); fi
+          if [ -n "$ATTESTATION_PREFIX" ] && [ "$LEGACY_ARTIFACT" != true ]; then proof=(--attestation-directory "$RUNNER_TEMP/release-attestation"); fi
           pnpm exec lvbt release verify --directory "$RUNNER_TEMP/website-release" --commit "$RELEASE_COMMIT" --release-id "$RELEASE_ID" "${proof[@]}"
       - name: Install Chromium
         if: inputs.browser-script != 'none'
@@ -307,13 +313,13 @@ jobs:
       - name: Apply retained preview schema
         run: |
           proof=()
-          if [ -n "$ATTESTATION_PREFIX" ]; then proof=(--attestation-directory "$RUNNER_TEMP/release-attestation"); fi
+          if [ -n "$ATTESTATION_PREFIX" ] && [ "$LEGACY_ARTIFACT" != true ]; then proof=(--attestation-directory "$RUNNER_TEMP/release-attestation"); fi
           pnpm exec lvbt release migrate --directory "$RUNNER_TEMP/website-release" --commit "$RELEASE_COMMIT" --release-id "$RELEASE_ID" --target preview "${proof[@]}"
       - name: Upload candidate without rebuilding
         id: upload
         run: |
           proof=()
-          if [ -n "$ATTESTATION_PREFIX" ]; then proof=(--attestation-directory "$RUNNER_TEMP/release-attestation"); fi
+          if [ -n "$ATTESTATION_PREFIX" ] && [ "$LEGACY_ARTIFACT" != true ]; then proof=(--attestation-directory "$RUNNER_TEMP/release-attestation"); fi
           pnpm exec lvbt release upload --directory "$RUNNER_TEMP/website-release" --target "$TARGET" "${proof[@]}"
       - name: Verify candidate
         id: smoke
@@ -346,7 +352,7 @@ jobs:
           BROWSER_OUTCOME: ${{ steps.browser.outcome }}
         run: |
           proof=()
-          if [ -n "$ATTESTATION_PREFIX" ]; then proof=(--attestation-directory "$RUNNER_TEMP/release-attestation"); fi
+          if [ -n "$ATTESTATION_PREFIX" ] && [ "$LEGACY_ARTIFACT" != true ]; then proof=(--attestation-directory "$RUNNER_TEMP/release-attestation"); fi
           pnpm exec lvbt release candidate --directory "$RUNNER_TEMP/website-release" --candidate-directory "$RUNNER_TEMP/candidate-proof" --version "$VERSION_ID" --verification "$BROWSER_OUTCOME" "${proof[@]}"
       - name: Retain accepted candidate proof
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -375,6 +381,7 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       LVBT_RELEASE_PUBLICATION_MODE: ${{ inputs.publication-mode }}
       ATTESTATION_PREFIX: ${{ inputs.attestation-prefix }}
+      LEGACY_ARTIFACT: ${{ inputs.legacy-artifact }}
       LVBT_RELEASE_APP: ${{ inputs.app }}
       LVBT_PRODUCTION_URL: ${{ vars.LVBT_PRODUCTION_URL }}
       LVBT_PREVIEW_URL: ${{ vars.LVBT_PREVIEW_URL }}
@@ -416,7 +423,7 @@ jobs:
           name: ${{ inputs.artifact-prefix }}-${{ inputs.release-id }}
           path: ${{ runner.temp }}/website-release
       - name: Download signed release proof
-        if: inputs.attestation-prefix != ''
+        if: inputs.attestation-prefix != '' && !inputs.legacy-artifact
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           github-token: ${{ github.token }}
@@ -426,7 +433,7 @@ jobs:
       - name: Verify artifact identity and files
         run: |
           proof=()
-          if [ -n "$ATTESTATION_PREFIX" ]; then proof=(--attestation-directory "$RUNNER_TEMP/release-attestation"); fi
+          if [ -n "$ATTESTATION_PREFIX" ] && [ "$LEGACY_ARTIFACT" != true ]; then proof=(--attestation-directory "$RUNNER_TEMP/release-attestation"); fi
           pnpm exec lvbt release verify --directory "$RUNNER_TEMP/website-release" --commit "$RELEASE_COMMIT" --release-id "$RELEASE_ID" "${proof[@]}"
       - name: Download current-run accepted candidate
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
@@ -439,13 +446,13 @@ jobs:
         if: inputs.target == 'production'
         run: |
           proof=()
-          if [ -n "$ATTESTATION_PREFIX" ]; then proof=(--attestation-directory "$RUNNER_TEMP/release-attestation"); fi
+          if [ -n "$ATTESTATION_PREFIX" ] && [ "$LEGACY_ARTIFACT" != true ]; then proof=(--attestation-directory "$RUNNER_TEMP/release-attestation"); fi
           pnpm exec lvbt release migrate --directory "$RUNNER_TEMP/website-release" --commit "$RELEASE_COMMIT" --release-id "$RELEASE_ID" --target production --candidate-directory "$RUNNER_TEMP/candidate-proof" "${proof[@]}" --expected-version "$EXPECTED_PRODUCTION_VERSION"
       - name: Activate verified version
         id: activate
         run: |
           proof=()
-          if [ -n "$ATTESTATION_PREFIX" ]; then proof=(--attestation-directory "$RUNNER_TEMP/release-attestation"); fi
+          if [ -n "$ATTESTATION_PREFIX" ] && [ "$LEGACY_ARTIFACT" != true ]; then proof=(--attestation-directory "$RUNNER_TEMP/release-attestation"); fi
           pnpm exec lvbt release activate --directory "$RUNNER_TEMP/website-release" --commit "$RELEASE_COMMIT" --release-id "$RELEASE_ID" --target "$TARGET" --candidate-directory "$RUNNER_TEMP/candidate-proof" "${proof[@]}" --expected-version "$EXPECTED_PRODUCTION_VERSION"
       - name: Verify activated origin
         id: public
