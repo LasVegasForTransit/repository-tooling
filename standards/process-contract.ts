@@ -2,6 +2,7 @@ import type { Finding } from './status.ts';
 import path from 'node:path';
 import { standardCommandsFor } from '../packages/cli/src/lib/check/standard.mjs';
 import { OWNED_FILES } from './owned-files.ts';
+import { configurationSpecifiers } from './configuration-imports.ts';
 import {
   turboCacheProblem,
   turboCacheRequired,
@@ -65,8 +66,7 @@ function json(input: string | null | undefined): unknown {
 export function configurationTargets(files: ProcessSnapshot['files'], file: string): string[] {
   const targets: string[] = [];
   const content = files[file] ?? '';
-  for (const match of content.matchAll(/['"]([^'"]+)['"]/gu)) {
-    const specifier = match[1] ?? '';
+  for (const specifier of configurationSpecifiers(file, content)) {
     if (specifier.startsWith('.')) {
       const base = path.posix.normalize(path.posix.join(path.posix.dirname(file), specifier));
       targets.push(base, `${base}.json`, `${base}.js`, `${base}.mjs`, `${base}.ts`);
@@ -98,7 +98,13 @@ function sharedConfiguration(
   seen.add(file);
   const content = files[file];
   if (!content) return false;
-  if (content.includes(`@lasvegasfortransit/${family}-config`)) return true;
+  const shared = `@lasvegasfortransit/${family}-config`;
+  if (
+    configurationSpecifiers(file, content).some(
+      (specifier) => specifier === shared || specifier.startsWith(`${shared}/`),
+    )
+  )
+    return true;
   return configurationTargets(files, file).some((target) =>
     sharedConfiguration(files, target, family, seen),
   );
