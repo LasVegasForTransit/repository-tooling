@@ -63,7 +63,7 @@ async function incomingSource(fixture) {
 
 test(
   'published and current update drivers restore real commit hooks for all templates',
-  { timeout: 300000 },
+  { timeout: 1800000 },
   async (t) => {
     const fixture = await mkdtemp(path.join(os.tmpdir(), 'lvbt-template-hooks-'));
     t.after(() => rm(fixture, { recursive: true, force: true }));

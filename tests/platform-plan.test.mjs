@@ -300,6 +300,34 @@ test('a missing GitHub environment is created before its secrets are stored', ()
   );
 });
 
+test('a declared main-only release environment reports policy drift before credential setup', () => {
+  const plan = planAfter(
+    (state) =>
+      (state.github.value.policies = {
+        production: { deployment_branch_policy: null, branch_policies: [] },
+      }),
+    (manifest) => (manifest.github.environments = [{ name: 'production', branch: 'main' }]),
+  );
+  const entry = plan.byId('github:production');
+  assert.equal(entry.status, 'missing');
+  assert.deepEqual(entry.action, {
+    type: 'github.environment',
+    environment: 'production',
+    branch: 'main',
+  });
+  const fixed = planAfter(
+    (state) =>
+      (state.github.value.policies = {
+        production: {
+          deployment_branch_policy: { protected_branches: false, custom_branch_policies: true },
+          branch_policies: [{ name: 'main', type: 'branch' }],
+        },
+      }),
+    (manifest) => (manifest.github.environments = [{ name: 'production', branch: 'main' }]),
+  );
+  assert.equal(fixed.byId('github:production').status, 'ok');
+});
+
 test('when Wrangler is signed out, nothing it reads is reported as ready', () => {
   const plan = planAfter((state) => {
     const signedOut = unknown('Wrangler is not signed in.', 'unauthorized');

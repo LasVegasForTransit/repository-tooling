@@ -153,6 +153,10 @@ jobs:
         run: pnpm --dir "$ACCEPTANCE_DIRECTORY" exec playwright install --with-deps chromium
       - name: Apply retained preview schema
         if: inputs.target == 'preview'
+        env:
+          CLOUDFLARE_API_TOKEN:
+            ${{ secrets.CLOUDFLARE_MIGRATIONS_API_TOKEN || secrets.CLOUDFLARE_PREVIEW_API_TOKEN ||
+            secrets.CLOUDFLARE_WORKERS_API_TOKEN || secrets.CLOUDFLARE_API_TOKEN }}
         run: |
           proof=()
           if [ -n "$ATTESTATION_PREFIX" ] && [ "$LEGACY_ARTIFACT" != true ]; then proof=(--attestation-directory "$RUNNER_TEMP/release-attestation"); fi
@@ -189,6 +193,10 @@ jobs:
           fi
       - name: Apply retained production schema
         if: inputs.target == 'production'
+        env:
+          CLOUDFLARE_API_TOKEN:
+            ${{ secrets.CLOUDFLARE_MIGRATIONS_API_TOKEN || secrets.CLOUDFLARE_WORKERS_API_TOKEN ||
+            secrets.CLOUDFLARE_API_TOKEN }}
         run: |
           proof=()
           if [ -n "$ATTESTATION_PREFIX" ] && [ "$LEGACY_ARTIFACT" != true ]; then proof=(--attestation-directory "$RUNNER_TEMP/release-attestation"); fi
@@ -313,6 +321,10 @@ jobs:
         if: inputs.browser-script != 'none'
         run: pnpm --dir "$ACCEPTANCE_DIRECTORY" exec playwright install --with-deps chromium
       - name: Apply retained preview schema
+        env:
+          CLOUDFLARE_API_TOKEN:
+            ${{ secrets.CLOUDFLARE_MIGRATIONS_API_TOKEN || secrets.CLOUDFLARE_PREVIEW_API_TOKEN ||
+            secrets.CLOUDFLARE_WORKERS_API_TOKEN || secrets.CLOUDFLARE_API_TOKEN }}
         run: |
           proof=()
           if [ -n "$ATTESTATION_PREFIX" ] && [ "$LEGACY_ARTIFACT" != true ]; then proof=(--attestation-directory "$RUNNER_TEMP/release-attestation"); fi
@@ -447,6 +459,10 @@ jobs:
           path: ${{ runner.temp }}/candidate-proof
       - name: Apply retained production schema
         if: inputs.target == 'production'
+        env:
+          CLOUDFLARE_API_TOKEN:
+            ${{ secrets.CLOUDFLARE_MIGRATIONS_API_TOKEN || secrets.CLOUDFLARE_WORKERS_API_TOKEN ||
+            secrets.CLOUDFLARE_API_TOKEN }}
         run: |
           proof=()
           if [ -n "$ATTESTATION_PREFIX" ] && [ "$LEGACY_ARTIFACT" != true ]; then proof=(--attestation-directory "$RUNNER_TEMP/release-attestation"); fi

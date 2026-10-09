@@ -1,0 +1,74 @@
+name: Build isolated pull request preview
+on:
+  workflow_call:
+    inputs:
+      artifact-prefix:
+        type: string
+        required: true
+      validation-browser-directory:
+        type: string
+        required: true
+      app:
+        type: string
+        required: false
+      enabled:
+        type: boolean
+        default: false
+      require-analytics:
+        type: boolean
+        default: false
+      preview-pages:
+        type: boolean
+        default: false
+permissions:
+  contents: read
+  packages: read
+jobs:
+  build:
+    if:
+      github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name ==
+      github.repository && inputs.enabled
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      VALIDATION_BROWSER_DIRECTORY: ${{ inputs.validation-browser-directory }}
+      LVBT_RELEASE_APP: ${{ inputs.app }}
+      PUBLIC_LVBT_INSTAGRAM: ${{ vars.PUBLIC_LVBT_INSTAGRAM }}
+      PUBLIC_LVBT_LINKEDIN: ${{ vars.PUBLIC_LVBT_LINKEDIN }}
+      PUBLIC_LVBT_BLUESKY: ${{ vars.PUBLIC_LVBT_BLUESKY }}
+      PUBLIC_LVBT_DISCORD: ${{ vars.PUBLIC_LVBT_DISCORD }}
+      PUBLIC_LVBT_DONATE_URL: ${{ vars.PUBLIC_LVBT_DONATE_URL }}
+      PUBLIC_LVBT_MEMBERSHIP_FORM_URL: ${{ vars.PUBLIC_LVBT_MEMBERSHIP_FORM_URL }}
+      PUBLIC_LVBT_NEWSLETTER_URL: ${{ vars.PUBLIC_LVBT_NEWSLETTER_URL }}
+      PUBLIC_LVBT_NEWSLETTER_FEED_URL: ${{ vars.PUBLIC_LVBT_NEWSLETTER_FEED_URL }}
+      PUBLIC_LVBT_LABS_CWA_TOKEN: ${{ vars.PUBLIC_LVBT_LABS_CWA_TOKEN }}
+      PUBLIC_LVBT_CWA_TOKEN: ${{ vars.PUBLIC_LVBT_CWA_TOKEN }}
+      COMPARE_PUBLISHED: ${{ vars.COMPARE_PUBLISHED }}
+      LVBT_REQUIRE_ANALYTICS: ${{ inputs.require-analytics && '1' || '' }}
+      PUBLIC_LVBT_PREVIEW_PAGES: ${{ inputs.preview-pages && '1' || '' }}
+    steps:
+      - name: Checkout PR code without persistent credentials
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          lfs: true
+          persist-credentials: false
+      - name: Setup Node + pnpm
+        uses: ./.github/actions/setup-node-pnpm
+      - name: Install validation browser
+        run: pnpm --dir "$VALIDATION_BROWSER_DIRECTORY" exec playwright install --with-deps chromium
+      - name: Build and validate without deployment credentials
+        run: pnpm check && pnpm build
+      - name: Package upload data
+        run:
+          pnpm exec lvbt release isolated-pr-preview --action build --directory
+          "$RUNNER_TEMP/pr-preview"
+      - name: Retain PR upload data
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: ${{ inputs.artifact-prefix }}-pr-${{ github.run_id }}
+          path: ${{ runner.temp }}/pr-preview/
+          include-hidden-files: true
+          retention-days: 7
+          if-no-files-found: error
