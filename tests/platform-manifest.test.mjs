@@ -180,6 +180,32 @@ test('a generated value is a credential, so it cannot be marked not sensitive', 
   assert.ok(errors.some((error) => error.includes('SIGNING_SECRET')));
 });
 
+test('runtime credentials can be required on the Worker and forbidden in release environments', () => {
+  assert.deepEqual(
+    errorsAfter((manifest) => {
+      manifest.secrets.find((entry) => entry.name === 'RESEND_API_KEY').targets = ['worker'];
+      manifest.forbidden.push({
+        name: 'RESEND_API_KEY',
+        targets: ['github:production'],
+        reason: 'Runtime credentials stay on the Worker.',
+      });
+    }),
+    [],
+  );
+  assert.ok(
+    errorsAfter((manifest) => {
+      manifest.secrets.find((entry) => entry.name === 'RESEND_API_KEY').targets = [
+        'github:production',
+      ];
+      manifest.forbidden.push({
+        name: 'RESEND_API_KEY',
+        targets: ['github:production'],
+        reason: 'conflict',
+      });
+    }).some((error) => error.includes('both required and forbidden')),
+  );
+});
+
 test('a name cannot be both required and forbidden', () => {
   const errors = errorsAfter((manifest) =>
     manifest.forbidden.push({ name: 'RESEND_API_KEY', reason: 'contradiction' }),

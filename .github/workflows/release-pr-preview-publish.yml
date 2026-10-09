@@ -1,0 +1,125 @@
+name: Publish isolated pull request preview
+on:
+  workflow_call:
+    inputs:
+      enabled:
+        type: boolean
+        default: false
+      app:
+        type: string
+        required: false
+      build-workflow:
+        type: string
+        required: true
+      preview-environment:
+        type: string
+        default: worker-preview
+      acceptance-directory:
+        type: string
+        required: true
+      smoke-script:
+        type: string
+        required: true
+      browser-script:
+        type: string
+        required: true
+      browser-project:
+        type: string
+        required: true
+permissions:
+  contents: read
+  actions: read
+  packages: read
+  deployments: write
+  pull-requests: write
+concurrency:
+  group:
+    isolated-pr-preview-${{ github.repository }}-${{ inputs.app || 'default' }}-${{
+    github.event.workflow_run.head_branch }}
+  cancel-in-progress: true
+jobs:
+  publish:
+    if: >-
+      github.event_name == 'workflow_run' && github.ref == 'refs/heads/main' &&
+      github.event.workflow_run.event == 'pull_request' && github.event.workflow_run.conclusion ==
+      'success' && github.event.workflow_run.head_repository.full_name == github.repository &&
+      inputs.enabled && inputs.preview-environment != 'production' && inputs.preview-environment !=
+      'worker-candidate'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    environment:
+      name: ${{ inputs.preview-environment }}
+      url: ${{ steps.upload.outputs.url }}
+    env:
+      LVBT_RELEASE_APP: ${{ inputs.app }}
+      BUILD_WORKFLOW: ${{ inputs.build-workflow }}
+      ACCEPTANCE_DIRECTORY: ${{ inputs.acceptance-directory }}
+      SMOKE_SCRIPT: ${{ inputs.smoke-script }}
+      BROWSER_SCRIPT: ${{ inputs.browser-script }}
+      BROWSER_PROJECT: ${{ inputs.browser-project }}
+      LVBT_PRODUCTION_URL: ${{ vars.LVBT_PRODUCTION_URL }}
+      LVBT_PREVIEW_URL: ${{ vars.LVBT_PREVIEW_URL }}
+      LVBT_PREVIEW_BINDINGS: ${{ vars.LVBT_PREVIEW_BINDINGS }}
+      LVBT_WORKERS_DEV_SUBDOMAIN: ${{ vars.LVBT_WORKERS_DEV_SUBDOMAIN }}
+    steps:
+      - name: Checkout trusted default-branch tools and configuration
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+          lfs: true
+      - name: Setup trusted Node + pnpm
+        uses: ./.github/actions/setup-node-pnpm
+      - name: Validate the source run and current PR
+        id: source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: pnpm exec lvbt release isolated-pr-preview --action source --workflow "$BUILD_WORKFLOW"
+      - name: Download only the validated PR payload
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ steps.source.outputs.releaseId }}
+          name: ${{ steps.source.outputs.artifact }}
+          path: ${{ runner.temp }}/pr-preview
+      - name: Upload compiled PR bytes with trusted preview configuration
+        id: upload
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN:
+            ${{ secrets.CLOUDFLARE_PREVIEW_API_TOKEN || secrets.CLOUDFLARE_WORKERS_API_TOKEN }}
+        run:
+          pnpm exec lvbt release isolated-pr-preview --action publish --workflow "$BUILD_WORKFLOW"
+          --directory "$RUNNER_TEMP/pr-preview"
+      - name: Provide verified static assets to trusted acceptance tests
+        run: cp -R "$RUNNER_TEMP/pr-preview/dist" "$ACCEPTANCE_DIRECTORY/dist"
+      - name: Install acceptance browser from main
+        run: pnpm --dir "$ACCEPTANCE_DIRECTORY" exec playwright install --with-deps chromium
+      - name: Verify protected preview with trusted acceptance tools
+        env:
+          PREVIEW_URL: ${{ steps.upload.outputs.url }}
+          CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
+          CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
+        run: pnpm --dir "$ACCEPTANCE_DIRECTORY" "$SMOKE_SCRIPT" --url "$PREVIEW_URL" --protected
+      - name: Browser acceptance from main
+        env:
+          PLAYWRIGHT_BASE_URL: ${{ steps.upload.outputs.url }}
+          CF_ACCESS_CLIENT_ID: ${{ secrets.CF_ACCESS_CLIENT_ID }}
+          CF_ACCESS_CLIENT_SECRET: ${{ secrets.CF_ACCESS_CLIENT_SECRET }}
+        run: pnpm --dir "$ACCEPTANCE_DIRECTORY" "$BROWSER_SCRIPT" --project="$BROWSER_PROJECT"
+      - name: Upsert preview comment
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3
+        env:
+          PREVIEW_URL: ${{ steps.upload.outputs.url }}
+          PR_NUMBER: ${{ steps.upload.outputs.number }}
+        with:
+          script: |
+            const { prPreviewComment } = await import(`${process.env.GITHUB_WORKSPACE}/.lvbt/web-platform/packages/web-platform/src/pr-preview-comment.mjs`);
+            const { marker, body } = prPreviewComment(process.env.LVBT_RELEASE_APP || '', process.env.PREVIEW_URL);
+            const target = { owner: context.repo.owner, repo: context.repo.repo };
+            const issue_number = Number(process.env.PR_NUMBER);
+            const comments = await github.paginate(github.rest.issues.listComments, { ...target, issue_number });
+            const existing = comments.find(c => c.user?.login === 'github-actions[bot]' && c.body?.includes(marker));
+            if (existing) await github.rest.issues.updateComment({ ...target, comment_id: existing.id, body });
+            else await github.rest.issues.createComment({ ...target, issue_number, body });
