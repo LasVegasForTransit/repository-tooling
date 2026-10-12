@@ -33,6 +33,10 @@ Worker has separate D1 and Durable Object namespaces, and preview cron schedules
 Production activation deploys the same saved bytes and settings, preserving its declared Durable
 Object class and namespace identity.
 
+Named deployments update Worker code and bindings without managing custom-domain routes. Existing
+route mappings stay attached to their Workers, so a release does not need zone write access or
+change routing while uploading or activating the saved artifact.
+
 An app can keep version URLs for pull request previews and use named staging for production by
 setting `publicationMode: "version"` and `productionPublicationMode: "named-staging"`. The
 production promotion workflow passes `publication-mode: named-staging` to the shared publisher.
