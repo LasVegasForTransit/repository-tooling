@@ -99,6 +99,7 @@ test('release profiles reuse field constraints and reject nested or unknown sett
 test('release extensions use the same constraints in common config and named profiles', () => {
   const valid = {
     publicationMode: 'named-staging',
+    productionPublicationMode: 'named-staging',
     previewOnly: true,
     publicPath: '/transit-funding/',
     previewReadOnlyBindings: ['GTFS_ARCHIVES'],
@@ -112,6 +113,7 @@ test('release extensions use the same constraints in common config and named pro
     assert.deepEqual(validateTooling({ version: 1, release }), []);
   for (const field of [
     { publicationMode: 'custom-deployer' },
+    { productionPublicationMode: 'custom-deployer' },
     { previewOnly: 'false' },
     { workersDevSubdomainEnv: 'not-an-env-name' },
     { publicPath: '//outside/' },

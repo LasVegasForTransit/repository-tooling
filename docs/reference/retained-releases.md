@@ -33,6 +33,15 @@ Worker has separate D1 and Durable Object namespaces, and preview cron schedules
 Production activation deploys the same saved bytes and settings, preserving its declared Durable
 Object class and namespace identity.
 
+An app can keep version URLs for pull request previews and use named staging for production by
+setting `publicationMode: "version"` and `productionPublicationMode: "named-staging"`. The
+production promotion workflow passes `publication-mode: named-staging` to the shared publisher.
+Production acceptance then runs on the protected preview Worker before the publisher deploys the
+retained bytes to the public Worker. The generated production configuration disables version URLs;
+the preview configuration keeps them for isolated pull request previews. When
+`productionPublicationMode` is omitted, production uses `publicationMode` for backward
+compatibility.
+
 The shared workflow serializes staging and promotion for each repository and app. Production
 promotion uses a separate credential environment after a successful preview acceptance job. Its
 immutable receipt binds the current manual Actions run and attempt, reviewed tools revisions,
