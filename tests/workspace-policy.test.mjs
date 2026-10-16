@@ -137,6 +137,28 @@ test('canonical migration is read-only when planned, adds only audited pins and 
     assert.deepEqual((await applyPreset(root, bundle, true)).consumerChanged, []);
   }));
 
+for (const installed of ['1.8.0', '1.9.0']) {
+  test(`canonical update retains the patched smol-toml override from an installed ${installed} pin`, () =>
+    fixture(async (root) => {
+      const catalog = await readFile(
+        new URL('../packages/cli/catalog.json', import.meta.url),
+        'utf8',
+      );
+      const incoming = { ...bundle, files: { 'packages/cli/catalog.json': catalog } };
+      await writeFile(
+        path.join(root, 'pnpm-workspace.yaml'),
+        `packages:\n  - apps/*\noverrides:\n  smol-toml: ${installed}\n  'app > child': 'npm:app-fork@2.0.0'\n`,
+      );
+      await applyPreset(root, incoming);
+      const updated = await readFile(path.join(root, 'pnpm-workspace.yaml'), 'utf8');
+      const selected = scalarSection(updated, 'overrides').entries;
+      assert.equal(selected['smol-toml'], '1.9.0');
+      assert.equal(selected['app > child'], 'npm:app-fork@2.0.0');
+      assert.deepEqual((await applyPreset(root, incoming, true)).consumerChanged, []);
+      assert.equal(await readFile(path.join(root, 'pnpm-workspace.yaml'), 'utf8'), updated);
+    }));
+}
+
 test('malformed controlled YAML stops every consumer and vendor write during planning', () =>
   fixture(async (root) => {
     await writeFile(path.join(root, 'pnpm-workspace.yaml'), 'overrides:\n  sharp: {version: 1}\n');

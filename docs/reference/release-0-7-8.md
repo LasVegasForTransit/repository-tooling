@@ -12,6 +12,10 @@ changed binding types, and changed entrypoints fail before packaging. Unsupporte
 continue to fail closed. Preview services cannot target the production release Worker or any Worker
 used by a production service or Durable Object binding, even under another binding name.
 
+The shared `smol-toml` override advances to 1.9.0 for
+[GHSA-r4xh-jqrq-34v2](https://github.com/advisories/GHSA-r4xh-jqrq-34v2), so standard updates
+preserve the patched consumer pin.
+
 All shared package versions, example dependency pins, and contribution plugin references advance to
 0.7.8. This release adds configuration and artifact support; it does not deploy a target Worker or
 change its public exposure. Deploy the private target Worker before publishing a caller that binds
