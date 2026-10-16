@@ -285,7 +285,7 @@ test('preflight names the fix for every failing check and passes once they are d
   const before = run();
   assert.equal(before.status, 1);
   assert.match(before.stdout, /FAIL {2}git hooks/);
-  assert.match(before.stdout, /fix: pnpm install/);
+  assert.match(before.stdout, /fix: pnpm bootstrap/);
 
   git(repository, 'config', '--local', 'core.hooksPath', '.githooks');
   const after = run();
