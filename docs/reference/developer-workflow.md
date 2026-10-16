@@ -6,11 +6,13 @@ they do not maintain alternative engines. Vendored snapshots are generated relea
 
 ## Local development
 
-Run `pnpm bootstrap`, then `pnpm dev`. Local bootstrap checks the Node and pnpm versions before
-installing, wires hooks, and creates missing environment files declared in `.lvbt/tooling.json`. It
-preserves existing values. `pnpm preflight` reports readiness without changing files. Neither
-command requires GitHub or Cloudflare authentication. Optional integration configuration is reported
-as a warning; it does not prevent page development. Production checks use `--production` explicitly.
+Run `pnpm bootstrap`, then `pnpm dev`. Local bootstrap enables Git hooks before checking tool
+versions or installing dependencies, so a failed installation cannot leave commits and pushes
+unchecked. It then creates missing environment files declared in `.lvbt/tooling.json` and preserves
+existing values. `pnpm preflight` reports readiness without changing files and rejects an effective
+Git configuration that disables the shared hooks, including a worktree override. Neither command
+requires GitHub or Cloudflare authentication. Optional integration configuration is reported as a
+warning; it does not prevent page development. Production checks use `--production` explicitly.
 
 ## Validation and contribution
 

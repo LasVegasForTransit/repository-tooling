@@ -48,7 +48,7 @@ async function fixture(run) {
         env: { ...process.env, CI: '', PATH: `${cwd}/bin:${process.env.PATH}` },
         encoding: 'utf8',
       });
-    await run({ cwd, exec });
+    await run({ cwd, exec, git });
   } finally {
     await rm(cwd, { recursive: true, force: true });
   }
@@ -81,7 +81,8 @@ test('local preflight reports missing environment without writing it or asking f
     await assert.rejects(readFile(path.join(cwd, 'calls')), { code: 'ENOENT' });
   }));
 test('bootstrap rejects unsupported Node before dependency installation', () =>
-  fixture(async ({ cwd, exec }) => {
+  fixture(async ({ cwd, exec, git }) => {
+    git('config', '--local', '--unset', 'core.hooksPath');
     await writeFile(
       path.join(cwd, 'package.json'),
       JSON.stringify({ engines: { node: '^99.0.0' }, packageManager: 'pnpm@11.25.0' }),
@@ -89,6 +90,7 @@ test('bootstrap rejects unsupported Node before dependency installation', () =>
     const result = exec('bootstrap');
     assert.equal(result.status, 1);
     assert.match(result.stdout + result.stderr, /Node/);
+    assert.equal(git('config', '--get', 'core.hooksPath').stdout.toString().trim(), '.githooks');
     await assert.rejects(readFile(path.join(cwd, 'calls')), { code: 'ENOENT' });
   }));
 test('local preflight detects a changed installed lockfile without writing a new fingerprint', () =>
@@ -129,4 +131,40 @@ test('configured local preflight probes scanner availability without scanning or
     assert.equal(await readFile(path.join(cwd, 'scanner-calls'), 'utf8'), 'version\n');
     await assert.rejects(readFile(path.join(cwd, 'calls')), { code: 'ENOENT' });
     assert.equal(await readFile(path.join(cwd, '.env.local'), 'utf8'), 'API_KEY=\n');
+  }));
+
+test('bootstrap enables hooks before a failed dependency install', () =>
+  fixture(async ({ cwd, exec, git }) => {
+    git('config', '--local', '--unset', 'core.hooksPath');
+    await writeFile(
+      path.join(cwd, 'bin/pnpm'),
+      '#!/bin/sh\ncase "$1" in\n--version) echo 11.25.0;;\ninstall) git config --get core.hooksPath > install-hooks; exit 42;;\nesac\n',
+    );
+    const result = exec('bootstrap');
+    assert.equal(result.status, 42, result.stdout + result.stderr);
+    assert.equal(await readFile(path.join(cwd, 'install-hooks'), 'utf8'), '.githooks\n');
+    assert.equal(
+      git('config', '--local', '--get', 'core.hooksPath').stdout.toString().trim(),
+      '.githooks',
+    );
+  }));
+
+test('preflight rejects a worktree override that disables locally configured hooks', () =>
+  fixture(async ({ exec, git }) => {
+    git('config', '--local', 'extensions.worktreeConfig', 'true');
+    git('config', '--worktree', 'core.hooksPath', '/dev/null');
+    const result = exec('preflight');
+    assert.equal(result.status, 1);
+    assert.match(result.stdout, /FAIL\s+git hooks/);
+    assert.match(result.stdout, /core.hooksPath is \/dev\/null/);
+  }));
+
+test('bootstrap refuses an overriding hook configuration before installing dependencies', () =>
+  fixture(async ({ cwd, exec, git }) => {
+    git('config', '--local', 'extensions.worktreeConfig', 'true');
+    git('config', '--worktree', 'core.hooksPath', '/dev/null');
+    const result = exec('bootstrap');
+    assert.equal(result.status, 1, result.stdout + result.stderr);
+    assert.match(result.stderr, /overrides .githooks/);
+    await assert.rejects(readFile(path.join(cwd, 'calls')), { code: 'ENOENT' });
   }));
