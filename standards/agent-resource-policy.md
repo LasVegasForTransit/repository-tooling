@@ -6,6 +6,10 @@ Repository-specific guidance continues to apply alongside this policy.
 
 ## Preflight
 
+- Justify every background job, table, abstraction and integration against a current requirement.
+  Prefer existing provider functionality and direct, bounded workflows over custom synchronization
+  frameworks. Defer optional features and speculative infrastructure. Simplification must preserve
+  consent, security, deletion and backup requirements.
 - Default to local or mocked tests. Inspect existing instructions, compatible installed
   dependencies, caches and focused checks before downloading packages, creating worktrees or device
   images, or running a build matrix. Reuse compatible dependencies and avoid duplicate agent work.
