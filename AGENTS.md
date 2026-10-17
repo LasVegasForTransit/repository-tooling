@@ -31,3 +31,9 @@ Nothing is published or tagged from this repository without the maintainer's exp
 new release tag and opens an update pull request in that repository, using only that workflow's own
 token. A patch release's pull request merges itself; a minor release's waits for a maintainer. A new
 rule warns for at least one minor release before it fails.
+
+## Shared resource policy
+
+Follow the shared [resource policy](standards/agent-resource-policy.md) before running work.
+
+This shared policy supplements the project-specific instructions in this file.

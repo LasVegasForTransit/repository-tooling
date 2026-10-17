@@ -37,3 +37,9 @@ change crosses boundaries; never invent one for a feature, file, task, or role.
 
 Lint, format, TypeScript, and test settings extend the `@lasvegasfortransit/*` packages from
 `LasVegasForTransit/repository-tooling`. Change a shared rule there, not here.
+
+## Shared resource policy
+
+Follow the shared [resource policy](.lvbt/agent-resource-policy.md) before running work.
+
+This shared policy supplements the project-specific instructions in this file.

@@ -3,6 +3,7 @@ import { existsSync } from 'node:fs';
 import { mkdir, readFile, readdir, rename, rm, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
+import { syncResourcePolicy } from './agent-resource-policy.ts';
 import { syncSetupEntrypoints } from './setup-entrypoints.ts';
 import { syncCommunityPublication } from './community-publication.ts';
 import { rejectSymlinkDestination } from './paths.ts';
@@ -171,6 +172,7 @@ export async function applyPreset(root: string, bundle: WebPreset, dryRun = fals
         ...(await syncOwnedFiles(root, bundle, dry)),
         ...(await syncPluginRef(root, bundle, dry)),
         ...(await syncCommunityPublication(root, bundle, dry)),
+        ...(await syncResourcePolicy(root, bundle, dry)),
       ]),
     ].sort();
   // Planning first means a consumer file a migration can't read stops the update before any write.

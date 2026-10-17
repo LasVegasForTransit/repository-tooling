@@ -52,6 +52,15 @@ export async function checkStandard({ cwd }) {
       const metadata = await verifyPreset(cwd);
       release = metadata.release;
       const drift = await ownedFileDrift(cwd, metadata.release);
+      const policyCheck = path.join(vendor, 'agent-resource-policy.ts');
+      if (existsSync(policyCheck)) {
+        const { resourcePolicyProblems } = await import(pathToFileURL(policyCheck).href);
+        lines.push(...(await resourcePolicyProblems(cwd)).map((problem) => `warning: ${problem}`));
+      } else {
+        lines.push(
+          'warning: adopt the current standard to receive the shared agent resource policy.',
+        );
+      }
       if (drift.length) {
         lines.push(...drift);
         ok = false;

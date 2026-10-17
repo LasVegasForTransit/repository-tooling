@@ -135,6 +135,8 @@ for (const [name, ref] of [['published v0.6.3', 'v0.6.3']])
         execFileSync('git', ['clone', '--quiet', '--shared', source, directory]);
       execFileSync('git', ['-C', installed, 'checkout', '--quiet', ref]);
       const incomingFiles = [
+        'standards/agent-resource-policy.ts',
+        'standards/agent-resource-policy.md',
         'standards/turbo-cache.ts',
         'standards/incoming-policy.ts',
         'standards/workspace-policy.ts',

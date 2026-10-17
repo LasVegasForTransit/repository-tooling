@@ -6,6 +6,7 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
 
+import { resourcePolicyProblems } from './agent-resource-policy.ts';
 import { ownedFileDrift } from './owned-files.ts';
 import { applyPreset, validateBundle, verifyPreset, type WebPreset } from './web-platform.ts';
 import { readCommit, readRelease } from './web-platform-source.ts';
@@ -98,6 +99,10 @@ async function update(
 /** Verifies the vendored preset and the files the standard owns in the repository. */
 async function check(root: string, json: boolean | undefined) {
   const metadata = await verifyPreset(root);
+  for (const problem of await resourcePolicyProblems(root))
+    process.stderr.write(
+      `warning: ${problem} Run pnpm standards:update to repair shared policy references.\n`,
+    );
   // Warnings until v0.6.0, when these fail and the update restores the standard's copies.
   for (const problem of await ownedFileDrift(root, metadata.release))
     process.stderr.write(
