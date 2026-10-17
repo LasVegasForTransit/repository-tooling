@@ -12,8 +12,8 @@ Repository-specific guidance continues to apply alongside this policy.
   consent, security, deletion and backup requirements.
 - Preserve requested useful behavior, including two-way sync. Use change-driven, bounded processing
   with explicit source-of-truth and conflict rules; prevent feedback loops. Preserve consent,
-  unsubscribe, deletion and security obligations. Lower cost alone does not justify removing requested
-  capabilities.
+  unsubscribe, deletion and security obligations. Lower cost alone does not justify removing
+  requested capabilities.
 - Default to local or mocked tests. Inspect existing instructions, compatible installed
   dependencies, caches and focused checks before downloading packages, creating worktrees or device
   images, or running a build matrix. Reuse compatible dependencies and avoid duplicate agent work.
