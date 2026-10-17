@@ -148,7 +148,10 @@ test('declared audits and releases need shared workflow evidence at the inventor
 
 test('source command contracts and non-Node community repositories are exempt from consumer process warnings', () => {
   const files = { 'package.json': '{"scripts":{"check":"pnpm lint"}}' };
-  assert.deepEqual(processFindings(processSnapshot({ kind: 'source', files })), []);
+  assert.deepEqual(
+    processFindings(processSnapshot({ kind: 'source', files })).map(({ rule }) => rule),
+    ['agent-resource-policy'],
+  );
   assert.deepEqual(processFindings(processSnapshot({ files: {} })), []);
 });
 

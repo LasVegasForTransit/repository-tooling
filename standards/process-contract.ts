@@ -1,3 +1,8 @@
+import {
+  RESOURCE_POLICY_SOURCE,
+  RESOURCE_POLICY_TARGET,
+  resourcePolicyDrift,
+} from './agent-resource-policy.ts';
 import type { Finding } from './status.ts';
 import path from 'node:path';
 import { standardCommandsFor } from '../packages/cli/src/lib/check/standard.mjs';
@@ -33,6 +38,11 @@ export function configurationFamily(file: string): string | undefined {
 }
 export function inventoryPaths(paths: string[]): string[] {
   const root = [
+    'AGENTS.md',
+    'CLAUDE.md',
+    RESOURCE_POLICY_SOURCE,
+    RESOURCE_POLICY_TARGET,
+    `.lvbt/web-platform/${RESOURCE_POLICY_SOURCE}`,
     'package.json',
     'pnpm-workspace.yaml',
     'turbo.json',
@@ -215,7 +225,18 @@ function cacheFindings(snapshot: ProcessSnapshot): Finding[] {
     : [];
 }
 export function processFindings(snapshot: ProcessSnapshot): Finding[] {
-  if (snapshot.kind === 'source' || !snapshot.files['package.json']) return [];
+  if (snapshot.kind === 'source')
+    return resourcePolicyDrift(
+      snapshot.files,
+      snapshot.files[RESOURCE_POLICY_SOURCE],
+      RESOURCE_POLICY_SOURCE,
+    ).map((message) => ({
+      repository: snapshot.name,
+      rule: 'agent-resource-policy',
+      message,
+      severity: 'warning' as const,
+    }));
+  if (!snapshot.files['package.json']) return [];
   const found: Finding[] = [];
   const add = (rule: string, message: string) =>
     found.push({ repository: snapshot.name, rule, message, severity: 'warning' as const });
@@ -224,6 +245,11 @@ export function processFindings(snapshot: ProcessSnapshot): Finding[] {
     add('package', 'Root package.json is unreadable.');
     return found;
   }
+  for (const problem of resourcePolicyDrift(
+    snapshot.files,
+    snapshot.files[`.lvbt/web-platform/${RESOURCE_POLICY_SOURCE}`],
+  ))
+    add('agent-resource-policy', problem);
   commandFindings(snapshot, pkg, add);
   fileFindings(snapshot, add);
   const provenance = json(snapshot.files['.lvbt/web-platform.json']) as
