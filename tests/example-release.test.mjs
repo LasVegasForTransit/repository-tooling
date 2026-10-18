@@ -1,9 +1,52 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { readFile } from 'node:fs/promises';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import { readReleaseConfiguration } from '../packages/web-platform/src/release-config.ts';
+
+function isMergedWorkflowPin(directory, pin) {
+  return (
+    spawnSync('git', ['merge-base', '--is-ancestor', pin, 'refs/remotes/origin/main'], {
+      cwd: directory,
+      encoding: 'utf8',
+    }).status === 0
+  );
+}
+
+test('workflow pins accept newer merged revisions and reject available unmerged commits', async () => {
+  const directory = await mkdtemp(path.join(tmpdir(), 'lvbt-workflow-history-'));
+  const env = {
+    ...process.env,
+    GIT_AUTHOR_NAME: 'Fixture',
+    GIT_AUTHOR_EMAIL: 'fixture@example.invalid',
+    GIT_COMMITTER_NAME: 'Fixture',
+    GIT_COMMITTER_EMAIL: 'fixture@example.invalid',
+  };
+  const git = (args, input = '') => {
+    const result = spawnSync('git', args, { cwd: directory, encoding: 'utf8', env, input });
+    assert.equal(result.status, 0, result.stderr);
+    return result.stdout.trim();
+  };
+  try {
+    git(['init', '--quiet']);
+    const tree = git(['mktree']);
+    const published = git(['commit-tree', tree], 'Published workflow\n');
+    git(['tag', 'v0.7.0', published]);
+    const merged = git(['commit-tree', tree, '-p', published], 'Reviewed workflow repair\n');
+    git(['update-ref', 'refs/remotes/origin/main', merged]);
+    const unmerged = git(['commit-tree', tree, '-p', merged], 'Unmerged workflow change\n');
+    assert.equal(isMergedWorkflowPin(directory, published), true);
+    assert.equal(isMergedWorkflowPin(directory, merged), true);
+    assert.equal(isMergedWorkflowPin(directory, unmerged), false);
+    assert.equal(isMergedWorkflowPin(directory, 'f'.repeat(40)), false);
+    git(['update-ref', 'refs/remotes/origin/main', unmerged]);
+    assert.equal(isMergedWorkflowPin(directory, unmerged), true);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
 
 for (const name of ['with-astro', 'with-vite-react']) {
   test(`${name}: generated web release requires signed staging and explicit promotion`, async () => {
@@ -47,14 +90,10 @@ for (const name of ['basic', 'with-astro', 'with-vite-react']) {
     }
     assert.ok(pins.size, 'Generated workflows must use immutable reviewed source pins.');
     for (const pin of pins) {
-      const result = spawnSync('git', ['merge-base', '--is-ancestor', pin, 'v0.7.0'], {
-        cwd: path.resolve(import.meta.dirname, '..'),
-        encoding: 'utf8',
-      });
       assert.equal(
-        result.status,
-        0,
-        `${pin} must be reachable through a published merged release; unmerged pins cannot be resolved by Actions after rebase.`,
+        isMergedWorkflowPin(path.resolve(import.meta.dirname, '..'), pin),
+        true,
+        `${pin} must belong to the merged default-branch history; unmerged pins cannot be resolved by Actions after rebase.`,
       );
     }
   });

@@ -11,3 +11,7 @@ additional permissions are required for applications that already have both scop
 
 Adopt the matching tooling package and reusable publisher workflow together. All shared package
 versions, example dependency pins, and contribution plugin references advance to 0.7.9.
+
+Generated application workflows pin the merged publisher repair. Their source-history check accepts
+reviewed revisions on the remote default branch while continuing to reject unmerged or unavailable
+commits; it no longer restricts valid pins to the historical 0.7.0 release.
