@@ -28,3 +28,32 @@ checks need no publishing credentials. Complete these application declarations b
 The shared [retained-release contract](../reference/retained-releases.md) defines artifact identity,
 protection, acceptance and publication receipts. Repository onboarding links to this guide and adds
 only its application-specific configuration and acceptance instructions.
+
+## Keep Worker and migration credentials separate
+
+For an application with retained D1 migrations, each release environment needs its existing Worker
+publisher credential and the migration credential authorized for that environment's database. Use
+the preview credentials in `worker-preview` and production credentials in `worker-candidate`.
+
+1. Store the Worker credential as `CLOUDFLARE_WORKERS_API_TOKEN` and the D1 credential as
+   `CLOUDFLARE_MIGRATIONS_API_TOKEN` in the appropriate GitHub environment. Keep the existing
+   resource restrictions. The workflow supplies the Worker credential as `CLOUDFLARE_API_TOKEN`; do
+   not replace it with the D1 credential around the entire migration command.
+2. Adopt the matching shared tooling release and `release-publish.yml` revision together. The
+   workflow supplies the migration credential separately. The CLI uses it as `CLOUDFLARE_API_TOKEN`
+   only in the D1 subprocess. Worker-version checks continue using the publisher credential.
+3. During an authorized publication, verify that the production baseline and retained schema steps
+   succeed, then inspect the retained publication receipt and public release identity. An explicit
+   expected version must still stop publication if the serving Worker changed before SQL or
+   activation. A successful schema step alone does not confirm publication.
+
+For direct CLI use, an unset `CLOUDFLARE_MIGRATIONS_API_TOKEN` preserves the legacy credential
+fallback. Use that only when the existing default credential already has the required database
+authority. An explicitly empty or blank migration key fails before SQL instead of falling back.
+Applications without retained SQL do not need a migration credential.
+
+If a Worker deployment lookup fails inside the migration step, inspect the workflow's credential
+mapping before changing permissions: the D1 credential should never replace the publisher for that
+lookup. A failure in this pre-write check applies no SQL. A later D1 failure may follow successful
+earlier migrations; reconcile the selected database's applied migrations before retrying. Inspect
+the publication receipt and current Worker identity before recovering an uncertain activation.

@@ -24,6 +24,13 @@ changes require a separately reviewed maintenance process. A migration command c
 earlier files have applied; reconcile the selected database's applied migrations before retrying or
 promoting. The command cannot roll back applied SQL.
 
+The publisher's `CLOUDFLARE_API_TOKEN` remains in effect for Worker-version preconditions.
+`CLOUDFLARE_MIGRATIONS_API_TOKEN` selects a separate credential only for the D1 apply subprocess; it
+is never passed as a command argument. Omitting the separate key preserves the existing default
+credential fallback, while explicitly supplying an empty key fails before SQL. The shared workflow
+maps the separate credential without replacing the publisher's token. See
+[release credential setup](../how-to/set-up-a-web-release.md#keep-worker-and-migration-credentials-separate).
+
 ## Durable Objects and named staging
 
 Workers implementing Durable Objects cannot use version URLs. Declare
