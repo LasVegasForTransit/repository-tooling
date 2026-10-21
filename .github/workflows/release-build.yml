@@ -3,6 +3,10 @@ name: Build retained staging release
 on:
   workflow_call:
     inputs:
+      checkout-lfs:
+        description: Download LFS build inputs only when the application requires them
+        type: boolean
+        default: false
       release-tag:
         description: Reviewed application version tag, supplied by its release workflow
         type: string
@@ -69,7 +73,7 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
-          lfs: true
+          lfs: ${{ inputs.checkout-lfs }}
           # The required gate includes full-history secret scanning.
           fetch-depth: 0
       - name: Setup Node + pnpm
@@ -90,7 +94,7 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
-          lfs: true
+          lfs: ${{ inputs.checkout-lfs }}
           # The required gate includes full-history secret scanning.
           fetch-depth: 0
       - name: Setup Node + pnpm

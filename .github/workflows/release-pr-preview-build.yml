@@ -2,6 +2,10 @@ name: Build isolated pull request preview
 on:
   workflow_call:
     inputs:
+      checkout-lfs:
+        description: Download LFS build inputs only when the application requires them
+        type: boolean
+        default: false
       artifact-prefix:
         type: string
         required: true
@@ -52,7 +56,7 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
-          lfs: true
+          lfs: ${{ inputs.checkout-lfs }}
           persist-credentials: false
       - name: Setup Node + pnpm
         uses: ./.github/actions/setup-node-pnpm

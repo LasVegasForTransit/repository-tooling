@@ -25,6 +25,12 @@ checks need no publishing credentials. Complete these application declarations b
    no shared release marker yet, pass `--expected-version <current-version>` with its verified
    current provider version. Publication stops if that version changed.
 
+Release builders skip Git LFS files by default because each download uses the repository owner's
+bandwidth allowance. If the application needs those files to build, set `checkout-lfs: true` in its
+build-workflow inputs after pinning a merged revision that supports the input. Record the required
+paths in the application's build instructions. Fetch screenshot baselines separately in the
+visual-test job; the release build does not need them.
+
 The shared [retained-release contract](../reference/retained-releases.md) defines artifact identity,
 protection, acceptance and publication receipts. Repository onboarding links to this guide and adds
 only its application-specific configuration and acceptance instructions.
