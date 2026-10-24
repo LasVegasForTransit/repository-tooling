@@ -1,0 +1,21 @@
+name: Wait for uploaded Worker metadata
+description: Wait for the exact uploaded version before subsequent verification or activation.
+inputs:
+  account-id:
+    description: Existing Cloudflare account ID
+    required: true
+  version-id:
+    description: Exact version returned by the verified upload
+    required: true
+  version-url:
+    description: Version URL returned by the same upload
+    required: true
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        INPUT_ACCOUNT_ID: ${{ inputs.account-id }}
+        INPUT_VERSION_ID: ${{ inputs.version-id }}
+        INPUT_VERSION_URL: ${{ inputs.version-url }}
+      run: node "$GITHUB_ACTION_PATH/run.mjs"
