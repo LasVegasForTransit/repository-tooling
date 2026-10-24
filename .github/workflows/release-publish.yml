@@ -167,6 +167,13 @@ jobs:
           proof=()
           if [ -n "$ATTESTATION_PREFIX" ] && [ "$LEGACY_ARTIFACT" != true ]; then proof=(--attestation-directory "$RUNNER_TEMP/release-attestation"); fi
           pnpm exec lvbt release upload --directory "$RUNNER_TEMP/website-release" --target "$TARGET" "${proof[@]}" --expected-version "$EXPECTED_PRODUCTION_VERSION"
+      - name: Wait for uploaded Worker metadata
+        if: inputs.publication-mode == 'version'
+        uses: LasVegasForTransit/repository-tooling/.github/actions/wait-worker-version@7dfb98f116b964ded9d3ba7d41128f7cf4b27aca
+        with:
+          account-id: ${{ env.CLOUDFLARE_ACCOUNT_ID }}
+          version-id: ${{ steps.upload.outputs.version }}
+          version-url: ${{ steps.upload.outputs.url }}
       - name: Verify candidate
         id: smoke
         env:
