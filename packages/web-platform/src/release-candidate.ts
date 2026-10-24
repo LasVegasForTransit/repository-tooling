@@ -41,7 +41,7 @@ interface CandidateContext {
 }
 export interface CandidateOperations {
   getRun(id: string): Promise<unknown>;
-  getJobs(id: string): Promise<unknown>;
+  getJobs(id: string, attempt: string): Promise<unknown>;
   getArtifacts(id: string): Promise<unknown>;
   downloadArtifact(id: number): Promise<string>;
 }
@@ -135,10 +135,10 @@ async function downloadArtifact(repository: string, id: number): Promise<string>
 function operations(repository: string): CandidateOperations {
   return {
     getRun: async (id) => await githubJson(['api', `repos/${repository}/actions/runs/${id}`]),
-    getJobs: async (id) =>
+    getJobs: async (id, attempt) =>
       await githubJson([
         'api',
-        `repos/${repository}/actions/runs/${id}/jobs?filter=latest&per_page=100`,
+        `repos/${repository}/actions/runs/${id}/attempts/${attempt}/jobs?per_page=100`,
       ]),
     getArtifacts: async (id) =>
       await githubJson(['api', `repos/${repository}/actions/runs/${id}/artifacts?per_page=100`]),
@@ -213,8 +213,10 @@ export async function verifyCandidateReceipt(
     throw new Error('Candidate proof must be a regular receipt smaller than1MiB.');
   const text = await readFile(file, 'utf8');
   const receipt = candidateReceiptSchema.parse(JSON.parse(text));
+  // Failed-job retries retain a successful dependency's proof from its producing attempt.
   if (
-    !isDeepStrictEqual(receipt.issuer, context) ||
+    !isDeepStrictEqual({ ...receipt.issuer, attempt: context.attempt }, context) ||
+    BigInt(receipt.issuer.attempt) > BigInt(context.attempt) ||
     !isDeepStrictEqual(receipt.release, selectedRelease(release)) ||
     receipt.preview.worker !== config.previewWorker ||
     receipt.preview.origin !== config.previewUrl
@@ -223,10 +225,10 @@ export async function verifyCandidateReceipt(
       'Candidate proof does not match this run, tools, selected artifact, app, and preview namespace.',
     );
   assertRun(await tools.getRun(context.runId), config, context);
-  assertCompletedCandidate(await tools.getJobs(context.runId));
+  assertCompletedCandidate(await tools.getJobs(context.runId, receipt.issuer.attempt));
   const id = selectedArtifact(
     await tools.getArtifacts(context.runId),
-    candidateArtifactName(context, config.profile),
+    candidateArtifactName(receipt.issuer, config.profile),
     context,
   );
   const retained = await tools.downloadArtifact(id);
