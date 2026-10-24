@@ -11,6 +11,17 @@ inventories. Verified version 1 artifacts without retained SQL keep their origin
 not apply migrations. A version 2 release declaring migrations must carry its frozen SQL;
 publication never fills missing SQL from the current checkout.
 
+## Uploaded version metadata
+
+The version-based publisher waits for the exact uploaded version's metadata before activation. The
+readiness action retries only HTTP 404 with Cloudflare code `100146`, using the same account, Worker
+and version on every read. Delays total at most two minutes; each request also has a bounded
+timeout. Permission failures, other errors and a different returned version stop immediately.
+
+Readiness does not replace artifact, browser, binding or production-version checks. A failed wait
+does not authorize activation or another upload. Reconcile the original version and actual traffic
+before retrying a stopped publication.
+
 ## Schema changes
 
 Declare each migration binding and its app-relative directory under `release.migrations`. The
