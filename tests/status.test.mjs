@@ -5,7 +5,7 @@ import test from 'node:test';
 
 import { applyExceptions, daysBehind, findings, pluginRef, report } from '../standards/status.ts';
 import * as status from '../standards/status.ts';
-import { processFindings } from '../standards/process-contract.ts';
+import { configurationTargets, processFindings } from '../standards/process-contract.ts';
 import { standardCommandsFor } from '../packages/cli/src/lib/check/standard.mjs';
 
 const root = path.resolve(import.meta.dirname, '..');
@@ -90,6 +90,16 @@ test('the status workflow runs daily and by hand with only its own token', async
   assert.match(workflow, /node standards\/status\.ts/);
   assert.match(workflow, /GH_TOKEN: \$\{\{ github\.token \}\}/);
   assert.doesNotMatch(workflow, /secrets\./);
+  const setup = workflow.indexOf('uses: ./.github/actions/setup-node-pnpm');
+  const report = workflow.indexOf('run: node standards/status.ts');
+  assert.ok(setup >= 0 && setup < report, 'install the owned parser runtime before inventory');
+  const action = await readFile(
+    path.join(root, '.github/actions/setup-node-pnpm/action.yml'),
+    'utf8',
+  );
+  assert.match(action, /pnpm install --frozen-lockfile/);
+  const manifest = JSON.parse(await readFile(path.join(root, 'package.json'), 'utf8'));
+  assert.equal(manifest.devDependencies.typescript, 'catalog:');
 });
 
 const processSnapshot = (overrides = {}) => ({
@@ -289,14 +299,69 @@ test('workspace configuration exports prove inheritance through the shared organ
   assert.ok(processFindings(snapshot).some(({ rule }) => rule === 'shared-config'));
 });
 
+test('actual TransitMapper comments preserve all eight shared configuration chains', async () => {
+  const fixture = JSON.parse(
+    await readFile(path.join(root, 'tests/fixtures/transit-mapper-config-comments.json'), 'utf8'),
+  );
+  assert.equal(fixture.source.commit, 'c2f3e75d1849f084292c3e008d5c1cd7dbbd5db5');
+  assert.equal(fixture.roots.length, 8);
+  const snapshot = processSnapshot();
+  Object.assign(snapshot.files, fixture.files);
+  assert.deepEqual(
+    processFindings(snapshot).filter(({ rule }) => rule === 'shared-config'),
+    [],
+  );
+});
+
+test('comments and ordinary data strings cannot establish shared configuration imports', () => {
+  for (const content of [
+    "// import {config} from '@lasvegasfortransit/eslint-config/base';\nexport default [];",
+    "/* This package's example imports '@lasvegasfortransit/eslint-config/base'. */\nexport default [];",
+    'const text = "import config from \'@lasvegasfortransit/eslint-config/base\'";\nexport default [];',
+    "const unused = './shared.js';\nexport default [];",
+  ]) {
+    const snapshot = processSnapshot();
+    snapshot.files['eslint.config.ts'] = content;
+    snapshot.files['shared.ts'] = "export {config} from '@lasvegasfortransit/eslint-config/base';";
+    assert.deepEqual(configurationTargets(snapshot.files, 'eslint.config.ts'), [], content);
+    assert.ok(
+      processFindings(snapshot).some(({ rule }) => rule === 'shared-config'),
+      content,
+    );
+  }
+});
+
+test('literal config paths retain comment-like text and apostrophes inside strings', () => {
+  const snapshot = processSnapshot();
+  const target = "configs/*literal*/worker's.json";
+  snapshot.files['tsconfig.json'] = JSON.stringify({ extends: `./${target}` });
+  snapshot.files[target] =
+    '// The compiler\'s inherited config.\n{"extends":"@lasvegasfortransit/typescript-config/base.json"}';
+  assert.ok(configurationTargets(snapshot.files, 'tsconfig.json').includes(target));
+  assert.equal(
+    processFindings(snapshot).some(({ rule }) => rule === 'shared-config'),
+    false,
+  );
+  const module = "configs/*literal*/worker's.js";
+  snapshot.files['eslint.config.ts'] = `import config from ${JSON.stringify(`./${module}`)};`;
+  snapshot.files[module] = "export {config} from '@lasvegasfortransit/eslint-config/base';";
+  assert.ok(configurationTargets(snapshot.files, 'eslint.config.ts').includes(module));
+  assert.equal(
+    processFindings(snapshot).some(({ rule }) => rule === 'shared-config'),
+    false,
+  );
+});
+
 test('remote inventory reads only declared configuration inheritance at the pinned source', () => {
   const snapshot = processSnapshot();
-  snapshot.files['eslint.config.ts'] = "import { configs } from '@example/config/settings';";
+  snapshot.files['eslint.config.ts'] =
+    "// The editor's config.\nimport { configs } from '@example/config/settings';";
   snapshot.files['packages/config/package.json'] = JSON.stringify({
     name: '@example/config',
     exports: { './settings': './src/settings.ts', '.': './src/app.ts' },
   });
-  snapshot.files['packages/config/src/settings.ts'] = "export { config } from './base.js';";
+  snapshot.files['packages/config/src/settings.ts'] =
+    "/* The package's wrapper. */\nconst documentation = './app.ts';\nexport { config } from './base.js';";
   snapshot.files['packages/config/src/base.ts'] =
     "export { config } from '@lasvegasfortransit/eslint-config/base';";
   snapshot.files['packages/config/src/app.ts'] = 'application code';
