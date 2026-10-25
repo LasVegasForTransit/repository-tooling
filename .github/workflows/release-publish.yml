@@ -260,6 +260,8 @@ jobs:
           retention-days: 90
   named-candidate:
     name: Verify named release candidate
+    outputs:
+      artifact-id: ${{ steps.proof.outputs.artifact-id }}
     if: >-
       github.ref == 'refs/heads/main' && inputs.target == 'production' && inputs.publication-mode ==
       'named-staging' && github.event_name == 'workflow_dispatch'
@@ -376,6 +378,7 @@ jobs:
           if [ -n "$ATTESTATION_PREFIX" ] && [ "$LEGACY_ARTIFACT" != true ]; then proof=(--attestation-directory "$RUNNER_TEMP/release-attestation"); fi
           pnpm exec lvbt release candidate --directory "$RUNNER_TEMP/website-release" --candidate-directory "$RUNNER_TEMP/candidate-proof" --version "$VERSION_ID" --verification "$BROWSER_OUTCOME" "${proof[@]}"
       - name: Retain accepted candidate proof
+        id: proof
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name:
@@ -460,12 +463,18 @@ jobs:
       - name: Install Chromium
         if: inputs.browser-script != 'none'
         run: pnpm --dir "$ACCEPTANCE_DIRECTORY" exec playwright install --with-deps chromium
+      - name: Require accepted candidate artifact
+        env:
+          CANDIDATE_ARTIFACT_ID: ${{ needs.named-candidate.outputs.artifact-id }}
+        run: |
+          if ! [[ "$CANDIDATE_ARTIFACT_ID" =~ ^[1-9][0-9]*$ ]]; then
+            echo 'The successful candidate artifact reference is missing or invalid; rerun all jobs to verify the candidate again.' >&2
+            exit 1
+          fi
       - name: Download current-run accepted candidate
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name:
-            candidate-${{ github.run_id }}-${{ github.run_attempt }}${{ inputs.app != '' &&
-            format('-{0}', inputs.app) || '' }}
+          artifact-ids: ${{ needs.named-candidate.outputs.artifact-id }}
           path: ${{ runner.temp }}/candidate-proof
       - name: Apply retained production schema
         if: inputs.target == 'production'

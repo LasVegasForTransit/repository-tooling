@@ -1,4 +1,5 @@
 import { readFile } from 'node:fs/promises';
+import { spawnSync } from 'node:child_process';
 import { expect, test } from 'vitest';
 test('preview schema applies before candidate acceptance, production applies after acceptance, and profiles serialize publication', async () => {
   const workflow = await readFile(
@@ -52,4 +53,50 @@ test('every migration step supplies a separate D1 credential without overriding 
     if (step.startsWith('Apply retained production schema'))
       expect(step).toContain('--expected-version "$EXPECTED_PRODUCTION_VERSION"');
   }
+});
+
+test('activation downloads its successful dependency artifact and refuses a missing or ambiguous reference', async () => {
+  const workflow = await readFile(
+    new URL('../../../.github/workflows/release-publish.yml', import.meta.url),
+    'utf8',
+  );
+  const candidate = workflow.slice(
+    workflow.indexOf('  named-candidate:'),
+    workflow.indexOf('  named-production:'),
+  );
+  const production = workflow.slice(workflow.indexOf('  named-production:'));
+  expect(candidate).toContain('artifact-id: ${{ steps.proof.outputs.artifact-id }}');
+  expect(candidate).toMatch(/name: Retain accepted candidate proof\n\s+id: proof/u);
+  const download = production
+    .split('      - name: ')
+    .find((step) => step.startsWith('Download current-run accepted candidate'));
+  expect(download).toContain('artifact-ids: ${{ needs.named-candidate.outputs.artifact-id }}');
+  expect(download).not.toContain('github.run_attempt');
+  const guard = production
+    .split('      - name: ')
+    .find((step) => step.startsWith('Require accepted candidate artifact'));
+  expect(guard).toContain(
+    'CANDIDATE_ARTIFACT_ID: ${{ needs.named-candidate.outputs.artifact-id }}',
+  );
+  const script = guard
+    ?.split('        run: |\n')[1]
+    ?.split('\n')
+    .map((line) => line.slice(10))
+    .join('\n');
+  expect(script).toBeTruthy();
+  for (const [id, expected] of [
+    ['55', 0],
+    ['', 1],
+    ['55,56', 1],
+    ['0', 1],
+    ['garbage', 1],
+  ] as const) {
+    const result = spawnSync('bash', ['-e', '-c', script ?? 'exit 99'], {
+      env: { ...process.env, CANDIDATE_ARTIFACT_ID: id },
+    });
+    expect(result.status, id).toBe(expected);
+  }
+  expect(production.indexOf('name: Require accepted candidate artifact')).toBeLessThan(
+    production.indexOf('name: Download current-run accepted candidate'),
+  );
 });

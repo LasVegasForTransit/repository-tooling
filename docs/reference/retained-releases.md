@@ -66,12 +66,12 @@ compatibility.
 
 The shared workflow serializes staging and promotion for each repository and app. Production
 promotion uses a separate credential environment after a successful preview acceptance job. Its
-immutable receipt binds the current manual Actions run and attempt, reviewed tools revisions,
-selected source and artifact hash, app, preview namespace, and acceptance outcome. Production
-activation checks the successful job and downloads the exact same-run proof through GitHub before
-writing provider state. Credentials remain in their respective environments. Standalone activation
-requires live protected preview verification or this verified current-run receipt. Unknown provider
-outcomes require reconciliation rather than automatic retry.
+immutable receipt binds the current manual Actions run and producing attempt, reviewed tools
+revisions, selected source and artifact hash, app, preview namespace, and acceptance outcome.
+Production activation checks that attempt's successful job and downloads the exact same-run proof
+through GitHub before writing provider state. Credentials remain in their respective environments.
+Standalone activation requires live protected preview verification or this verified current-run
+receipt. Unknown provider outcomes require reconciliation rather than automatic retry.
 
 Applications adopting signed artifacts can preserve exact older retained format-version-1 releases
 through the bounded [legacy attestation policy](legacy-release-attestations.md). Every use verifies
@@ -109,3 +109,25 @@ recovery process; they cannot be promoted as though their bytes were captured.
 An uncertain promotion outcome still requires inspecting the unique request, publication receipt,
 and current provider state. Do not redispatch automatically. Worker recovery does not reverse SQL or
 other persistent data changes.
+
+### Retry an activation that did not change production
+
+First reconcile the failed activation's publication receipt, the configured Worker's current
+version, and its live release marker. A failed command alone does not prove that production stayed
+unchanged. Reconcile any partially applied SQL as described above before retrying.
+
+When production is confirmed unchanged, use **Re-run failed jobs** on the same manual promotion run.
+The activation job downloads the immutable artifact ID exported by its successful candidate
+dependency, including when that candidate ran on an earlier attempt. Verification checks the
+producer attempt's successful candidate job, exact retained proof bytes, selected release and app,
+tools revisions, and preview namespace. It accepts only the same run and a producing attempt no
+later than the current one. The existing production-version precondition still runs before SQL and
+activation; a changed version or traffic split stops publication.
+
+If the candidate artifact reference is missing or its retained proof has expired, rerun **all jobs**
+in that same run to stage and verify a new candidate before activation. Missing, mismatched, or
+unsuccessful proof fails closed. Never rename a receipt, edit its attempt, substitute proof from
+another run, or bypass the production-version check. A retry uses the run's original tools and
+workflow revisions; it does not install this recovery fix into an older run. After adopting the
+matching tooling and reusable publisher workflow, start a fresh manual promotion for such a run only
+after reconciling production and selecting its current version precondition.

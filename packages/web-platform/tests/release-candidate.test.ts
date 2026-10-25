@@ -122,7 +122,126 @@ test('candidate proof binds the same manual run, tools, successful job, artifact
         context: { ...context, attempt: '3' },
         operations: operations(),
       }),
+    ).rejects.toThrow('run_attempt');
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test('an activation-only retry reuses the exact proof and successful candidate job from its earlier attempt', async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'candidate-retry-'));
+  const earlier = { ...receipt, issuer: { ...context, attempt: '1' } };
+  const text = JSON.stringify(earlier) + '\n';
+  const queried: string[][] = [];
+  try {
+    await writeFile(path.join(directory, 'candidate.json'), text);
+    expect(
+      await verifyCandidateReceipt(config, release, directory, {
+        context,
+        operations: operations({
+          getJobs: (id, attempt) => {
+            queried.push([id, attempt]);
+            return Promise.resolve(attempt === '1' ? jobs : { jobs: [] });
+          },
+          getArtifacts: () =>
+            Promise.resolve({
+              artifacts: [{ ...artifacts.artifacts[0], name: 'candidate-900-1' }],
+            }),
+          downloadArtifact: (id) => Promise.resolve(id === 55 ? text : 'unexpected artifact'),
+        }),
+      }),
+    ).toEqual(earlier);
+    expect(queried).toEqual([['900', '1']]);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test.each([
+  ['another run', { ...context, runId: '899', attempt: '1' }],
+  ['a future attempt', { ...context, attempt: '3' }],
+  ['different tools', { ...context, attempt: '1', toolsCommit: 'e'.repeat(40) }],
+  ['different shared tooling', { ...context, attempt: '1', sharedCommit: 'e'.repeat(40) }],
+])('retry rejects proof from %s', async (_name, issuer) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'candidate-retry-invalid-'));
+  try {
+    await writeFile(path.join(directory, 'candidate.json'), JSON.stringify({ ...receipt, issuer }));
+    await expect(
+      verifyCandidateReceipt(config, release, directory, { context, operations: operations() }),
     ).rejects.toThrow('this run');
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test.each([
+  ['missing retained artifact', { artifacts: [] }],
+  [
+    'wrong app artifact',
+    { artifacts: [{ ...artifacts.artifacts[0], name: 'candidate-900-1-jobs' }] },
+  ],
+  ['wrong attempt artifact', artifacts],
+  [
+    'expired artifact',
+    { artifacts: [{ ...artifacts.artifacts[0], name: 'candidate-900-1', expired: true }] },
+  ],
+  [
+    'cross-run artifact',
+    {
+      artifacts: [
+        {
+          ...artifacts.artifacts[0],
+          name: 'candidate-900-1',
+          workflow_run: { id: 899, head_sha: context.toolsCommit, head_branch: 'main' },
+        },
+      ],
+    },
+  ],
+])('retry rejects %s', async (_name, retained) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'candidate-retry-artifact-'));
+  const earlier = { ...receipt, issuer: { ...context, attempt: '1' } };
+  try {
+    await writeFile(path.join(directory, 'candidate.json'), JSON.stringify(earlier));
+    await expect(
+      verifyCandidateReceipt(config, release, directory, {
+        context,
+        operations: operations({ getArtifacts: () => Promise.resolve(retained) }),
+      }),
+    ).rejects.toThrow('one retained artifact');
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test('retry refuses an unverified earlier candidate and proof bytes changed after retention', async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'candidate-retry-unverified-'));
+  const earlier = { ...receipt, issuer: { ...context, attempt: '1' } };
+  const text = JSON.stringify(earlier) + '\n';
+  const previous = operations({
+    getArtifacts: () =>
+      Promise.resolve({ artifacts: [{ ...artifacts.artifacts[0], name: 'candidate-900-1' }] }),
+    downloadArtifact: () => Promise.resolve(text),
+  });
+  try {
+    await writeFile(path.join(directory, 'candidate.json'), text);
+    for (const unverified of [
+      { jobs: [] },
+      { jobs: [{ ...jobs.jobs[0], conclusion: 'failure' }] },
+      { jobs: [{ ...jobs.jobs[0], status: 'in_progress', conclusion: null }] },
+      { jobs: [...jobs.jobs, ...jobs.jobs] },
+    ])
+      await expect(
+        verifyCandidateReceipt(config, release, directory, {
+          context,
+          operations: { ...previous, getJobs: () => Promise.resolve(unverified) },
+        }),
+      ).rejects.toThrow('successful candidate job');
+    await expect(
+      verifyCandidateReceipt(config, release, directory, {
+        context,
+        operations: { ...previous, downloadArtifact: () => Promise.resolve(text + '\n') },
+      }),
+    ).rejects.toThrow('proof bytes differ');
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
