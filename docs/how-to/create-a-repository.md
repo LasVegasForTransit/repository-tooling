@@ -57,8 +57,10 @@ install from the versioned snapshot under `.lvbt/web-platform`, so no registry l
   scaffold one with `turbo gen workspace` and delete the sample. Deployable templates also need the
   Worker name in `apps/deploy/cloudflare.config.ts` and, for a site, `site` in `astro.config.ts`.
 - Replace the scopes in `.lvbt/commit-scopes.txt` with this repository's boundaries.
-- `.github/workflows/ci.yml` runs a job named `Validate`. Keep that name: the organization ruleset
-  requires it on every pull request. Add steps to the job.
+- `.github/workflows/ci.yml` runs a job named `Validate` on `pull_request` and `merge_group`, with
+  `cancel-in-progress: ${{ github.event_name != 'merge_group' }}`. Keep that job name and trigger:
+  the organization ruleset requires `Validate` on every pull request and queued merge group. Add
+  steps to the job.
 - `AGENTS.md` carries the paragraphs agents need. Add repository-specific guidance below them.
 
 Update the standard explicitly and review the resulting vendor, provenance, manifest, and lockfile
