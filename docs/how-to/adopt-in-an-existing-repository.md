@@ -38,7 +38,9 @@ Copy these from the example, overwriting your versions:
 Merge these by hand, keeping what the repository already has:
 
 - `.claude/settings.json`: the `lvbt` marketplace entry and `enabledPlugins`
-- `.github/workflows/ci.yml`: a job named `Validate` that runs `pnpm check`
+- `.github/workflows/ci.yml`: a job named `Validate` that runs `pnpm check`, triggered on
+  `pull_request` and `merge_group` with
+  `cancel-in-progress: ${{ github.event_name != 'merge_group' }}`
 - `AGENTS.md`: the standard paragraphs above your own
 
 Point each package's `eslint.config.js`, `tsconfig.json`, and `vitest.config.ts` at the shared

@@ -44,6 +44,28 @@ test('shared governance checks canonical rules and security without writing', as
     true,
   );
 });
+
+test('governance requires merge_queue on organization repos and skips it on personal repos', async () => {
+  const withoutQueue = {
+    ...standard,
+    rules: standard.rules.filter(({ type }) => type !== 'merge_queue'),
+  };
+  const orgChecks = await githubGovernanceDoctor(
+    { repository: 'LVBT/example', ruleset: standard },
+    reader({ '/rulesets': [{ ...withoutQueue, id: 1 }], '/rulesets/1': withoutQueue }),
+  );
+  assert.equal(orgChecks.find((c) => c.id === 'ruleset').status, 'fail');
+
+  const userChecks = await githubGovernanceDoctor(
+    { repository: 'LVBT/example', ruleset: standard },
+    reader({
+      '': { ...repo, owner: { type: 'User' } },
+      '/rulesets': [{ ...withoutQueue, id: 1 }],
+      '/rulesets/1': withoutQueue,
+    }),
+  );
+  assert.equal(userChecks.find((c) => c.id === 'ruleset').status, 'pass');
+});
 test('a weaker actions policy and merge settings name the exact repair', async () => {
   const checks = await githubGovernanceDoctor(
     { repository: 'LVBT/example', ruleset: standard },

@@ -230,9 +230,11 @@ test('the workspace catalog is the same baseline the example ships', async () =>
   assert.deepEqual(entries, catalog);
 });
 
-test('the ruleset requires only the repository Validate check', async () => {
+test('the ruleset requires only the repository Validate check and a rebase merge queue', async () => {
   const ruleset = JSON.parse(await read('standards/ruleset.json'));
   const statusRule = ruleset.rules.find(({ type }) => type === 'required_status_checks');
+  const mergeQueueRule = ruleset.rules.find(({ type }) => type === 'merge_queue');
   assert.deepEqual(statusRule.parameters.required_status_checks, [{ context: 'Validate' }]);
+  assert.equal(mergeQueueRule?.parameters?.merge_method, 'REBASE');
   assert.deepEqual(ruleset.bypass_actors, []);
 });
