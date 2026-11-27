@@ -128,9 +128,10 @@ for (const [exit, expected] of [
       assert.doesNotMatch(JSON.stringify(result), /secret-value/);
     }));
 
+// Node ESM startup in the mock binary can exceed 80ms under concurrent load while the timeout stub waits 5000ms.
 test('native scan timeout fails boundedly without output exposure', () =>
   fixture(async ({ cwd, env }) => {
-    const result = await checkSecrets({ cwd, env: { ...env, SCAN_MODE: 'timeout' }, timeout: 80 });
+    const result = await checkSecrets({ cwd, env: { ...env, SCAN_MODE: 'timeout' }, timeout: 500 });
     assert.equal(result.ok, false);
     assert.match(result.lines.join('\n'), /timed out/i);
     assert.doesNotMatch(JSON.stringify(result), /secret-value/);
@@ -141,7 +142,7 @@ test('Docker scan timeout removes only its own named disposable container', () =
     const result = await checkSecrets({
       cwd,
       env: { ...env, NATIVE_VERSION: '8.99.0', DOCKER_AVAILABLE: 'yes', SCAN_MODE: 'timeout' },
-      timeout: 80,
+      timeout: 500,
     });
     assert.equal(result.ok, false);
     const calls = await commands();
