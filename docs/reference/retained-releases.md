@@ -66,12 +66,12 @@ compatibility.
 
 The shared workflow serializes staging and promotion for each repository and app. Production
 promotion uses a separate credential environment after a successful preview acceptance job. Its
-immutable receipt binds the current manual Actions run and attempt, reviewed tools revisions,
-selected source and artifact hash, app, preview namespace, and acceptance outcome. Production
-activation checks the successful job and downloads the exact same-run proof through GitHub before
-writing provider state. Credentials remain in their respective environments. Standalone activation
-requires live protected preview verification or this verified current-run receipt. Unknown provider
-outcomes require reconciliation rather than automatic retry.
+immutable receipt binds the manual Actions run, the verification job attempt that produced it,
+reviewed tools revisions, selected source and artifact hash, app, preview namespace, and acceptance
+outcome. Production activation checks the successful candidate job and downloads that exact verified
+run receipt through GitHub before writing provider state. Credentials remain in their respective
+environments. Standalone activation requires live protected preview verification or this verified
+same-run receipt. Unknown provider outcomes require reconciliation rather than automatic retry.
 
 Applications adopting signed artifacts can preserve exact older retained format-version-1 releases
 through the bounded [legacy attestation policy](legacy-release-attestations.md). Every use verifies
@@ -109,3 +109,12 @@ recovery process; they cannot be promoted as though their bytes were captured.
 An uncertain promotion outcome still requires inspecting the unique request, publication receipt,
 and current provider state. Do not redispatch automatically. Worker recovery does not reverse SQL or
 other persistent data changes.
+
+When `named-production` fails before changing production (for example, a transient verification or
+activation failure where the publication receipt shows production was not updated), operators can
+use **Re-run failed jobs** on that promotion run after verifying the current production Worker
+version and `--expected-version` precondition. The retried activation job downloads the exact
+`candidate-<runId>-<candidateAttempt>` receipt produced by the succeeded `named-candidate` job and
+re-verifies run provenance, artifact bytes, and current production version before applying schema or
+activation changes. If production already changed or the provider outcome is unknown, reconcile the
+provider state rather than retrying.
